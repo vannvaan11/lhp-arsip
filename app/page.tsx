@@ -76,6 +76,7 @@ export default function Home() {
                     <iframe 
                       src={`https://drive.google.com/file/d/${selectedFileId}/preview`} 
                       className="w-full h-full border-none"
+                      allow="autoplay"
                     />
                   ) : (
                     <div className="flex-1 flex flex-col items-center justify-center text-slate-300">
