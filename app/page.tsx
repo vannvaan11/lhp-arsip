@@ -17,6 +17,7 @@ export default function Dashboard() {
   const [stats, setStats] = useState({ total: 0 });
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [allFolders, setAllFolders] = useState<any[]>([]); // Untuk menyimpan semua folder di Drive
   
   // Fitur Baru: Search & Upload Modal
   const [searchTerm, setSearchTerm] = useState('');
@@ -36,6 +37,19 @@ export default function Dashboard() {
     } catch (e) { console.error(e); }
     setLoading(false);
   };
+
+  const fetchAllFolders = async () => {
+  try {
+    const res = await fetch('/api/drive/all-folders');
+    const data = await res.json();
+    setAllFolders(data);
+  } catch (e) { console.error("Gagal mengambil daftar folder", e); }
+};
+
+// Panggil fungsi ini saat Modal Upload dibuka
+useEffect(() => {
+  if (isUploadModalOpen) fetchAllFolders();
+}, [isUploadModalOpen]);
 
   useEffect(() => {
     if (isLoggedIn) fetchData(currentFolder);
