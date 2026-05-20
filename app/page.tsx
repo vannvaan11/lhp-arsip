@@ -17,6 +17,8 @@ export default function Dashboard() {
   const [stats, setStats] = useState({ total: 0 });
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [uploadDestinationId, setUploadDestinationId] = useState<string>(''); // Default ke root
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -46,17 +48,25 @@ export default function Dashboard() {
   };
 
   const handleUpload = async (e: any) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    setUploading(true);
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('parentId', currentFolder);
-    await fetch('/api/drive/upload', { method: 'POST', body: formData });
-    setUploading(false);
-    fetchData(currentFolder);
-  };
+  const file = e.target.files[0];
+  if (!file) return;
+  setUploading(true);
+  
+  const formData = new FormData();
+  formData.append('file', file);
+  // Gunakan uploadDestinationId jika dipilih, jika tidak gunakan currentFolder
+  formData.append('parentId', uploadDestinationId || currentFolder || '');
 
+  try {
+    await fetch('/api/drive/upload', { method: 'POST', body: formData });
+    setIsUploadModalOpen(false); // Tutup modal setelah sukses
+    fetchData(currentFolder);
+  } catch (error) {
+    alert("Gagal upload!");
+  } finally {
+    setUploading(false);
+  }
+};
   if (!mounted) return null;
 
   if (!isLoggedIn) {
@@ -208,6 +218,65 @@ export default function Dashboard() {
             )}
           </AnimatePresence>
         </div>
+        {/* MODAL UPLOAD DENGAN PILIHAN FOLDER */}
+<AnimatePresence>
+  {isUploadModalOpen && (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <motion.div 
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        onClick={() => setIsUploadModalOpen(false)}
+        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+      />
+      <motion.div 
+        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.9, opacity: 0, y: 20 }}
+        className="relative bg-white rounded-[40px] shadow-2xl w-full max-w-lg overflow-hidden border border-white"
+      >
+        <div className="p-8">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xl font-black text-slate-800">Upload Dokumen Baru</h3>
+            <button onClick={() => setIsUploadModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400">
+              <X size={20} />
+            </button>
+          </div>
+
+          <div className="space-y-6">
+            {/* Pilihan Folder Tujuan */}
+            <div>
+              <label className="text-xs font-black uppercase tracking-widest text-slate-400 mb-3 block">Pilih Folder Tujuan</label>
+              <select 
+                value={uploadDestinationId}
+                onChange={(e) => setUploadDestinationId(e.target.value)}
+                className="w-full p-4 rounded-2xl bg-slate-50 border-none ring-1 ring-slate-100 focus:ring-2 focus:ring-purple-400 outline-none font-bold text-slate-600 appearance-none cursor-pointer"
+              >
+                <option value="">🏠 Root (Folder Utama)</option>
+                {/* Hanya menampilkan folder di dalam dropdown */}
+                {files.filter(f => f.mimeType.includes('folder')).map(folder => (
+                  <option key={folder.id} value={folder.id}>📁 {folder.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Area Pilih File */}
+            <label className="flex flex-col items-center justify-center w-full h-44 border-2 border-dashed border-slate-200 rounded-[32px] cursor-pointer hover:bg-purple-50/50 hover:border-purple-200 transition-all group">
+              <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center px-4">
+                <div className="p-4 bg-purple-50 rounded-2xl text-purple-600 mb-3 group-hover:scale-110 transition-transform">
+                  {uploading ? <Loader2 className="animate-spin" /> : <Upload size={24} />}
+                </div>
+                <p className="text-sm font-bold text-slate-600">
+                  {uploading ? 'Sedang Mengirim...' : 'Klik untuk pilih file laporan'}
+                </p>
+                <p className="text-[10px] text-slate-400 mt-1 uppercase tracking-tighter">PDF, DOCX, atau Gambar (Max 10MB)</p>
+              </div>
+              <input type="file" className="hidden" onChange={handleUpload} disabled={uploading} />
+            </label>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  )}
+</AnimatePresence>
       </main>
     </div>
   );
