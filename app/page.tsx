@@ -3,27 +3,31 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Folder, FileText, Upload, Lock, Database, LayoutDashboard, 
-  Search, LogOut, ChevronRight, Loader2, MoreVertical, Edit2, Plus
+  Search, LogOut, ChevronRight, Loader2, Edit2, Plus, X, Eye
 } from 'lucide-react';
 
 export default function Dashboard() {
+  const [mounted, setMounted] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [password, setPassword] = useState('');
   const [files, setFiles] = useState<any[]>([]);
   const [currentFolder, setCurrentFolder] = useState<string>('');
   const [folderHistory, setFolderHistory] = useState<any[]>([]);
+  const [selectedFile, setSelectedFile] = useState<any>(null);
   const [stats, setStats] = useState({ total: 0 });
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
 
-  // Load Data
+  useEffect(() => { setMounted(true); }, []);
+
   const fetchData = async (fId: string = '') => {
     setLoading(true);
-    const targetId = fId || '';
-    const res = await fetch(`/api/drive?folderId=${targetId}`);
-    const data = await res.json();
-    setFiles(data.files || []);
-    setStats({ total: data.totalDocs || 0 });
+    try {
+      const res = await fetch(`/api/drive?folderId=${fId}`);
+      const data = await res.json();
+      setFiles(data.files || []);
+      setStats({ total: data.totalDocs || 0 });
+    } catch (e) { console.error(e); }
     setLoading(false);
   };
 
@@ -31,10 +35,9 @@ export default function Dashboard() {
     if (isLoggedIn) fetchData(currentFolder);
   }, [isLoggedIn, currentFolder]);
 
-  // Handle Rename
-  const handleRename = async (fileId: string) => {
-    const newName = prompt("Masukkan nama baru:");
-    if (!newName) return;
+  const handleRename = async (fileId: string, oldName: string) => {
+    const newName = prompt("Ubah nama file/folder:", oldName);
+    if (!newName || newName === oldName) return;
     await fetch('/api/drive', {
       method: 'PATCH',
       body: JSON.stringify({ fileId, newName })
@@ -42,7 +45,6 @@ export default function Dashboard() {
     fetchData(currentFolder);
   };
 
-  // Handle Upload
   const handleUpload = async (e: any) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -50,112 +52,161 @@ export default function Dashboard() {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('parentId', currentFolder);
-
     await fetch('/api/drive/upload', { method: 'POST', body: formData });
     setUploading(false);
     fetchData(currentFolder);
   };
 
+  if (!mounted) return null;
+
   if (!isLoggedIn) {
     return (
-      <div className="h-screen flex items-center justify-center bg-gradient-to-br from-pastelBlue via-pastelPurple to-pastelPink">
-        <div className="bg-white/70 backdrop-blur-xl p-10 rounded-[40px] shadow-2xl w-96 text-center border border-white">
-          <div className="p-4 bg-purple-500 w-fit mx-auto rounded-3xl text-white mb-6"><Lock /></div>
-          <h2 className="text-2xl font-bold mb-8">Arsip Pengawasan</h2>
-          <input 
-            type="password" 
-            className="w-full p-4 rounded-2xl border-none ring-1 ring-purple-100 mb-4 outline-none focus:ring-2 focus:ring-purple-400"
-            placeholder="Password"
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          <button 
-            onClick={() => password === 'Lhp3' ? setIsLoggedIn(true) : alert('Salah!')}
-            className="w-full bg-slate-900 text-white p-4 rounded-2xl font-bold hover:scale-105 transition-all"
-          >Masuk</button>
-        </div>
+      <div className="h-screen flex items-center justify-center bg-gradient-to-br from-[#E3F2FD] via-[#F3E5F5] to-[#FCE4EC]">
+        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-white/70 backdrop-blur-2xl p-10 rounded-[40px] shadow-2xl w-96 text-center border border-white">
+          <div className="p-4 bg-purple-500 w-fit mx-auto rounded-3xl text-white mb-6 shadow-lg shadow-purple-200"><Lock /></div>
+          <h2 className="text-2xl font-black mb-8 text-slate-800">Arsip Pengawasan</h2>
+          <input type="password" placeholder="Password Akses" className="w-full p-5 rounded-3xl border-none ring-1 ring-purple-100 mb-4 outline-none focus:ring-2 focus:ring-purple-400 bg-white/50" onChange={(e) => setPassword(e.target.value)} />
+          <button onClick={() => password === 'Lhp3' ? setIsLoggedIn(true) : alert('Password Salah!')} className="w-full bg-slate-900 text-white p-5 rounded-3xl font-bold hover:scale-[1.02] transition-all shadow-xl">Buka Sistem</button>
+        </motion.div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#FBFCFE] flex text-slate-700">
-      {/* Sidebar */}
-      <aside className="w-72 bg-white border-r p-8 flex flex-col gap-10">
-        <div className="flex items-center gap-3 text-purple-600 font-black text-xl italic"><Database /> ARSIP-PRO</div>
-        
-        <div className="space-y-2">
-          <button className="w-full flex items-center gap-3 p-4 bg-purple-50 text-purple-600 rounded-2xl font-bold"><LayoutDashboard size={20}/> Dashboard</button>
-          <button onClick={() => {setCurrentFolder(''); setFolderHistory([]);}} className="w-full flex items-center gap-3 p-4 text-slate-400 hover:bg-slate-50 rounded-2xl transition-all"><Folder size={20}/> Root Drive</button>
+    <div className="h-screen bg-[#FBFCFE] flex text-slate-700 overflow-hidden font-sans">
+      {/* SIDEBAR */}
+      <aside className="w-72 bg-white border-r border-slate-100 p-8 flex flex-col gap-10">
+        <div className="flex items-center gap-3 text-purple-600 font-black text-2xl tracking-tighter italic">
+          <Database size={28} /> LHP-DRIVE
         </div>
+        
+        <nav className="flex-1 space-y-2">
+          <button onClick={() => {setCurrentFolder(''); setFolderHistory([]);}} className={`w-full flex items-center gap-3 p-4 rounded-2xl font-bold transition-all ${!currentFolder ? 'bg-purple-50 text-purple-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50'}`}>
+            <LayoutDashboard size={20}/> Dashboard
+          </button>
+          <button className="w-full flex items-center gap-3 p-4 text-slate-400 hover:bg-slate-50 rounded-2xl transition-all">
+            <Folder size={20}/> Folder Utama
+          </button>
+        </nav>
 
-        <div className="mt-auto p-6 bg-gradient-to-br from-purple-500 to-blue-500 rounded-[32px] text-white">
-          <p className="text-xs opacity-80 mb-1">Total Dokumen</p>
-          <h4 className="text-3xl font-black">{stats.total}</h4>
-          <div className="mt-4 h-1 bg-white/20 rounded-full overflow-hidden">
-            <div className="h-full bg-white w-2/3"></div>
+        {/* Statistik Card */}
+        <div className="p-6 bg-gradient-to-br from-blue-600 to-purple-600 rounded-[32px] text-white shadow-xl shadow-purple-100 relative overflow-hidden">
+          <div className="relative z-10">
+            <p className="text-xs opacity-80 font-bold uppercase tracking-wider mb-1">Total Laporan</p>
+            <h4 className="text-4xl font-black">{stats.total}</h4>
+          </div>
+          <div className="absolute -right-4 -bottom-4 opacity-20 transform rotate-12">
+            <FileText size={100} />
           </div>
         </div>
+
+        <button onClick={() => setIsLoggedIn(false)} className="flex items-center gap-3 p-4 text-red-400 font-bold hover:bg-red-50 rounded-2xl transition-all">
+          <LogOut size={20}/> Keluar
+        </button>
       </aside>
 
-      {/* Main */}
-      <main className="flex-1 p-12 overflow-y-auto">
-        <header className="flex justify-between items-center mb-10">
+      {/* MAIN CONTENT */}
+      <main className="flex-1 flex flex-col min-w-0">
+        <header className="p-10 flex justify-between items-center bg-white/30 backdrop-blur-sm border-b border-slate-100">
           <div>
-            <h1 className="text-3xl font-black mb-1">Unit Kerja Pengawasan</h1>
-            <div className="flex items-center gap-2 text-sm text-slate-400 font-medium">
-              <span>Root</span>
+            <h1 className="text-2xl font-black text-slate-800">Digital Archive</h1>
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">
+              <span className="hover:text-purple-600 cursor-pointer" onClick={() => {setCurrentFolder(''); setFolderHistory([]);}}>Root</span>
               {folderHistory.map((h, i) => (
-                <React.Fragment key={i}><ChevronRight size={14}/> <span>{h.name}</span></React.Fragment>
+                <React.Fragment key={h.id}><ChevronRight size={12}/> <span className="text-slate-600">{h.name}</span></React.Fragment>
               ))}
             </div>
           </div>
           
-          <label className="flex items-center gap-2 bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold cursor-pointer hover:shadow-xl transition-all">
+          <label className="flex items-center gap-3 bg-slate-900 text-white px-8 py-4 rounded-[24px] font-bold cursor-pointer hover:shadow-2xl hover:shadow-slate-300 transition-all active:scale-95">
             {uploading ? <Loader2 className="animate-spin" /> : <Plus size={20} />}
             {uploading ? 'Mengupload...' : 'Upload Dokumen'}
             <input type="file" className="hidden" onChange={handleUpload} disabled={uploading} />
           </label>
         </header>
 
-        {/* Grid Folder & File */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {loading ? (
-            <div className="col-span-full text-center py-20 text-slate-400"><Loader2 className="animate-spin mx-auto mb-2" /> Memuat data...</div>
-          ) : (
-            files.map((file) => (
+        <div className="flex-1 flex overflow-hidden p-6 gap-6">
+          {/* Daftar File & Folder */}
+          <div className="flex-1 overflow-y-auto pr-2 space-y-4">
+            {loading ? (
+              <div className="h-full flex items-center justify-center text-slate-400 font-bold tracking-widest uppercase text-xs">
+                <Loader2 className="animate-spin mr-3" /> Sinkronisasi Drive...
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                {files.map((file) => (
+                  <motion.div 
+                    key={file.id} 
+                    initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                    className={`p-5 rounded-[28px] border transition-all cursor-pointer group flex flex-col justify-between h-44 ${selectedFile?.id === file.id ? 'bg-purple-600 border-purple-600 text-white shadow-xl shadow-purple-200' : 'bg-white border-slate-100 hover:border-purple-200 shadow-sm'}`}
+                    onClick={() => {
+                      if(file.mimeType === 'application/vnd.google-apps.folder') {
+                        setCurrentFolder(file.id);
+                        setFolderHistory([...folderHistory, {id: file.id, name: file.name}]);
+                      } else {
+                        setSelectedFile(file);
+                      }
+                    }}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className={`p-3 rounded-2xl ${selectedFile?.id === file.id ? 'bg-white/20 text-white' : (file.mimeType.includes('folder') ? 'bg-amber-50 text-amber-500' : 'bg-blue-50 text-blue-500')}`}>
+                        {file.mimeType.includes('folder') ? <Folder size={24} fill="currentColor" /> : <FileText size={24} />}
+                      </div>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); handleRename(file.id, file.name); }}
+                        className={`p-2 rounded-xl opacity-0 group-hover:opacity-100 transition-all ${selectedFile?.id === file.id ? 'hover:bg-white/20 text-white' : 'hover:bg-slate-100 text-slate-400'}`}
+                      >
+                        <Edit2 size={16} />
+                      </button>
+                    </div>
+                    <div>
+                      <h4 className="font-bold truncate text-sm mb-1">{file.name}</h4>
+                      <p className={`text-[10px] font-black uppercase tracking-tighter opacity-60`}>
+                        {file.mimeType.includes('folder') ? 'Directory' : 'PDF Document'}
+                      </p>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* LIVE VIEW PANEL (Panel Kanan) */}
+          <AnimatePresence>
+            {selectedFile && (
               <motion.div 
-                whileHover={{ y: -5 }}
-                key={file.id} 
-                className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm hover:shadow-md transition-all group"
+                initial={{ x: 300, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 300, opacity: 0 }}
+                className="w-[450px] bg-white rounded-[40px] shadow-2xl border border-slate-100 flex flex-col overflow-hidden"
               >
-                <div className="flex justify-between items-start mb-4">
-                  {file.mimeType === 'application/vnd.google-apps.folder' ? (
-                    <div className="p-3 bg-amber-50 rounded-2xl text-amber-500"><Folder size={24} fill="currentColor"/></div>
-                  ) : (
-                    <div className="p-3 bg-blue-50 rounded-2xl text-blue-500"><FileText size={24}/></div>
-                  )}
-                  <button onClick={() => handleRename(file.id)} className="p-2 text-slate-300 hover:text-purple-500"><Edit2 size={16}/></button>
+                <div className="p-6 border-b border-slate-50 flex items-center justify-between">
+                  <div className="flex items-center gap-3 overflow-hidden">
+                    <FileText className="text-purple-600 flex-shrink-0" size={20} />
+                    <span className="font-bold text-sm truncate text-slate-700">{selectedFile.name}</span>
+                  </div>
+                  <button onClick={() => setSelectedFile(null)} className="p-2 hover:bg-slate-50 rounded-full text-slate-400">
+                    <X size={20} />
+                  </button>
                 </div>
                 
-                <h4 
-                  onClick={() => {
-                    if(file.mimeType === 'application/vnd.google-apps.folder') {
-                      setCurrentFolder(file.id);
-                      setFolderHistory([...folderHistory, {id: file.id, name: file.name}]);
-                    } else {
-                      window.open(`https://drive.google.com/file/d/${file.id}/view`, '_blank');
-                    }
-                  }}
-                  className="font-bold text-slate-700 truncate cursor-pointer hover:text-purple-600 transition-colors"
-                >
-                  {file.name}
-                </h4>
-                <p className="text-[10px] text-slate-300 mt-1 uppercase font-bold tracking-widest">
-                  {file.mimeType === 'application/vnd.google-apps.folder' ? 'Folder' : 'Document'}
-                </p>
+                <div className="flex-1 bg-slate-50 relative">
+                  <iframe 
+                    src={`https://drive.google.com/file/d/${selectedFile.id}/preview`}
+                    className="w-full h-full border-none"
+                    allow="autoplay"
+                  />
+                </div>
+
+                <div className="p-6 bg-white border-t border-slate-50">
+                  <button 
+                    onClick={() => window.open(`https://drive.google.com/file/d/${selectedFile.id}/view`, '_blank')}
+                    className="w-full py-4 bg-purple-50 text-purple-600 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-purple-100 transition-all"
+                  >
+                    <Eye size={18} /> Buka Tab Baru
+                  </button>
+                </div>
               </motion.div>
-            ))
-          )}
+            )}
+          </AnimatePresence>
         </div>
       </main>
     </div>
