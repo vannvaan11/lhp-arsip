@@ -60,7 +60,7 @@ export default function Dashboard() {
       setUserRole('user');
       setIsLoggedIn(true);
     } else {
-      alert('Password Salah! Gunakan adminLhp3 atau userLhp3');
+      alert('Password Salah!');
     }
   };
 
