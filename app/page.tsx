@@ -17,16 +17,14 @@ export default function Dashboard() {
   const [stats, setStats] = useState({ total: 0 });
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [allFolders, setAllFolders] = useState<any[]>([]); // Untuk menyimpan semua folder di Drive
+  const [allFolders, setAllFolders] = useState<any[]>([]); 
   
-  // Fitur Baru: Search & Upload Modal
   const [searchTerm, setSearchTerm] = useState('');
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [uploadDestinationId, setUploadDestinationId] = useState<string>('');
 
   useEffect(() => { setMounted(true); }, []);
 
-  // Ambil Data dari API
   const fetchData = async (fId: string = '') => {
     setLoading(true);
     try {
@@ -39,23 +37,21 @@ export default function Dashboard() {
   };
 
   const fetchAllFolders = async () => {
-  try {
-    const res = await fetch('/api/drive/all-folders');
-    const data = await res.json();
-    setAllFolders(data);
-  } catch (e) { console.error("Gagal mengambil daftar folder", e); }
-};
+    try {
+      const res = await fetch('/api/drive/all-folders');
+      const data = await res.json();
+      setAllFolders(data);
+    } catch (e) { console.error("Gagal mengambil daftar folder", e); }
+  };
 
-// Panggil fungsi ini saat Modal Upload dibuka
-useEffect(() => {
-  if (isUploadModalOpen) fetchAllFolders();
-}, [isUploadModalOpen]);
+  useEffect(() => {
+    if (isUploadModalOpen) fetchAllFolders();
+  }, [isUploadModalOpen]);
 
   useEffect(() => {
     if (isLoggedIn) fetchData(currentFolder);
   }, [isLoggedIn, currentFolder]);
 
-  // Logika Filter Pencarian
   const filteredFiles = files.filter(file => 
     file.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -94,24 +90,61 @@ useEffect(() => {
 
   if (!mounted) return null;
 
+  // --- BAGIAN LOGIN DENGAN FIX BACKGROUND ---
   if (!isLoggedIn) {
     return (
-      <div className="h-screen flex items-center justify-center bg-gradient-to-br from-[#E3F2FD] via-[#F3E5F5] to-[#FCE4EC]">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white/70 backdrop-blur-2xl p-10 rounded-[40px] shadow-2xl w-96 text-center border border-white">
-          <div className="p-4 bg-purple-500 w-fit mx-auto rounded-3xl text-white mb-6 shadow-lg shadow-purple-200"><Lock /></div>
-          <h2 className="text-2xl font-black mb-8 text-slate-800">Arsip Pengawasan</h2>
-          <form onSubmit={handleLogin}>
-            <input type="password" placeholder="Password Akses" className="w-full p-5 rounded-3xl border-none ring-1 ring-purple-100 mb-4 outline-none focus:ring-2 focus:ring-purple-400 bg-white/50 text-center" onChange={(e) => setPassword(e.target.value)} />
-            <button type="submit" className="w-full bg-slate-900 text-white p-5 rounded-3xl font-bold hover:scale-[1.02] transition-all shadow-xl">Buka Sistem</button>
+      <div className="relative min-h-screen w-full flex items-center justify-center p-4 overflow-hidden">
+        {/* FIX GAMBAR LATAR BELAKANG */}
+        <div 
+          className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat"
+          style={{ 
+            // TIPS: Gunakan direct link (akhiran .png/.jpg). 
+            // Jika link i.ibb.co bermasalah, masukkan gambar ke folder public dan ganti url ke '/nama-file.png'
+            backgroundImage: "url('https://i.ibb.co.com/NnC3sn3S/bg-login.png')", 
+          }}
+        >
+          {/* Overlay Gelap agar Kotak Login Jelas */}
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"></div>
+        </div>
+
+        {/* KOTAK LOGIN */}
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }} 
+          animate={{ opacity: 1, scale: 1 }} 
+          className="relative z-10 bg-white/80 backdrop-blur-2xl p-10 rounded-[40px] shadow-2xl w-full max-w-md text-center border border-white/50"
+        >
+          <div className="p-4 bg-purple-600 w-fit mx-auto rounded-3xl text-white mb-6 shadow-lg shadow-purple-200">
+            <Lock size={32} />
+          </div>
+          <h2 className="text-3xl font-black mb-2 text-slate-800 tracking-tight">Digital Archive</h2>
+          <p className="text-slate-500 mb-10 font-medium text-sm">Sistem Arsip Irban III</p>
+          
+          <form onSubmit={handleLogin} className="space-y-4">
+            <input 
+              type="password" 
+              placeholder="Masukkan Password Akses" 
+              className="w-full p-5 rounded-3xl border-none ring-1 ring-purple-100 mb-4 outline-none focus:ring-2 focus:ring-purple-400 bg-white text-center font-bold text-slate-700 shadow-inner" 
+              onChange={(e) => setPassword(e.target.value)} 
+            />
+            <button 
+              type="submit" 
+              className="w-full bg-slate-900 text-white p-5 rounded-3xl font-bold hover:scale-[1.02] transition-all shadow-xl active:scale-95"
+            >
+              Masuk Ke Sistem
+            </button>
           </form>
+
+          <p className="mt-8 text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em]">
+            Secure Access • Unit Pengawasan
+          </p>
         </motion.div>
       </div>
     );
   }
 
+  // --- DASHBOARD TETAP SAMA ---
   return (
     <div className="h-screen bg-[#FBFCFE] flex text-slate-700 overflow-hidden font-sans">
-      {/* SIDEBAR */}
       <aside className="w-72 bg-white border-r border-slate-100 p-8 flex flex-col gap-10">
         <div className="flex items-center gap-3 text-purple-600 font-black text-2xl italic"><Database size={28} /> LHP-DRIVE</div>
         <nav className="flex-1 space-y-2 text-sm font-bold">
@@ -129,7 +162,6 @@ useEffect(() => {
         <button onClick={() => setIsLoggedIn(false)} className="flex items-center gap-3 p-4 text-red-400 font-bold hover:bg-red-50 rounded-2xl transition-all"><LogOut size={20}/> Keluar</button>
       </aside>
 
-      {/* MAIN CONTENT */}
       <main className="flex-1 flex flex-col min-w-0">
         <header className="p-10 flex justify-between items-center bg-white/30 backdrop-blur-sm border-b border-slate-100">
           <div>
@@ -140,7 +172,6 @@ useEffect(() => {
             </div>
           </div>
 
-          {/* SEARCH BAR */}
           <div className="flex-1 max-w-md mx-8 relative group hidden md:block">
             <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-purple-500 transition-colors" />
             <input type="text" placeholder="Cari dokumen..." className="w-full pl-12 pr-4 py-3 bg-white ring-1 ring-slate-100 rounded-2xl focus:ring-2 focus:ring-purple-400 outline-none text-sm font-medium transition-all" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
@@ -152,7 +183,6 @@ useEffect(() => {
         </header>
 
         <div className="flex-1 flex overflow-hidden p-6 gap-6">
-          {/* GRID FILES */}
           <div className="flex-1 overflow-y-auto pr-2">
             {loading ? (
               <div className="h-full flex items-center justify-center text-slate-400 font-bold text-xs uppercase tracking-widest"><Loader2 className="animate-spin mr-3" /> Memuat Drive...</div>
@@ -176,7 +206,6 @@ useEffect(() => {
             )}
           </div>
 
-          {/* PREVIEW PANEL */}
           <AnimatePresence>
             {selectedFile && (
               <motion.div initial={{ x: 300, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 300, opacity: 0 }} className="w-[450px] bg-white rounded-[40px] shadow-2xl border border-slate-100 flex flex-col overflow-hidden">
@@ -198,17 +227,17 @@ useEffect(() => {
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsUploadModalOpen(false)} className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative bg-white rounded-[40px] shadow-2xl w-full max-w-md p-8 border border-white">
-              <h3 className="text-xl font-black mb-6">Upload Dokumen</h3>
+              <h3 className="text-xl font-black mb-6 text-slate-800">Upload Dokumen</h3>
               <div className="space-y-6">
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Pilih Folder Tujuan</label>
-                  <select value={uploadDestinationId} onChange={(e) => setUploadDestinationId(e.target.value)} className="w-full p-4 rounded-2xl bg-slate-50 border-none ring-1 ring-slate-100 focus:ring-2 focus:ring-purple-400 outline-none font-bold text-sm">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block text-left">Pilih Folder Tujuan</label>
+                  <select value={uploadDestinationId} onChange={(e) => setUploadDestinationId(e.target.value)} className="w-full p-4 rounded-2xl bg-slate-50 border-none ring-1 ring-slate-100 focus:ring-2 focus:ring-purple-400 outline-none font-bold text-sm text-slate-600">
                     <option value="">🏠 Root / Utama</option>
-                    {files.filter(f => f.mimeType.includes('folder')).map(f => (<option key={f.id} value={f.id}>📁 {f.name}</option>))}
+                    {allFolders.map(f => (<option key={f.id} value={f.id}>📁 {f.name}</option>))}
                   </select>
                 </div>
-                <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-slate-100 rounded-[32px] cursor-pointer hover:bg-purple-50 hover:border-purple-200 transition-all text-center p-4">
-                  <div className="p-4 bg-purple-50 rounded-2xl text-purple-600 mb-2">{uploading ? <Loader2 className="animate-spin" /> : <Upload size={24} />}</div>
+                <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-slate-100 rounded-[32px] cursor-pointer hover:bg-purple-50 hover:border-purple-200 transition-all text-center p-4 group">
+                  <div className="p-4 bg-purple-50 rounded-2xl text-purple-600 mb-2 group-hover:scale-110 transition-transform">{uploading ? <Loader2 className="animate-spin" /> : <Upload size={24} />}</div>
                   <p className="text-sm font-bold text-slate-600">{uploading ? 'Mengirim...' : 'Pilih File Laporan'}</p>
                   <input type="file" className="hidden" onChange={handleUpload} disabled={uploading} />
                 </label>
