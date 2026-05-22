@@ -218,7 +218,7 @@ export default function Dashboard() {
                <img src="https://i.ibb.co.com/L22pdJQ/Coat-of-arms-of-Southeast-Sulawesi-svg.png" alt="Logo" className="w-full h-full object-contain" />
             </div>
             <div className="text-center">
-              <h1 className="font-black text-2xl tracking-tighter text-slate-800 dark:text-white italic leading-none">ARV<span className="text-purple-600">DRIVE</span></h1>
+              <h1 className="font-black text-2xl tracking-tighter text-slate-800 dark:text-white italic leading-none">ARV<span className="text-purple-600">DRIV3</span></h1>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1 leading-none">Inspection Tech v2.0</p>
             </div>
           </div>
@@ -256,7 +256,7 @@ export default function Dashboard() {
                 )}
               </AnimatePresence>
               <div>
-                <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter uppercase italic leading-none">Control Center</h1>
+                <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter uppercase italic leading-none">Smart Archiv3</h1>
                 <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 mt-2 uppercase tracking-[0.2em] leading-none">
                   <span className="hover:text-purple-600 cursor-pointer transition-colors" onClick={goHome}>PRIMARY</span>
                   {folderHistory.map((h, i) => (
