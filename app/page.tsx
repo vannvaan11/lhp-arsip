@@ -191,7 +191,7 @@ export default function Dashboard() {
         <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="relative z-10 bg-white/10 backdrop-blur-3xl p-12 rounded-[60px] shadow-2xl w-full max-w-md border border-white/10 text-center">
           <div className="mb-8 flex justify-center">
             <div className="w-24 h-24 bg-white/10 backdrop-blur-md rounded-full p-4 border border-white/20 shadow-inner">
-               <img src="https://i.ibb.co.com/8m4Y3qYf/logo-instansi.png" alt="Logo" className="w-full h-full object-contain" />
+               <img src="https://i.ibb.co.com/L22pdJQ/Coat-of-arms-of-Southeast-Sulawesi-svg.png" alt="Logo" className="w-full h-full object-contain" />
             </div>
           </div>
           <h2 className="text-4xl font-black mb-1 text-white tracking-tighter italic uppercase leading-none">DIGITAL ARCHIVE</h2>
@@ -215,7 +215,7 @@ export default function Dashboard() {
           <div className="flex flex-col items-center gap-4 mb-6">
             {/* FIX LOGO: DIHAPUS BRIGHTNESS-0 INVERT AGAR WARNA ASLI MUNCUL */}
             <div className="w-20 h-20 bg-white/10 dark:bg-white/5 backdrop-blur-md rounded-3xl p-3 border border-white/20 shadow-xl shadow-slate-200/50 dark:shadow-none overflow-hidden flex items-center justify-center">
-               <img src="https://i.ibb.co.com/8m4Y3qYf/logo-instansi.png" alt="Logo" className="w-full h-full object-contain" />
+               <img src="https://i.ibb.co.com/L22pdJQ/Coat-of-arms-of-Southeast-Sulawesi-svg.png" alt="Logo" className="w-full h-full object-contain" />
             </div>
             <div className="text-center">
               <h1 className="font-black text-2xl tracking-tighter text-slate-800 dark:text-white italic leading-none">ARV<span className="text-purple-600">DRIVE</span></h1>
