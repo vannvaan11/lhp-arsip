@@ -5,7 +5,7 @@ import {
   Folder, FileText, Upload, Lock, Database, LayoutDashboard, 
   Search, LogOut, ChevronRight, Loader2, Edit2, Plus, X, Eye,
   Download, Clock, ArrowLeft, Sun, Moon, HardDrive, Shield, 
-  CheckCircle2, AlertCircle, Command, Trash2, Filter, History
+  CheckCircle2, AlertCircle, Command, Trash2, Filter, History, User
 } from 'lucide-react';
 
 // --- INTERFACES ---
@@ -27,6 +27,7 @@ interface ActivityLog {
   fileName: string;
   timestamp: string;
   user: string;
+  device: string;
 }
 
 export default function Dashboard() {
@@ -34,7 +35,9 @@ export default function Dashboard() {
   const [mounted, setMounted] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState<'admin' | 'user' | null>(null);
+  const [userName, setUserName] = useState<string>('');
   const [password, setPassword] = useState('');
+  const [tempName, setTempName] = useState('');
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   const [files, setFiles] = useState<DriveFile[]>([]);
@@ -46,16 +49,16 @@ export default function Dashboard() {
 
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<'all' | 'folder' | 'file'>('all'); // Fitur 2: Filter
+  const [filterType, setFilterType] = useState<'all' | 'folder' | 'file'>('all');
 
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
-  const [isLogModalOpen, setIsLogModalOpen] = useState(false); // Fitur 3: Log
+  const [isLogModalOpen, setIsLogModalOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [uploadDestinationId, setUploadDestinationId] = useState<string>('');
-  const [previewLoading, setPreviewLoading] = useState(true); // Fitur 4: Preview Loading
+  const [previewLoading, setPreviewLoading] = useState(true);
 
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
 
@@ -72,12 +75,14 @@ export default function Dashboard() {
 
     const savedLogin = sessionStorage.getItem('isLoggedIn');
     const savedRole = sessionStorage.getItem('userRole');
+    const savedName = sessionStorage.getItem('userName');
     const savedTheme = localStorage.getItem('theme');
     const savedLogs = localStorage.getItem('drive_logs');
     
-    if (savedLogin === 'true' && savedRole) {
+    if (savedLogin === 'true' && savedRole && savedName) {
       setIsLoggedIn(true);
       setUserRole(savedRole as 'admin' | 'user');
+      setUserName(savedName);
     }
     if (savedTheme === 'dark') setIsDarkMode(true);
     if (savedLogs) setActivityLogs(JSON.parse(savedLogs));
@@ -95,16 +100,23 @@ export default function Dashboard() {
     }
   }, [isDarkMode]);
 
-  // --- LOGGING HELPER (Fitur 3) ---
+  // --- LOGGING HELPER ---
   const addLog = (action: string, fileName: string) => {
+    const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : "Unknown";
+    let deviceDesc = "PC / Windows";
+    if (userAgent.includes("Android")) deviceDesc = "Smartphone Android";
+    else if (userAgent.includes("iPhone")) deviceDesc = "Apple iPhone";
+    else if (userAgent.includes("Macintosh")) deviceDesc = "MacBook/Mac";
+
     const newLog: ActivityLog = {
       id: Math.random().toString(36).substr(2, 9),
       action,
       fileName,
       timestamp: new Date().toLocaleString('id-ID'),
-      user: userRole || 'unknown'
+      user: tempName || userName || "Guest",
+      device: deviceDesc
     };
-    const updatedLogs = [newLog, ...activityLogs].slice(0, 50);
+    const updatedLogs = [newLog, ...activityLogs].slice(0, 100);
     setActivityLogs(updatedLogs);
     localStorage.setItem('drive_logs', JSON.stringify(updatedLogs));
   };
@@ -166,71 +178,60 @@ export default function Dashboard() {
   // --- ACTIONS ---
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!tempName.trim()) { alert("Silakan masukkan Nama/Jabatan!"); return; }
+
     if (password === 'adminLhp3') {
-      setUserRole('admin'); setIsLoggedIn(true);
-      sessionStorage.setItem('isLoggedIn', 'true');
-      sessionStorage.setItem('userRole', 'admin');
+      executeLogin('admin');
     } else if (password === 'userLhp3') {
-      setUserRole('user'); setIsLoggedIn(true);
-      sessionStorage.setItem('isLoggedIn', 'true');
-      sessionStorage.setItem('userRole', 'user');
-    } else { alert('Akses Ditolak! Kode Salah.'); }
+      executeLogin('user');
+    } else { 
+      alert('Kode Akses Salah!'); 
+    }
   };
 
-  // Fitur 5: Multi-upload Logic
+  const executeLogin = (role: 'admin' | 'user') => {
+    setIsLoggedIn(true);
+    setUserRole(role);
+    setUserName(tempName);
+    sessionStorage.setItem('isLoggedIn', 'true');
+    sessionStorage.setItem('userRole', role);
+    sessionStorage.setItem('userName', tempName);
+    addLog("LOGIN", "Masuk ke Sistem");
+  };
+
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = e.target.files;
     if (!selectedFiles || selectedFiles.length === 0) return;
-    
-    setUploading(true); 
-    setUploadStatus('idle');
-    
-    let successCount = 0;
+    setUploading(true); setUploadStatus('idle'); setUploadProgress(0);
+    const dest = uploadDestinationId || currentFolder || '';
+    let success = 0;
     for (let i = 0; i < selectedFiles.length; i++) {
-      const file = selectedFiles[i];
-      setUploadProgress(Math.round(((i) / selectedFiles.length) * 100));
-      
       const formData = new FormData();
-      formData.append('file', file);
-      formData.append('parentId', uploadDestinationId || currentFolder || '');
-      
+      formData.append('file', selectedFiles[i]);
+      formData.append('parentId', dest);
       try {
         const res = await fetch('/api/drive/upload', { method: 'POST', body: formData });
-        if (res.ok) {
-          successCount++;
-          addLog("UPLOAD", file.name);
-        }
+        if (res.ok) { success++; addLog("UPLOAD", selectedFiles[i].name); }
+        setUploadProgress(Math.round(((i + 1) / selectedFiles.length) * 100));
       } catch (e) { console.error(e); }
     }
-
-    setUploadProgress(100);
-    setUploadStatus(successCount > 0 ? 'success' : 'error');
-    setTimeout(() => { 
-      setIsUploadModalOpen(false); 
-      setUploadStatus('idle'); 
-      fetchData(currentFolder); 
-    }, 2000);
+    setUploadStatus(success > 0 ? 'success' : 'error');
+    setTimeout(() => { setIsUploadModalOpen(false); setUploadStatus('idle'); fetchData(currentFolder); }, 2000);
     setUploading(false);
   };
 
-  // Fitur 1: Delete Function
   const handleDelete = async (fileId: string, fileName: string) => {
     if (userRole !== 'admin') return;
     if (!confirm(`Hapus permanen ${fileName}?`)) return;
-
     try {
       const res = await fetch(`/api/drive?fileId=${fileId}`, { method: 'DELETE' });
-      if (res.ok) {
-        addLog("DELETE", fileName);
-        fetchData(currentFolder);
-        if (selectedFile?.id === fileId) setSelectedFile(null);
-      } else { alert("Gagal menghapus file"); }
-    } catch (e) { alert("Error koneksi"); }
+      if (res.ok) { addLog("DELETE", fileName); fetchData(currentFolder); setSelectedFile(null); }
+    } catch (e) { console.error(e); }
   };
 
   const handleRename = async (fileId: string, oldName: string) => {
     if (userRole !== 'admin') return;
-    const newName = prompt("Ubah nama berkas:", oldName);
+    const newName = prompt("Ubah nama:", oldName);
     if (!newName || newName === oldName) return;
     try {
       await fetch('/api/drive', {
@@ -240,12 +241,11 @@ export default function Dashboard() {
       });
       addLog("RENAME", `${oldName} -> ${newName}`);
       fetchData(currentFolder);
-    } catch (e) { alert("Gagal merubah nama"); }
+    } catch (e) { console.error(e); }
   };
 
   if (!mounted) return null;
 
-  // Fitur 2: Filter Logic
   const filteredFiles = files
     .filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase()))
     .filter(f => {
@@ -257,19 +257,18 @@ export default function Dashboard() {
   // --- LOGIN VIEW ---
   if (!isLoggedIn) {
     return (
-      <div className="relative min-h-screen w-full flex items-center justify-center p-4 bg-[#0F172A] font-sans overflow-hidden">
+      <div className="relative min-h-screen w-full flex items-center justify-center p-4 bg-[#0F172A] font-sans overflow-hidden text-white">
         <div className="absolute inset-0 z-0 bg-cover bg-center opacity-30 scale-110" style={{ backgroundImage: "url('https://i.ibb.co.com/NnC3sn3S/bg-login.png')" }}></div>
         <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="relative z-10 bg-white/10 backdrop-blur-3xl p-12 rounded-[60px] shadow-2xl w-full max-w-md border border-white/10 text-center">
           <div className="mb-8 flex justify-center">
-            <div className="w-24 h-24 bg-white/10 backdrop-blur-md rounded-full p-4 border border-white/20 shadow-inner">
-               <img src="https://i.ibb.co.com/L22pdJQ/Coat-of-arms-of-Southeast-Sulawesi-svg.png" alt="Logo" className="w-full h-full object-contain" />
-            </div>
+             <img src="https://i.ibb.co.com/L22pdJQ/Coat-of-arms-of-Southeast-Sulawesi-svg.png" alt="Logo" className="w-20 h-20 object-contain" />
           </div>
-          <h2 className="text-4xl font-black mb-1 text-white tracking-tighter italic uppercase leading-none">DIGITAL ARCHIVE</h2>
-          <p className="text-purple-400 mb-10 text-[10px] font-black uppercase tracking-[0.4em]">Irban III • Inspection Portal</p>
-          <form onSubmit={handleLogin} className="space-y-6">
-            <input type="password" placeholder="ENTER ACCESS CODE" className="w-full p-6 rounded-[30px] border-none outline-none bg-white/5 text-white text-center font-black placeholder:text-white/20 tracking-[0.5em] focus:ring-2 focus:ring-purple-500 transition-all" onChange={(e) => setPassword(e.target.value)} />
-            <button type="submit" className="w-full bg-white text-slate-900 p-6 rounded-[30px] font-black uppercase tracking-widest hover:bg-purple-50 transition-all shadow-xl active:scale-95">Akses Sistem</button>
+          <h2 className="text-3xl font-black mb-1 tracking-tighter italic uppercase">SISTEM ARSIP</h2>
+          <p className="text-purple-400 mb-8 text-[10px] font-black uppercase tracking-[0.4em]">Tracking System Active</p>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <input required type="text" placeholder="NAMA LENGKAP / JABATAN" className="w-full p-5 rounded-[25px] border-none outline-none bg-white/5 text-center font-bold placeholder:text-white/20 focus:ring-2 focus:ring-purple-500 transition-all text-sm uppercase" onChange={(e) => setTempName(e.target.value)} />
+            <input required type="password" placeholder="KODE AKSES" className="w-full p-5 rounded-[25px] border-none outline-none bg-white/5 text-center font-bold placeholder:text-white/20 tracking-[0.5em] focus:ring-2 focus:ring-purple-500 transition-all" onChange={(e) => setPassword(e.target.value)} />
+            <button type="submit" className="w-full bg-white text-slate-900 p-5 rounded-[25px] font-black uppercase tracking-widest hover:bg-purple-50 transition-all shadow-xl active:scale-95">Masuk Sistem</button>
           </form>
         </motion.div>
       </div>
@@ -284,44 +283,31 @@ export default function Dashboard() {
         {/* SIDEBAR */}
         <aside className="w-80 bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border-r border-slate-200 dark:border-slate-800 p-8 flex flex-col gap-6 relative z-20">
           <div className="flex flex-col items-center gap-4 mb-4">
-            <div className="w-20 h-20 bg-white/10 dark:bg-white/5 backdrop-blur-md rounded-3xl p-3 border border-white/20 shadow-xl overflow-hidden flex items-center justify-center">
+            <div className="w-16 h-16 bg-white/10 rounded-2xl p-2 border border-white/20 flex items-center justify-center shadow-xl overflow-hidden">
                <img src="https://i.ibb.co.com/L22pdJQ/Coat-of-arms-of-Southeast-Sulawesi-svg.png" alt="Logo" className="w-full h-full object-contain" />
             </div>
             <div className="text-center">
-              <h1 className="font-black text-2xl tracking-tighter text-slate-800 dark:text-white italic leading-none">ARV<span className="text-purple-600">DRIV3</span></h1>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1 leading-none">Inspection Tech v2.0</p>
+              <h1 className="font-black text-xl tracking-tighter text-slate-800 dark:text-white italic leading-none uppercase">Arv<span className="text-purple-600">Driv3</span></h1>
+              <p className="text-[10px] font-black text-purple-500 uppercase tracking-tighter truncate max-w-[180px] mt-2 italic">{userName}</p>
             </div>
           </div>
           
-          <nav className="space-y-2 font-black">
+          <nav className="flex-1 space-y-2 font-black">
             <button onClick={goHome} className={`w-full flex items-center gap-4 p-4 rounded-2xl text-xs uppercase tracking-widest transition-all ${!currentFolder ? 'bg-slate-900 dark:bg-purple-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
               <LayoutDashboard size={18}/> Dashboard
             </button>
-            
-            {/* Fitur 2: Category Filters UI */}
-            <div className="pt-4 pb-2 px-4 text-[9px] text-slate-400 uppercase tracking-[0.2em]">Filter Category</div>
+            <div className="pt-4 pb-2 px-4 text-[9px] text-slate-400 uppercase tracking-[0.2em]">Filter</div>
             <div className="grid grid-cols-1 gap-1">
-              <button onClick={() => setFilterType('all')} className={`flex items-center gap-3 p-3 rounded-xl text-[10px] uppercase tracking-wider transition-all ${filterType === 'all' ? 'bg-purple-100 text-purple-600 dark:bg-purple-900/30' : 'text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}><Filter size={14}/> All Objects</button>
-              <button onClick={() => setFilterType('folder')} className={`flex items-center gap-3 p-3 rounded-xl text-[10px] uppercase tracking-wider transition-all ${filterType === 'folder' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30' : 'text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}><Folder size={14}/> Folders Only</button>
-              <button onClick={() => setFilterType('file')} className={`flex items-center gap-3 p-3 rounded-xl text-[10px] uppercase tracking-wider transition-all ${filterType === 'file' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30' : 'text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}><FileText size={14}/> Archives Only</button>
+              <button onClick={() => setFilterType('all')} className={`flex items-center gap-3 p-3 rounded-xl text-[10px] uppercase tracking-wider transition-all ${filterType === 'all' ? 'bg-purple-100 text-purple-600 dark:bg-purple-900/30' : 'text-slate-400 hover:bg-slate-50'}`}><Filter size={14}/> Semua</button>
+              <button onClick={() => setFilterType('folder')} className={`flex items-center gap-3 p-3 rounded-xl text-[10px] uppercase tracking-wider transition-all ${filterType === 'folder' ? 'bg-amber-100 text-amber-600' : 'text-slate-400'}`}><Folder size={14}/> Folder</button>
+              <button onClick={() => setFilterType('file')} className={`flex items-center gap-3 p-3 rounded-xl text-[10px] uppercase tracking-wider transition-all ${filterType === 'file' ? 'bg-blue-100 text-blue-600' : 'text-slate-400'}`}><FileText size={14}/> Dokumen</button>
             </div>
-
-            {/* Fitur 3: Activity Log Trigger */}
             <button onClick={() => setIsLogModalOpen(true)} className="w-full flex items-center gap-4 p-4 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-2xl transition-all text-xs uppercase tracking-widest mt-2">
-              <History size={18}/> Activity Log
+              <History size={18}/> Log Aktivitas
             </button>
           </nav>
 
-          <div className="mt-auto p-6 bg-gradient-to-br from-slate-900 to-slate-800 dark:from-purple-900 dark:to-indigo-900 rounded-[35px] text-white shadow-xl relative overflow-hidden group">
-             <div className="relative z-10">
-               <p className="text-[9px] font-black uppercase opacity-50 mb-1 tracking-widest">{userRole} Identity</p>
-               <h4 className="text-3xl font-black tracking-tighter">{stats.total}</h4>
-               <p className="text-[8px] mt-2 opacity-40 font-bold uppercase tracking-widest">Database Sync</p>
-             </div>
-             <Database className="absolute -right-4 -bottom-4 opacity-5 group-hover:rotate-12 transition-all duration-700" size={80}/>
-          </div>
-          
-          <button onClick={() => {sessionStorage.clear(); window.location.reload();}} className="flex items-center justify-center gap-3 p-4 bg-red-500/10 text-red-500 font-black uppercase text-[10px] tracking-widest rounded-xl hover:bg-red-500 hover:text-white transition-all"><LogOut size={16}/> lOGOUT</button>
+          <button onClick={() => {sessionStorage.clear(); window.location.reload();}} className="flex items-center justify-center gap-3 p-4 bg-red-500/10 text-red-500 font-black uppercase text-[10px] tracking-widest rounded-xl hover:bg-red-500 hover:text-white transition-all"><LogOut size={16}/> KELUAR</button>
         </aside>
 
         {/* MAIN AREA */}
@@ -352,10 +338,9 @@ export default function Dashboard() {
             <div className="flex items-center gap-5 flex-1 max-w-xl px-12">
               <div className="flex-1 relative group cursor-pointer" onClick={() => setIsSearchModalOpen(true)}>
                 <Search size={20} className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 group-hover:text-purple-500 transition-colors" />
-                <div className="w-full pl-16 pr-6 py-5 bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-[30px] text-slate-400 text-xs font-black uppercase tracking-widest shadow-xl shadow-slate-200/50 dark:shadow-none transition-all group-hover:ring-2 group-hover:ring-purple-500/20">Search Control...</div>
+                <div className="w-full pl-16 pr-6 py-5 bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-[30px] text-slate-400 text-xs font-black uppercase tracking-widest shadow-xl transition-all group-hover:ring-2 group-hover:ring-purple-500/20">Cari Berkas...</div>
                 <div className="absolute right-6 top-1/2 -translate-y-1/2 px-2 py-1 bg-slate-50 dark:bg-slate-800 rounded-lg text-[9px] font-black text-slate-300 border border-slate-100 dark:border-slate-700">CTRL + K</div>
               </div>
-              
               <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-5 bg-white dark:bg-slate-900 shadow-xl border border-slate-100 dark:border-slate-800 rounded-[25px] text-slate-400 dark:text-yellow-400 hover:scale-110 transition-all active:rotate-90">
                 {isDarkMode ? <Sun size={24}/> : <Moon size={24}/>}
               </button>
@@ -363,7 +348,7 @@ export default function Dashboard() {
 
             {userRole === 'admin' && (
               <button onClick={() => {setUploadDestinationId(currentFolder); setIsUploadModalOpen(true);}} className="flex items-center gap-3 bg-slate-900 dark:bg-purple-600 text-white px-10 py-5 rounded-[30px] font-black uppercase text-[10px] tracking-[0.2em] shadow-xl hover:translate-y-[-2px] transition-all active:scale-95">
-                <Plus size={20} strokeWidth={3} /> New Report
+                <Plus size={20} strokeWidth={3} /> Upload Berkas
               </button>
             )}
           </header>
@@ -372,7 +357,7 @@ export default function Dashboard() {
             {loading ? (
               <div className="h-full flex flex-col items-center justify-center gap-4 text-slate-400">
                 <Loader2 className="animate-spin text-purple-600" size={40} />
-                <p className="font-black text-xs uppercase tracking-[0.3em]">Synchronizing...</p>
+                <p className="font-black text-xs uppercase tracking-[0.3em]">Singkronisasi Arsip...</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-10 pb-20">
@@ -380,31 +365,28 @@ export default function Dashboard() {
                   <motion.div 
                     key={file.id} 
                     whileHover={{ y: -10, scale: 1.02 }}
-                    className={`relative group bg-white/70 dark:bg-slate-800/40 backdrop-blur-xl p-8 rounded-[50px] border transition-all cursor-pointer h-64 flex flex-col justify-between ${selectedFile?.id === file.id ? 'border-purple-500 ring-4 ring-purple-500/10 shadow-2xl' : 'border-slate-200/50 dark:border-slate-800 shadow-[0_10px_40px_rgba(0,0,0,0.03)] hover:shadow-2xl hover:border-purple-400/50'}`}
+                    className={`relative group bg-white/70 dark:bg-slate-800/40 backdrop-blur-xl p-8 rounded-[50px] border transition-all cursor-pointer h-64 flex flex-col justify-between ${selectedFile?.id === file.id ? 'border-purple-500 ring-4 ring-purple-500/10 shadow-2xl' : 'border-slate-200/50 dark:border-slate-800 shadow-xl hover:shadow-2xl'}`}
                     onClick={() => file.mimeType.includes('folder') ? navigateToFolder(file.id, file.name) : setSelectedFile(file)}
                   >
                     <div className="flex justify-between items-start">
-                      <div className={`p-5 rounded-[25px] shadow-inner transition-transform duration-500 group-hover:rotate-[10deg] ${file.mimeType.includes('folder') ? 'bg-amber-100 text-amber-500 dark:bg-amber-900/30' : 'bg-blue-100 text-blue-500 dark:bg-blue-900/30'}`}>
+                      <div className={`p-5 rounded-[25px] shadow-inner transition-transform duration-500 group-hover:rotate-[10deg] ${file.mimeType.includes('folder') ? 'bg-amber-100 text-amber-500' : 'bg-blue-100 text-blue-500'}`}>
                         {file.mimeType.includes('folder') ? <Folder size={32} fill="currentColor" /> : <FileText size={32} />}
                       </div>
-                      
-                      <div className="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-4 group-hover:translate-x-0">
+                      <div className="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
                         {!file.mimeType.includes('folder') && (
                           <button onClick={(e) => { e.stopPropagation(); addLog("DOWNLOAD", file.name); window.open(`https://drive.google.com/uc?export=download&id=${file.id}`, '_blank'); }} className="p-3 bg-white dark:bg-slate-700 rounded-2xl text-slate-400 hover:text-blue-500 shadow-xl border border-slate-100 dark:border-slate-600"><Download size={20}/></button>
                         )}
                         {userRole === 'admin' && (
                           <>
                             <button onClick={(e) => { e.stopPropagation(); handleRename(file.id, file.name); }} className="p-3 bg-white dark:bg-slate-700 rounded-2xl text-slate-400 hover:text-purple-500 shadow-xl border border-slate-100 dark:border-slate-600"><Edit2 size={20}/></button>
-                            {/* Fitur 1: Delete Button */}
                             <button onClick={(e) => { e.stopPropagation(); handleDelete(file.id, file.name); }} className="p-3 bg-white dark:bg-slate-700 rounded-2xl text-slate-400 hover:text-red-500 shadow-xl border border-slate-100 dark:border-slate-600"><Trash2 size={20}/></button>
                           </>
                         )}
                       </div>
                     </div>
-                    
                     <div>
-                      <h4 className="font-black text-slate-900 dark:text-white truncate text-lg leading-tight mb-2 uppercase tracking-tighter leading-none">{file.name}</h4>
-                      <span className="text-[9px] font-black uppercase tracking-[0.2em] py-1.5 px-4 bg-slate-100 dark:bg-slate-700/50 rounded-full text-slate-400 inline-block">
+                      <h4 className="font-black text-slate-900 dark:text-white truncate text-lg uppercase tracking-tighter leading-none">{file.name}</h4>
+                      <span className="text-[9px] font-black uppercase tracking-[0.2em] py-1.5 px-4 bg-slate-100 dark:bg-slate-700/50 rounded-full text-slate-400 inline-block mt-2">
                         {file.mimeType.includes('folder') ? 'DIRECTORY' : 'PDF ARCHIVE'}
                       </span>
                     </div>
@@ -419,13 +401,12 @@ export default function Dashboard() {
         <AnimatePresence>
           {isSearchModalOpen && (
             <div className="fixed inset-0 z-[200] flex items-start justify-center pt-32 px-4 bg-slate-900/60 backdrop-blur-xl" onClick={() => setIsSearchModalOpen(false)}>
-              <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white/90 dark:bg-slate-900/90 w-full max-w-3xl rounded-[40px] shadow-2xl overflow-hidden border border-white/20" onClick={e => e.stopPropagation()}>
-                <div className="p-8 flex items-center gap-6 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+              <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white dark:bg-slate-900 w-full max-w-3xl rounded-[40px] shadow-2xl overflow-hidden border border-white/10" onClick={e => e.stopPropagation()}>
+                <div className="p-8 flex items-center gap-6 border-b border-slate-200 dark:border-slate-800">
                   <Search className="text-purple-600" size={28} />
-                  <input autoFocus type="text" placeholder="Type document name..." className="flex-1 bg-transparent outline-none font-black text-xl dark:text-white uppercase tracking-tighter" onChange={(e) => setSearchTerm(e.target.value)} />
-                  <div className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-[10px] font-black text-slate-400 border border-slate-200 dark:border-slate-700">ESC</div>
+                  <input autoFocus type="text" placeholder="Ketik nama dokumen..." className="flex-1 bg-transparent outline-none font-black text-xl dark:text-white uppercase tracking-tighter" onChange={(e) => setSearchTerm(e.target.value)} />
                 </div>
-                <div className="max-h-[500px] overflow-y-auto p-6 scrollbar-hide">
+                <div className="max-h-[400px] overflow-y-auto p-6 scrollbar-hide">
                   {files.filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase())).map(f => (
                     <div key={f.id} onClick={() => { if(f.mimeType.includes('folder')) navigateToFolder(f.id, f.name); else setSelectedFile(f); setIsSearchModalOpen(false); }} className="p-5 hover:bg-purple-600 hover:text-white rounded-[25px] cursor-pointer flex items-center justify-between group transition-all mb-2 font-black text-sm uppercase tracking-tighter">
                       <div className="flex items-center gap-5">{f.mimeType.includes('folder') ? <Folder size={24}/> : <FileText size={24}/>}<span>{f.name}</span></div>
@@ -438,36 +419,48 @@ export default function Dashboard() {
           )}
         </AnimatePresence>
 
-        {/* LOG MODAL (Fitur 3) */}
+        {/* LOG MODAL TABLE */}
         <AnimatePresence>
           {isLogModalOpen && (
             <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-xl" onClick={() => setIsLogModalOpen(false)}>
-              <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[40px] shadow-2xl overflow-hidden border border-white/10" onClick={e => e.stopPropagation()}>
-                <div className="p-8 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
-                  <h3 className="text-xl font-black uppercase tracking-tighter dark:text-white flex items-center gap-3"><History className="text-purple-500" /> System Activity Log</h3>
-                  <button onClick={() => setIsLogModalOpen(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all"><X size={24}/></button>
+              <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-[40px] shadow-2xl overflow-hidden border border-white/10" onClick={e => e.stopPropagation()}>
+                <div className="p-8 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
+                  <h3 className="text-xl font-black uppercase tracking-tighter dark:text-white flex items-center gap-3"><History className="text-purple-500" /> Tracking System Active</h3>
+                  <button onClick={() => setIsLogModalOpen(false)} className="p-2 hover:bg-red-100 rounded-full transition-all text-slate-400 hover:text-red-500"><X size={24}/></button>
                 </div>
-                <div className="p-4 max-h-[60vh] overflow-y-auto font-mono text-[10px]">
-                  {activityLogs.length === 0 ? (
-                    <p className="text-center py-10 text-slate-400 uppercase tracking-widest">No activity recorded</p>
-                  ) : (
-                    activityLogs.map(log => (
-                      <div key={log.id} className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between group">
-                        <div>
-                          <span className={`px-2 py-0.5 rounded text-[8px] font-black mr-3 ${log.action === 'DELETE' ? 'bg-red-500 text-white' : log.action === 'UPLOAD' ? 'bg-green-500 text-white' : 'bg-blue-500 text-white'}`}>{log.action}</span>
-                          <span className="text-slate-700 dark:text-slate-300 font-bold">{log.fileName}</span>
-                          <p className="text-[9px] text-slate-400 mt-1 uppercase tracking-tighter">By {log.user} • {log.timestamp}</p>
-                        </div>
-                      </div>
-                    ))
-                  )}
+                <div className="overflow-x-auto max-h-[60vh]">
+                  <table className="w-full text-left border-collapse min-w-[700px]">
+                    <thead className="bg-slate-100 dark:bg-slate-800 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                      <tr>
+                        <th className="p-6">User / Pelaku</th>
+                        <th className="p-6">Aksi</th>
+                        <th className="p-6">File</th>
+                        <th className="p-6">Perangkat</th>
+                        <th className="p-6">Waktu</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-[11px] font-bold">
+                      {activityLogs.map((log) => (
+                        <tr key={log.id} className="border-b border-slate-100 dark:border-slate-800 dark:text-slate-300 hover:bg-slate-50 transition-colors">
+                          <td className="p-6 text-purple-600 dark:text-purple-400">{log.user}</td>
+                          <td className="p-6">
+                            <span className={`px-2 py-1 rounded text-[9px] text-white ${log.action === 'DELETE' ? 'bg-red-500' : log.action === 'UPLOAD' ? 'bg-green-500' : 'bg-blue-500'}`}>{log.action}</span>
+                          </td>
+                          <td className="p-6 max-w-[150px] truncate">{log.fileName}</td>
+                          <td className="p-6 opacity-60 italic">{log.device}</td>
+                          <td className="p-6 text-[9px] opacity-50">{log.timestamp}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {activityLogs.length === 0 && <p className="p-20 text-center text-slate-400 uppercase tracking-widest text-xs font-black">Belum ada aktivitas</p>}
                 </div>
               </motion.div>
             </div>
           )}
         </AnimatePresence>
 
-        {/* UPLOAD MODAL (Fitur 5: Multi-upload Support) */}
+        {/* UPLOAD MODAL */}
         <AnimatePresence>
           {isUploadModalOpen && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/80 backdrop-blur-2xl">
@@ -485,7 +478,7 @@ export default function Dashboard() {
                     </select>
                     <label className="flex flex-col items-center justify-center w-full h-72 border-4 border-dashed border-slate-100 dark:border-slate-800 rounded-[50px] cursor-pointer hover:bg-purple-50/50 dark:hover:bg-purple-900/10 transition-all text-center p-8 group">
                       {uploading ? (
-                        <div className="w-full"><Loader2 className="animate-spin mx-auto text-purple-600 mb-6" size={60} /><div className="w-full bg-slate-100 dark:bg-slate-800 h-4 rounded-full overflow-hidden mb-4"><motion.div initial={{ width: 0 }} animate={{ width: `${uploadProgress}%` }} className="h-full bg-gradient-to-r from-purple-500 to-blue-500 shadow-[0_0_20px_#a855f7]" /></div><p className="text-xs font-black uppercase text-purple-500 tracking-[0.3em]">{uploadProgress}% ENCRYPTING BATCH...</p></div>
+                        <div className="w-full"><Loader2 className="animate-spin mx-auto text-purple-600 mb-6" size={60} /><div className="w-full bg-slate-100 dark:bg-slate-800 h-4 rounded-full overflow-hidden mb-4"><motion.div initial={{ width: 0 }} animate={{ width: `${uploadProgress}%` }} className="h-full bg-gradient-to-r from-purple-500 to-blue-500" /></div><p className="text-xs font-black uppercase text-purple-500 tracking-[0.3em]">{uploadProgress}% ENCRYPTING...</p></div>
                       ) : (
                         <><div className="p-8 bg-purple-600 rounded-[35px] text-white mb-6 shadow-2xl group-hover:scale-110 transition-all"><Upload size={48} strokeWidth={3}/></div><p className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Initialize Batch Archive</p>
                         <input type="file" multiple className="hidden" onChange={handleUpload} disabled={uploading} /></>
@@ -500,7 +493,7 @@ export default function Dashboard() {
           )}
         </AnimatePresence>
 
-        {/* PREVIEW PANEL (Fitur 4: Optimized Preview with Loader) */}
+        {/* PREVIEW PANEL */}
         <AnimatePresence>
           {selectedFile && (
             <motion.div initial={{ x: 700 }} animate={{ x: 0 }} exit={{ x: 700 }} className="w-[650px] bg-white/90 dark:bg-slate-900/90 backdrop-blur-3xl shadow-2xl border-l border-white/20 flex flex-col overflow-hidden relative z-30 transition-all duration-500">
@@ -508,7 +501,6 @@ export default function Dashboard() {
                   <div className="flex items-center gap-5 overflow-hidden"><div className="p-4 bg-purple-100 dark:bg-purple-900/30 rounded-2xl text-purple-600"><FileText size={24}/></div><span className="font-black text-sm truncate uppercase tracking-widest text-slate-900 dark:text-white block leading-none">{selectedFile.name}</span></div>
                   <button onClick={() => { setSelectedFile(null); setPreviewLoading(true); }} className="p-3 bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-red-500 rounded-full transition-all border border-slate-200 dark:border-slate-700 leading-none"><X size={28}/></button>
                </div>
-               
                <div className="flex-1 relative m-8">
                   {previewLoading && (
                     <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white dark:bg-slate-950 rounded-[50px] gap-4">
@@ -523,11 +515,11 @@ export default function Dashboard() {
                     onLoad={() => setPreviewLoading(false)}
                   />
                </div>
-
                <div className="p-10 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border-t border-slate-200 dark:border-slate-800"><button onClick={() => { addLog("DOWNLOAD", selectedFile.name); window.open(`https://drive.google.com/uc?export=download&id=${selectedFile.id}`, '_blank'); }} className="w-full py-6 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-[35px] font-black text-xs uppercase tracking-[0.3em] flex items-center justify-center gap-4 active:scale-95 shadow-xl transition-all leading-none border border-white/20"><Download size={22} strokeWidth={3}/> Secure Download</button></div>
             </motion.div>
           )}
         </AnimatePresence>
+
       </div>
     </div>
   );
