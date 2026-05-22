@@ -134,8 +134,8 @@ export default function Dashboard() {
         </div>
         <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="relative z-10 bg-white/10 backdrop-blur-3xl p-12 rounded-[50px] shadow-2xl w-full max-w-md border border-white/20 text-center">
           <div className="p-4 bg-white/20 w-fit mx-auto rounded-full text-white mb-8 border border-white/30 shadow-inner"><Lock size={32} /></div>
-          <h2 className="text-4xl font-black mb-2 text-white tracking-tighter uppercase italic">Archiviz</h2>
-          <p className="text-white/60 mb-10 font-medium text-sm">Sistem Pengawasan Digital Irban III</p>
+          <h2 className="text-4xl font-black mb-2 text-white tracking-tighter uppercase italic">Archiv3</h2>
+          <p className="text-white/60 mb-10 font-medium text-sm">Sistem Arsip LHP Digital Irban III</p>
           <form onSubmit={handleLogin} className="space-y-4">
             <input type="password" placeholder="Access Code" className="w-full p-6 rounded-[30px] border-none outline-none focus:ring-2 focus:ring-purple-400 bg-white/10 text-white text-center font-bold placeholder:text-white/30 text-xl tracking-widest transition-all" onChange={(e) => setPassword(e.target.value)} />
             <button type="submit" className="w-full bg-white text-slate-900 p-6 rounded-[30px] font-black uppercase tracking-widest hover:bg-purple-50 transition-all shadow-xl active:scale-95">Open Portal</button>
@@ -152,7 +152,7 @@ export default function Dashboard() {
         {/* SIDEBAR FUTURISTIC */}
         <aside className="w-80 bg-white/70 dark:bg-slate-900/80 backdrop-blur-xl border-r border-slate-200 dark:border-slate-800 p-8 flex flex-col gap-8 transition-all relative z-20">
           <div className="flex items-center gap-3 text-purple-600 dark:text-purple-400 font-black text-3xl tracking-tighter italic">
-            <Database size={32} strokeWidth={3} /> ARV-DRIVE
+            <Database size={32} strokeWidth={3} /> ARV-DRIV3
           </div>
           
           <div className="flex flex-col gap-1">
