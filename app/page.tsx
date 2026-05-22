@@ -103,7 +103,7 @@ export default function Dashboard() {
   // --- LOGGING HELPER ---
   const addLog = (action: string, fileName: string) => {
     const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : "Unknown";
-    let deviceDesc = "PC / Windows";
+    let deviceDesc = "PC / Desktop";
     if (userAgent.includes("Android")) deviceDesc = "Smartphone Android";
     else if (userAgent.includes("iPhone")) deviceDesc = "Apple iPhone";
     else if (userAgent.includes("Macintosh")) deviceDesc = "MacBook/Mac";
@@ -113,7 +113,7 @@ export default function Dashboard() {
       action,
       fileName,
       timestamp: new Date().toLocaleString('id-ID'),
-      user: tempName || userName || "Guest",
+      user: userName || sessionStorage.getItem('userName') || "Guest",
       device: deviceDesc
     };
     const updatedLogs = [newLog, ...activityLogs].slice(0, 100);
@@ -178,25 +178,23 @@ export default function Dashboard() {
   // --- ACTIONS ---
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!tempName.trim()) { alert("Silakan masukkan Nama/Jabatan!"); return; }
+    if (!tempName.trim()) { alert("Silakan masukkan identitas!"); return; }
 
     if (password === 'adminLhp3') {
-      executeLogin('admin');
+      loginProcess('admin');
     } else if (password === 'userLhp3') {
-      executeLogin('user');
-    } else { 
-      alert('Kode Akses Salah!'); 
-    }
+      loginProcess('user');
+    } else { alert('Kode Akses Salah!'); }
   };
 
-  const executeLogin = (role: 'admin' | 'user') => {
+  const loginProcess = (role: 'admin' | 'user') => {
     setIsLoggedIn(true);
     setUserRole(role);
     setUserName(tempName);
     sessionStorage.setItem('isLoggedIn', 'true');
     sessionStorage.setItem('userRole', role);
     sessionStorage.setItem('userName', tempName);
-    addLog("LOGIN", "Masuk ke Sistem");
+    addLog("LOGIN", "Masuk ke Dashboard");
   };
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -257,17 +255,17 @@ export default function Dashboard() {
   // --- LOGIN VIEW ---
   if (!isLoggedIn) {
     return (
-      <div className="relative min-h-screen w-full flex items-center justify-center p-4 bg-[#0F172A] font-sans overflow-hidden text-white">
+      <div className="relative min-h-screen w-full flex items-center justify-center p-4 bg-[#0F172A] font-sans overflow-hidden">
         <div className="absolute inset-0 z-0 bg-cover bg-center opacity-30 scale-110" style={{ backgroundImage: "url('https://i.ibb.co.com/NnC3sn3S/bg-login.png')" }}></div>
         <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="relative z-10 bg-white/10 backdrop-blur-3xl p-12 rounded-[60px] shadow-2xl w-full max-w-md border border-white/10 text-center">
           <div className="mb-8 flex justify-center">
              <img src="https://i.ibb.co.com/L22pdJQ/Coat-of-arms-of-Southeast-Sulawesi-svg.png" alt="Logo" className="w-20 h-20 object-contain" />
           </div>
-          <h2 className="text-3xl font-black mb-1 tracking-tighter italic uppercase">SISTEM ARSIP</h2>
+          <h2 className="text-3xl font-black mb-1 text-white tracking-tighter italic uppercase">DIGITAL ARCHIVE</h2>
           <p className="text-purple-400 mb-8 text-[10px] font-black uppercase tracking-[0.4em]">Tracking System Active</p>
           <form onSubmit={handleLogin} className="space-y-4">
-            <input required type="text" placeholder="NAMA LENGKAP / JABATAN" className="w-full p-5 rounded-[25px] border-none outline-none bg-white/5 text-center font-bold placeholder:text-white/20 focus:ring-2 focus:ring-purple-500 transition-all text-sm uppercase" onChange={(e) => setTempName(e.target.value)} />
-            <input required type="password" placeholder="KODE AKSES" className="w-full p-5 rounded-[25px] border-none outline-none bg-white/5 text-center font-bold placeholder:text-white/20 tracking-[0.5em] focus:ring-2 focus:ring-purple-500 transition-all" onChange={(e) => setPassword(e.target.value)} />
+            <input required type="text" placeholder="IDENTITAS (NAMA/JABATAN)" className="w-full p-5 rounded-[25px] border-none outline-none bg-white/5 text-white text-center font-bold placeholder:text-white/20 focus:ring-2 focus:ring-purple-500 transition-all text-sm uppercase" onChange={(e) => setTempName(e.target.value)} />
+            <input required type="password" placeholder="KODE AKSES" className="w-full p-5 rounded-[25px] border-none outline-none bg-white/5 text-white text-center font-bold placeholder:text-white/20 tracking-[0.5em] focus:ring-2 focus:ring-purple-500 transition-all" onChange={(e) => setPassword(e.target.value)} />
             <button type="submit" className="w-full bg-white text-slate-900 p-5 rounded-[25px] font-black uppercase tracking-widest hover:bg-purple-50 transition-all shadow-xl active:scale-95">Masuk Sistem</button>
           </form>
         </motion.div>
@@ -281,33 +279,43 @@ export default function Dashboard() {
       <div className="h-screen bg-[#F0F4FF] dark:bg-[#020617] flex text-slate-700 dark:text-slate-200 overflow-hidden transition-all duration-700 font-sans">
         
         {/* SIDEBAR */}
-        <aside className="w-80 bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border-r border-slate-200 dark:border-slate-800 p-8 flex flex-col gap-6 relative z-20">
-          <div className="flex flex-col items-center gap-4 mb-4">
-            <div className="w-16 h-16 bg-white/10 rounded-2xl p-2 border border-white/20 flex items-center justify-center shadow-xl overflow-hidden">
+        <aside className="w-80 bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border-r border-slate-200 dark:border-slate-800 p-10 flex flex-col gap-10 relative z-20">
+          <div className="flex flex-col items-center gap-4 mb-2">
+            <div className="w-20 h-20 bg-white/10 rounded-3xl p-3 border border-white/20 flex items-center justify-center shadow-xl overflow-hidden">
                <img src="https://i.ibb.co.com/L22pdJQ/Coat-of-arms-of-Southeast-Sulawesi-svg.png" alt="Logo" className="w-full h-full object-contain" />
             </div>
             <div className="text-center">
-              <h1 className="font-black text-xl tracking-tighter text-slate-800 dark:text-white italic leading-none uppercase">Arv<span className="text-purple-600">Driv3</span></h1>
-              <p className="text-[10px] font-black text-purple-500 uppercase tracking-tighter truncate max-w-[180px] mt-2 italic">{userName}</p>
+              <h1 className="font-black text-2xl tracking-tighter text-slate-800 dark:text-white italic leading-none">ARV<span className="text-purple-600">DRIV3</span></h1>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1 italic">{userName}</p>
             </div>
           </div>
           
-          <nav className="flex-1 space-y-2 font-black">
-            <button onClick={goHome} className={`w-full flex items-center gap-4 p-4 rounded-2xl text-xs uppercase tracking-widest transition-all ${!currentFolder ? 'bg-slate-900 dark:bg-purple-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+          <nav className="flex-1 space-y-3 font-black">
+            <button onClick={goHome} className={`w-full flex items-center gap-4 p-5 rounded-[25px] text-xs uppercase tracking-widest transition-all ${!currentFolder ? 'bg-slate-900 dark:bg-purple-600 text-white shadow-2xl scale-[1.05]' : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
               <LayoutDashboard size={18}/> Dashboard
             </button>
-            <div className="pt-4 pb-2 px-4 text-[9px] text-slate-400 uppercase tracking-[0.2em]">Filter</div>
+            <div className="pt-2 pb-1 px-4 text-[9px] text-slate-400 uppercase tracking-[0.2em]">Kategori</div>
             <div className="grid grid-cols-1 gap-1">
-              <button onClick={() => setFilterType('all')} className={`flex items-center gap-3 p-3 rounded-xl text-[10px] uppercase tracking-wider transition-all ${filterType === 'all' ? 'bg-purple-100 text-purple-600 dark:bg-purple-900/30' : 'text-slate-400 hover:bg-slate-50'}`}><Filter size={14}/> Semua</button>
-              <button onClick={() => setFilterType('folder')} className={`flex items-center gap-3 p-3 rounded-xl text-[10px] uppercase tracking-wider transition-all ${filterType === 'folder' ? 'bg-amber-100 text-amber-600' : 'text-slate-400'}`}><Folder size={14}/> Folder</button>
-              <button onClick={() => setFilterType('file')} className={`flex items-center gap-3 p-3 rounded-xl text-[10px] uppercase tracking-wider transition-all ${filterType === 'file' ? 'bg-blue-100 text-blue-600' : 'text-slate-400'}`}><FileText size={14}/> Dokumen</button>
+              <button onClick={() => setFilterType('all')} className={`flex items-center gap-3 p-4 rounded-xl text-[10px] uppercase tracking-wider transition-all ${filterType === 'all' ? 'bg-purple-100 text-purple-600 dark:bg-purple-900/30' : 'text-slate-400 hover:bg-slate-50'}`}><Filter size={14}/> Semua</button>
+              <button onClick={() => setFilterType('folder')} className={`flex items-center gap-3 p-4 rounded-xl text-[10px] uppercase tracking-wider transition-all ${filterType === 'folder' ? 'bg-amber-100 text-amber-600' : 'text-slate-400'}`}><Folder size={14}/> Folder</button>
+              <button onClick={() => setFilterType('file')} className={`flex items-center gap-3 p-4 rounded-xl text-[10px] uppercase tracking-wider transition-all ${filterType === 'file' ? 'bg-blue-100 text-blue-600' : 'text-slate-400'}`}><FileText size={14}/> Dokumen</button>
             </div>
-            <button onClick={() => setIsLogModalOpen(true)} className="w-full flex items-center gap-4 p-4 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-2xl transition-all text-xs uppercase tracking-widest mt-2">
+            <button onClick={() => setIsLogModalOpen(true)} className="w-full flex items-center gap-4 p-4 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-[20px] transition-all text-[10px] uppercase tracking-widest">
               <History size={18}/> Log Aktivitas
             </button>
           </nav>
 
-          <button onClick={() => {sessionStorage.clear(); window.location.reload();}} className="flex items-center justify-center gap-3 p-4 bg-red-500/10 text-red-500 font-black uppercase text-[10px] tracking-widest rounded-xl hover:bg-red-500 hover:text-white transition-all"><LogOut size={16}/> KELUAR</button>
+          {/* TOTAL DOKUMEN - KEMBALI SEPERTI ASLINYA */}
+          <div className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 dark:from-purple-900 dark:to-indigo-900 rounded-[40px] text-white shadow-2xl relative overflow-hidden group">
+             <div className="relative z-10">
+               <p className="text-[10px] font-black uppercase opacity-50 mb-2 tracking-[0.2em] leading-none">Database Sync</p>
+               <h4 className="text-4xl font-black tracking-tighter">{stats.total}</h4>
+               <p className="text-[9px] mt-4 opacity-40 font-bold uppercase tracking-widest leading-none">Reports Secured</p>
+             </div>
+             <Database className="absolute -right-6 -bottom-6 opacity-5 group-hover:rotate-12 transition-all duration-700" size={120}/>
+          </div>
+          
+          <button onClick={() => {sessionStorage.clear(); window.location.reload();}} className="flex items-center justify-center gap-3 p-5 bg-red-500/10 text-red-500 font-black uppercase text-[10px] tracking-widest rounded-2xl hover:bg-red-500 hover:text-white transition-all"><LogOut size={16}/> LOGOUT</button>
         </aside>
 
         {/* MAIN AREA */}
@@ -338,7 +346,7 @@ export default function Dashboard() {
             <div className="flex items-center gap-5 flex-1 max-w-xl px-12">
               <div className="flex-1 relative group cursor-pointer" onClick={() => setIsSearchModalOpen(true)}>
                 <Search size={20} className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 group-hover:text-purple-500 transition-colors" />
-                <div className="w-full pl-16 pr-6 py-5 bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-[30px] text-slate-400 text-xs font-black uppercase tracking-widest shadow-xl transition-all group-hover:ring-2 group-hover:ring-purple-500/20">Cari Berkas...</div>
+                <div className="w-full pl-16 pr-6 py-5 bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-[30px] text-slate-400 text-xs font-black uppercase tracking-widest shadow-xl group-hover:ring-2 group-hover:ring-purple-500/20 transition-all">Cari Dokumen...</div>
                 <div className="absolute right-6 top-1/2 -translate-y-1/2 px-2 py-1 bg-slate-50 dark:bg-slate-800 rounded-lg text-[9px] font-black text-slate-300 border border-slate-100 dark:border-slate-700">CTRL + K</div>
               </div>
               <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-5 bg-white dark:bg-slate-900 shadow-xl border border-slate-100 dark:border-slate-800 rounded-[25px] text-slate-400 dark:text-yellow-400 hover:scale-110 transition-all active:rotate-90">
@@ -357,7 +365,7 @@ export default function Dashboard() {
             {loading ? (
               <div className="h-full flex flex-col items-center justify-center gap-4 text-slate-400">
                 <Loader2 className="animate-spin text-purple-600" size={40} />
-                <p className="font-black text-xs uppercase tracking-[0.3em]">Singkronisasi Arsip...</p>
+                <p className="font-black text-xs uppercase tracking-[0.3em]">Sinkronisasi Arsip...</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-10 pb-20">
@@ -404,7 +412,7 @@ export default function Dashboard() {
               <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white dark:bg-slate-900 w-full max-w-3xl rounded-[40px] shadow-2xl overflow-hidden border border-white/10" onClick={e => e.stopPropagation()}>
                 <div className="p-8 flex items-center gap-6 border-b border-slate-200 dark:border-slate-800">
                   <Search className="text-purple-600" size={28} />
-                  <input autoFocus type="text" placeholder="Ketik nama dokumen..." className="flex-1 bg-transparent outline-none font-black text-xl dark:text-white uppercase tracking-tighter" onChange={(e) => setSearchTerm(e.target.value)} />
+                  <input autoFocus type="text" placeholder="Masukkan nama berkas..." className="flex-1 bg-transparent outline-none font-black text-xl dark:text-white uppercase tracking-tighter" onChange={(e) => setSearchTerm(e.target.value)} />
                 </div>
                 <div className="max-h-[400px] overflow-y-auto p-6 scrollbar-hide">
                   {files.filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase())).map(f => (
@@ -425,16 +433,16 @@ export default function Dashboard() {
             <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-xl" onClick={() => setIsLogModalOpen(false)}>
               <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-[40px] shadow-2xl overflow-hidden border border-white/10" onClick={e => e.stopPropagation()}>
                 <div className="p-8 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
-                  <h3 className="text-xl font-black uppercase tracking-tighter dark:text-white flex items-center gap-3"><History className="text-purple-500" /> Tracking System Active</h3>
+                  <h3 className="text-xl font-black uppercase tracking-tighter dark:text-white flex items-center gap-3"><History className="text-purple-500" /> Activity Log</h3>
                   <button onClick={() => setIsLogModalOpen(false)} className="p-2 hover:bg-red-100 rounded-full transition-all text-slate-400 hover:text-red-500"><X size={24}/></button>
                 </div>
                 <div className="overflow-x-auto max-h-[60vh]">
                   <table className="w-full text-left border-collapse min-w-[700px]">
                     <thead className="bg-slate-100 dark:bg-slate-800 text-[10px] font-black uppercase tracking-widest text-slate-400">
                       <tr>
-                        <th className="p-6">User / Pelaku</th>
+                        <th className="p-6">User / Identitas</th>
                         <th className="p-6">Aksi</th>
-                        <th className="p-6">File</th>
+                        <th className="p-6">Berkas</th>
                         <th className="p-6">Perangkat</th>
                         <th className="p-6">Waktu</th>
                       </tr>
@@ -453,7 +461,6 @@ export default function Dashboard() {
                       ))}
                     </tbody>
                   </table>
-                  {activityLogs.length === 0 && <p className="p-20 text-center text-slate-400 uppercase tracking-widest text-xs font-black">Belum ada aktivitas</p>}
                 </div>
               </motion.div>
             </div>
@@ -478,7 +485,7 @@ export default function Dashboard() {
                     </select>
                     <label className="flex flex-col items-center justify-center w-full h-72 border-4 border-dashed border-slate-100 dark:border-slate-800 rounded-[50px] cursor-pointer hover:bg-purple-50/50 dark:hover:bg-purple-900/10 transition-all text-center p-8 group">
                       {uploading ? (
-                        <div className="w-full"><Loader2 className="animate-spin mx-auto text-purple-600 mb-6" size={60} /><div className="w-full bg-slate-100 dark:bg-slate-800 h-4 rounded-full overflow-hidden mb-4"><motion.div initial={{ width: 0 }} animate={{ width: `${uploadProgress}%` }} className="h-full bg-gradient-to-r from-purple-500 to-blue-500" /></div><p className="text-xs font-black uppercase text-purple-500 tracking-[0.3em]">{uploadProgress}% ENCRYPTING...</p></div>
+                        <div className="w-full"><Loader2 className="animate-spin mx-auto text-purple-600 mb-6" size={60} /><div className="w-full bg-slate-100 dark:bg-slate-800 h-4 rounded-full overflow-hidden mb-4"><motion.div initial={{ width: 0 }} animate={{ width: `${uploadProgress}%` }} className="h-full bg-gradient-to-r from-purple-500 to-blue-500" /></div><p className="text-xs font-black uppercase text-purple-500 tracking-[0.3em]">{uploadProgress}% TRANSMITTING...</p></div>
                       ) : (
                         <><div className="p-8 bg-purple-600 rounded-[35px] text-white mb-6 shadow-2xl group-hover:scale-110 transition-all"><Upload size={48} strokeWidth={3}/></div><p className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Initialize Batch Archive</p>
                         <input type="file" multiple className="hidden" onChange={handleUpload} disabled={uploading} /></>
