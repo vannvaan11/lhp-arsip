@@ -5,7 +5,7 @@ import {
   Folder, FileText, Upload, Lock, Database, LayoutDashboard, 
   Search, LogOut, ChevronRight, Loader2, Edit2, Plus, X, Eye,
   Download, Clock, ArrowLeft, Sun, Moon, HardDrive, Shield, 
-  CheckCircle2, AlertCircle, Command
+  CheckCircle2, AlertCircle, Command, Trash2, Filter, History
 } from 'lucide-react';
 
 // --- INTERFACES ---
@@ -19,6 +19,14 @@ interface DriveFile {
 interface FolderHistory {
   id: string;
   name: string;
+}
+
+interface ActivityLog {
+  id: string;
+  action: string;
+  fileName: string;
+  timestamp: string;
+  user: string;
 }
 
 export default function Dashboard() {
@@ -38,14 +46,18 @@ export default function Dashboard() {
 
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState<'name' | 'date'>('name');
+  const [filterType, setFilterType] = useState<'all' | 'folder' | 'file'>('all'); // Fitur 2: Filter
 
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+  const [isLogModalOpen, setIsLogModalOpen] = useState(false); // Fitur 3: Log
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [uploadDestinationId, setUploadDestinationId] = useState<string>('');
+  const [previewLoading, setPreviewLoading] = useState(true); // Fitur 4: Preview Loading
+
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
 
   // --- INITIALIZATION ---
   useEffect(() => {
@@ -61,12 +73,14 @@ export default function Dashboard() {
     const savedLogin = sessionStorage.getItem('isLoggedIn');
     const savedRole = sessionStorage.getItem('userRole');
     const savedTheme = localStorage.getItem('theme');
+    const savedLogs = localStorage.getItem('drive_logs');
     
     if (savedLogin === 'true' && savedRole) {
       setIsLoggedIn(true);
       setUserRole(savedRole as 'admin' | 'user');
     }
     if (savedTheme === 'dark') setIsDarkMode(true);
+    if (savedLogs) setActivityLogs(JSON.parse(savedLogs));
 
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
@@ -80,6 +94,20 @@ export default function Dashboard() {
       localStorage.setItem('theme', 'light');
     }
   }, [isDarkMode]);
+
+  // --- LOGGING HELPER (Fitur 3) ---
+  const addLog = (action: string, fileName: string) => {
+    const newLog: ActivityLog = {
+      id: Math.random().toString(36).substr(2, 9),
+      action,
+      fileName,
+      timestamp: new Date().toLocaleString('id-ID'),
+      user: userRole || 'unknown'
+    };
+    const updatedLogs = [newLog, ...activityLogs].slice(0, 50);
+    setActivityLogs(updatedLogs);
+    localStorage.setItem('drive_logs', JSON.stringify(updatedLogs));
+  };
 
   // --- DATA FETCHING ---
   const fetchData = async (fId: string = '') => {
@@ -149,22 +177,55 @@ export default function Dashboard() {
     } else { alert('Akses Ditolak! Kode Salah.'); }
   };
 
+  // Fitur 5: Multi-upload Logic
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true); setUploadStatus('idle'); setUploadProgress(30);
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('parentId', uploadDestinationId || currentFolder || '');
-    try {
-      const res = await fetch('/api/drive/upload', { method: 'POST', body: formData });
-      if (res.ok) {
-        setUploadProgress(100);
-        setUploadStatus('success');
-        setTimeout(() => { setIsUploadModalOpen(false); setUploadStatus('idle'); fetchData(currentFolder); }, 2000);
-      } else { setUploadStatus('error'); }
-    } catch (e) { setUploadStatus('error'); }
+    const selectedFiles = e.target.files;
+    if (!selectedFiles || selectedFiles.length === 0) return;
+    
+    setUploading(true); 
+    setUploadStatus('idle');
+    
+    let successCount = 0;
+    for (let i = 0; i < selectedFiles.length; i++) {
+      const file = selectedFiles[i];
+      setUploadProgress(Math.round(((i) / selectedFiles.length) * 100));
+      
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('parentId', uploadDestinationId || currentFolder || '');
+      
+      try {
+        const res = await fetch('/api/drive/upload', { method: 'POST', body: formData });
+        if (res.ok) {
+          successCount++;
+          addLog("UPLOAD", file.name);
+        }
+      } catch (e) { console.error(e); }
+    }
+
+    setUploadProgress(100);
+    setUploadStatus(successCount > 0 ? 'success' : 'error');
+    setTimeout(() => { 
+      setIsUploadModalOpen(false); 
+      setUploadStatus('idle'); 
+      fetchData(currentFolder); 
+    }, 2000);
     setUploading(false);
+  };
+
+  // Fitur 1: Delete Function
+  const handleDelete = async (fileId: string, fileName: string) => {
+    if (userRole !== 'admin') return;
+    if (!confirm(`Hapus permanen ${fileName}?`)) return;
+
+    try {
+      const res = await fetch(`/api/drive?fileId=${fileId}`, { method: 'DELETE' });
+      if (res.ok) {
+        addLog("DELETE", fileName);
+        fetchData(currentFolder);
+        if (selectedFile?.id === fileId) setSelectedFile(null);
+      } else { alert("Gagal menghapus file"); }
+    } catch (e) { alert("Error koneksi"); }
   };
 
   const handleRename = async (fileId: string, oldName: string) => {
@@ -177,11 +238,21 @@ export default function Dashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fileId, newName })
       });
+      addLog("RENAME", `${oldName} -> ${newName}`);
       fetchData(currentFolder);
     } catch (e) { alert("Gagal merubah nama"); }
   };
 
   if (!mounted) return null;
+
+  // Fitur 2: Filter Logic
+  const filteredFiles = files
+    .filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase()))
+    .filter(f => {
+      if (filterType === 'folder') return f.mimeType.includes('folder');
+      if (filterType === 'file') return !f.mimeType.includes('folder');
+      return true;
+    });
 
   // --- LOGIN VIEW ---
   if (!isLoggedIn) {
@@ -211,10 +282,9 @@ export default function Dashboard() {
       <div className="h-screen bg-[#F0F4FF] dark:bg-[#020617] flex text-slate-700 dark:text-slate-200 overflow-hidden transition-all duration-700 font-sans">
         
         {/* SIDEBAR */}
-        <aside className="w-80 bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border-r border-slate-200 dark:border-slate-800 p-10 flex flex-col gap-10 relative z-20">
-          <div className="flex flex-col items-center gap-4 mb-6">
-            {/* FIX LOGO: DIHAPUS BRIGHTNESS-0 INVERT AGAR WARNA ASLI MUNCUL */}
-            <div className="w-20 h-20 bg-white/10 dark:bg-white/5 backdrop-blur-md rounded-3xl p-3 border border-white/20 shadow-xl shadow-slate-200/50 dark:shadow-none overflow-hidden flex items-center justify-center">
+        <aside className="w-80 bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border-r border-slate-200 dark:border-slate-800 p-8 flex flex-col gap-6 relative z-20">
+          <div className="flex flex-col items-center gap-4 mb-4">
+            <div className="w-20 h-20 bg-white/10 dark:bg-white/5 backdrop-blur-md rounded-3xl p-3 border border-white/20 shadow-xl overflow-hidden flex items-center justify-center">
                <img src="https://i.ibb.co.com/L22pdJQ/Coat-of-arms-of-Southeast-Sulawesi-svg.png" alt="Logo" className="w-full h-full object-contain" />
             </div>
             <div className="text-center">
@@ -223,25 +293,35 @@ export default function Dashboard() {
             </div>
           </div>
           
-          <nav className="flex-1 space-y-3 font-black">
-            <button onClick={goHome} className={`w-full flex items-center gap-4 p-5 rounded-[25px] text-xs uppercase tracking-widest transition-all ${!currentFolder ? 'bg-slate-900 dark:bg-purple-600 text-white shadow-2xl scale-[1.05]' : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+          <nav className="space-y-2 font-black">
+            <button onClick={goHome} className={`w-full flex items-center gap-4 p-4 rounded-2xl text-xs uppercase tracking-widest transition-all ${!currentFolder ? 'bg-slate-900 dark:bg-purple-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
               <LayoutDashboard size={18}/> Dashboard
             </button>
-            <button onClick={goHome} className="w-full flex items-center gap-4 p-5 text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-[25px] transition-all text-xs uppercase tracking-widest">
-              <Folder size={18}/> Root System
+            
+            {/* Fitur 2: Category Filters UI */}
+            <div className="pt-4 pb-2 px-4 text-[9px] text-slate-400 uppercase tracking-[0.2em]">Filter Category</div>
+            <div className="grid grid-cols-1 gap-1">
+              <button onClick={() => setFilterType('all')} className={`flex items-center gap-3 p-3 rounded-xl text-[10px] uppercase tracking-wider transition-all ${filterType === 'all' ? 'bg-purple-100 text-purple-600 dark:bg-purple-900/30' : 'text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}><Filter size={14}/> All Objects</button>
+              <button onClick={() => setFilterType('folder')} className={`flex items-center gap-3 p-3 rounded-xl text-[10px] uppercase tracking-wider transition-all ${filterType === 'folder' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30' : 'text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}><Folder size={14}/> Folders Only</button>
+              <button onClick={() => setFilterType('file')} className={`flex items-center gap-3 p-3 rounded-xl text-[10px] uppercase tracking-wider transition-all ${filterType === 'file' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30' : 'text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}><FileText size={14}/> Archives Only</button>
+            </div>
+
+            {/* Fitur 3: Activity Log Trigger */}
+            <button onClick={() => setIsLogModalOpen(true)} className="w-full flex items-center gap-4 p-4 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-2xl transition-all text-xs uppercase tracking-widest mt-2">
+              <History size={18}/> Activity Log
             </button>
           </nav>
 
-          <div className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 dark:from-purple-900 dark:to-indigo-900 rounded-[40px] text-white shadow-2xl relative overflow-hidden group">
+          <div className="mt-auto p-6 bg-gradient-to-br from-slate-900 to-slate-800 dark:from-purple-900 dark:to-indigo-900 rounded-[35px] text-white shadow-xl relative overflow-hidden group">
              <div className="relative z-10">
-               <p className="text-[10px] font-black uppercase opacity-50 mb-2 tracking-[0.2em] leading-none">{userRole} Identity</p>
-               <h4 className="text-4xl font-black tracking-tighter">{stats.total}</h4>
-               <p className="text-[9px] mt-4 opacity-40 font-bold uppercase tracking-widest leading-none">Reports Secured</p>
+               <p className="text-[9px] font-black uppercase opacity-50 mb-1 tracking-widest">{userRole} Identity</p>
+               <h4 className="text-3xl font-black tracking-tighter">{stats.total}</h4>
+               <p className="text-[8px] mt-2 opacity-40 font-bold uppercase tracking-widest">Database Sync</p>
              </div>
-             <Database className="absolute -right-6 -bottom-6 opacity-5 group-hover:rotate-12 transition-all duration-700" size={120}/>
+             <Database className="absolute -right-4 -bottom-4 opacity-5 group-hover:rotate-12 transition-all duration-700" size={80}/>
           </div>
           
-          <button onClick={() => {sessionStorage.clear(); window.location.reload();}} className="flex items-center justify-center gap-3 p-5 bg-red-500/10 text-red-500 font-black uppercase text-[10px] tracking-widest rounded-2xl hover:bg-red-500 hover:text-white transition-all"><LogOut size={16}/> lOGOUT</button>
+          <button onClick={() => {sessionStorage.clear(); window.location.reload();}} className="flex items-center justify-center gap-3 p-4 bg-red-500/10 text-red-500 font-black uppercase text-[10px] tracking-widest rounded-xl hover:bg-red-500 hover:text-white transition-all"><LogOut size={16}/> lOGOUT</button>
         </aside>
 
         {/* MAIN AREA */}
@@ -296,7 +376,7 @@ export default function Dashboard() {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-10 pb-20">
-                {files.filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase())).map((file) => (
+                {filteredFiles.map((file) => (
                   <motion.div 
                     key={file.id} 
                     whileHover={{ y: -10, scale: 1.02 }}
@@ -310,10 +390,14 @@ export default function Dashboard() {
                       
                       <div className="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-4 group-hover:translate-x-0">
                         {!file.mimeType.includes('folder') && (
-                          <button onClick={(e) => { e.stopPropagation(); window.open(`https://drive.google.com/uc?export=download&id=${file.id}`, '_blank'); }} className="p-3 bg-white dark:bg-slate-700 rounded-2xl text-slate-400 hover:text-blue-500 shadow-xl border border-slate-100 dark:border-slate-600"><Download size={20}/></button>
+                          <button onClick={(e) => { e.stopPropagation(); addLog("DOWNLOAD", file.name); window.open(`https://drive.google.com/uc?export=download&id=${file.id}`, '_blank'); }} className="p-3 bg-white dark:bg-slate-700 rounded-2xl text-slate-400 hover:text-blue-500 shadow-xl border border-slate-100 dark:border-slate-600"><Download size={20}/></button>
                         )}
                         {userRole === 'admin' && (
-                          <button onClick={(e) => { e.stopPropagation(); handleRename(file.id, file.name); }} className="p-3 bg-white dark:bg-slate-700 rounded-2xl text-slate-400 hover:text-purple-500 shadow-xl border border-slate-100 dark:border-slate-600"><Edit2 size={20}/></button>
+                          <>
+                            <button onClick={(e) => { e.stopPropagation(); handleRename(file.id, file.name); }} className="p-3 bg-white dark:bg-slate-700 rounded-2xl text-slate-400 hover:text-purple-500 shadow-xl border border-slate-100 dark:border-slate-600"><Edit2 size={20}/></button>
+                            {/* Fitur 1: Delete Button */}
+                            <button onClick={(e) => { e.stopPropagation(); handleDelete(file.id, file.name); }} className="p-3 bg-white dark:bg-slate-700 rounded-2xl text-slate-400 hover:text-red-500 shadow-xl border border-slate-100 dark:border-slate-600"><Trash2 size={20}/></button>
+                          </>
                         )}
                       </div>
                     </div>
@@ -354,7 +438,36 @@ export default function Dashboard() {
           )}
         </AnimatePresence>
 
-        {/* UPLOAD MODAL */}
+        {/* LOG MODAL (Fitur 3) */}
+        <AnimatePresence>
+          {isLogModalOpen && (
+            <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-xl" onClick={() => setIsLogModalOpen(false)}>
+              <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[40px] shadow-2xl overflow-hidden border border-white/10" onClick={e => e.stopPropagation()}>
+                <div className="p-8 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+                  <h3 className="text-xl font-black uppercase tracking-tighter dark:text-white flex items-center gap-3"><History className="text-purple-500" /> System Activity Log</h3>
+                  <button onClick={() => setIsLogModalOpen(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all"><X size={24}/></button>
+                </div>
+                <div className="p-4 max-h-[60vh] overflow-y-auto font-mono text-[10px]">
+                  {activityLogs.length === 0 ? (
+                    <p className="text-center py-10 text-slate-400 uppercase tracking-widest">No activity recorded</p>
+                  ) : (
+                    activityLogs.map(log => (
+                      <div key={log.id} className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between group">
+                        <div>
+                          <span className={`px-2 py-0.5 rounded text-[8px] font-black mr-3 ${log.action === 'DELETE' ? 'bg-red-500 text-white' : log.action === 'UPLOAD' ? 'bg-green-500 text-white' : 'bg-blue-500 text-white'}`}>{log.action}</span>
+                          <span className="text-slate-700 dark:text-slate-300 font-bold">{log.fileName}</span>
+                          <p className="text-[9px] text-slate-400 mt-1 uppercase tracking-tighter">By {log.user} • {log.timestamp}</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* UPLOAD MODAL (Fitur 5: Multi-upload Support) */}
         <AnimatePresence>
           {isUploadModalOpen && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/80 backdrop-blur-2xl">
@@ -362,7 +475,7 @@ export default function Dashboard() {
                 <button onClick={() => setIsUploadModalOpen(false)} className="absolute right-12 top-12 text-slate-400 hover:rotate-90 transition-all duration-500"><X size={32}/></button>
                 <div className="text-center mb-12">
                    <h3 className="text-4xl font-black text-slate-900 dark:text-white uppercase tracking-tighter italic">Secure Gateway</h3>
-                   <p className="text-xs text-purple-500 font-bold uppercase tracking-[0.5em] mt-2">Satellite Transmission Active</p>
+                   <p className="text-xs text-purple-500 font-bold uppercase tracking-[0.5em] mt-2">Bulk Transmission Active</p>
                 </div>
                 {uploadStatus === 'idle' ? (
                   <div className="space-y-10">
@@ -372,30 +485,46 @@ export default function Dashboard() {
                     </select>
                     <label className="flex flex-col items-center justify-center w-full h-72 border-4 border-dashed border-slate-100 dark:border-slate-800 rounded-[50px] cursor-pointer hover:bg-purple-50/50 dark:hover:bg-purple-900/10 transition-all text-center p-8 group">
                       {uploading ? (
-                        <div className="w-full"><Loader2 className="animate-spin mx-auto text-purple-600 mb-6" size={60} /><div className="w-full bg-slate-100 dark:bg-slate-800 h-4 rounded-full overflow-hidden mb-4"><motion.div initial={{ width: 0 }} animate={{ width: `${uploadProgress}%` }} className="h-full bg-gradient-to-r from-purple-500 to-blue-500 shadow-[0_0_20px_#a855f7]" /></div><p className="text-xs font-black uppercase text-purple-500 tracking-[0.3em]">{uploadProgress}% ENCRYPTING...</p></div>
+                        <div className="w-full"><Loader2 className="animate-spin mx-auto text-purple-600 mb-6" size={60} /><div className="w-full bg-slate-100 dark:bg-slate-800 h-4 rounded-full overflow-hidden mb-4"><motion.div initial={{ width: 0 }} animate={{ width: `${uploadProgress}%` }} className="h-full bg-gradient-to-r from-purple-500 to-blue-500 shadow-[0_0_20px_#a855f7]" /></div><p className="text-xs font-black uppercase text-purple-500 tracking-[0.3em]">{uploadProgress}% ENCRYPTING BATCH...</p></div>
                       ) : (
-                        <><div className="p-8 bg-purple-600 rounded-[35px] text-white mb-6 shadow-2xl group-hover:scale-110 transition-all"><Upload size={48} strokeWidth={3}/></div><p className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Initialize Archive</p><input type="file" className="hidden" onChange={handleUpload} disabled={uploading} /></>
+                        <><div className="p-8 bg-purple-600 rounded-[35px] text-white mb-6 shadow-2xl group-hover:scale-110 transition-all"><Upload size={48} strokeWidth={3}/></div><p className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Initialize Batch Archive</p>
+                        <input type="file" multiple className="hidden" onChange={handleUpload} disabled={uploading} /></>
                       )}
                     </label>
                   </div>
                 ) : (
-                  <div className="text-center py-20">{uploadStatus === 'success' ? (<motion.div initial={{ scale: 0.5 }} animate={{ scale: 1 }}><CheckCircle2 size={100} className="text-green-500 mx-auto mb-6" /><h3 className="text-3xl font-black dark:text-white uppercase tracking-tighter">Secured</h3></motion.div>) : (<motion.div initial={{ scale: 0.5 }} animate={{ scale: 1 }}><AlertCircle size={100} className="text-red-500 mx-auto mb-6" /><h3 className="text-3xl font-black dark:text-white uppercase">Failure</h3></motion.div>)}</div>
+                  <div className="text-center py-20">{uploadStatus === 'success' ? (<motion.div initial={{ scale: 0.5 }} animate={{ scale: 1 }}><CheckCircle2 size={100} className="text-green-500 mx-auto mb-6" /><h3 className="text-3xl font-black dark:text-white uppercase tracking-tighter">Batch Secured</h3></motion.div>) : (<motion.div initial={{ scale: 0.5 }} animate={{ scale: 1 }}><AlertCircle size={100} className="text-red-500 mx-auto mb-6" /><h3 className="text-3xl font-black dark:text-white uppercase">Failure</h3></motion.div>)}</div>
                 )}
               </motion.div>
             </div>
           )}
         </AnimatePresence>
 
-        {/* PREVIEW PANEL */}
+        {/* PREVIEW PANEL (Fitur 4: Optimized Preview with Loader) */}
         <AnimatePresence>
           {selectedFile && (
             <motion.div initial={{ x: 700 }} animate={{ x: 0 }} exit={{ x: 700 }} className="w-[650px] bg-white/90 dark:bg-slate-900/90 backdrop-blur-3xl shadow-2xl border-l border-white/20 flex flex-col overflow-hidden relative z-30 transition-all duration-500">
                <div className="p-10 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-white/50 dark:bg-slate-900/50 backdrop-blur-md">
                   <div className="flex items-center gap-5 overflow-hidden"><div className="p-4 bg-purple-100 dark:bg-purple-900/30 rounded-2xl text-purple-600"><FileText size={24}/></div><span className="font-black text-sm truncate uppercase tracking-widest text-slate-900 dark:text-white block leading-none">{selectedFile.name}</span></div>
-                  <button onClick={() => setSelectedFile(null)} className="p-3 bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-red-500 rounded-full transition-all border border-slate-200 dark:border-slate-700 leading-none"><X size={28}/></button>
+                  <button onClick={() => { setSelectedFile(null); setPreviewLoading(true); }} className="p-3 bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-red-500 rounded-full transition-all border border-slate-200 dark:border-slate-700 leading-none"><X size={28}/></button>
                </div>
-               <iframe src={`https://drive.google.com/file/d/${selectedFile.id}/preview`} className="flex-1 w-full m-8 rounded-[50px] overflow-hidden bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 shadow-2xl" title="Live Sync" />
-               <div className="p-10 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border-t border-slate-200 dark:border-slate-800"><button onClick={() => window.open(`https://drive.google.com/uc?export=download&id=${selectedFile.id}`, '_blank')} className="w-full py-6 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-[35px] font-black text-xs uppercase tracking-[0.3em] flex items-center justify-center gap-4 active:scale-95 shadow-xl transition-all leading-none border border-white/20"><Download size={22} strokeWidth={3}/> Secure Download</button></div>
+               
+               <div className="flex-1 relative m-8">
+                  {previewLoading && (
+                    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white dark:bg-slate-950 rounded-[50px] gap-4">
+                      <Loader2 className="animate-spin text-purple-500" size={48} />
+                      <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Loading Document...</p>
+                    </div>
+                  )}
+                  <iframe 
+                    src={`https://drive.google.com/file/d/${selectedFile.id}/preview`} 
+                    className="w-full h-full rounded-[50px] overflow-hidden bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 shadow-2xl" 
+                    title="Live Sync"
+                    onLoad={() => setPreviewLoading(false)}
+                  />
+               </div>
+
+               <div className="p-10 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border-t border-slate-200 dark:border-slate-800"><button onClick={() => { addLog("DOWNLOAD", selectedFile.name); window.open(`https://drive.google.com/uc?export=download&id=${selectedFile.id}`, '_blank'); }} className="w-full py-6 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-[35px] font-black text-xs uppercase tracking-[0.3em] flex items-center justify-center gap-4 active:scale-95 shadow-xl transition-all leading-none border border-white/20"><Download size={22} strokeWidth={3}/> Secure Download</button></div>
             </motion.div>
           )}
         </AnimatePresence>
