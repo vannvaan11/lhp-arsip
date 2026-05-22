@@ -198,7 +198,7 @@ export default function Dashboard() {
           <p className="text-purple-400 mb-10 text-[10px] font-black uppercase tracking-[0.4em]">Irban III • Inspection Portal</p>
           <form onSubmit={handleLogin} className="space-y-6">
             <input type="password" placeholder="ENTER ACCESS CODE" className="w-full p-6 rounded-[30px] border-none outline-none bg-white/5 text-white text-center font-black placeholder:text-white/20 tracking-[0.5em] focus:ring-2 focus:ring-purple-500 transition-all" onChange={(e) => setPassword(e.target.value)} />
-            <button type="submit" className="w-full bg-white text-slate-900 p-6 rounded-[30px] font-black uppercase tracking-widest hover:bg-purple-50 transition-all shadow-xl active:scale-95">Open Terminal</button>
+            <button type="submit" className="w-full bg-white text-slate-900 p-6 rounded-[30px] font-black uppercase tracking-widest hover:bg-purple-50 transition-all shadow-xl active:scale-95">Akses Sistem</button>
           </form>
         </motion.div>
       </div>
@@ -241,7 +241,7 @@ export default function Dashboard() {
              <Database className="absolute -right-6 -bottom-6 opacity-5 group-hover:rotate-12 transition-all duration-700" size={120}/>
           </div>
           
-          <button onClick={() => {sessionStorage.clear(); window.location.reload();}} className="flex items-center justify-center gap-3 p-5 bg-red-500/10 text-red-500 font-black uppercase text-[10px] tracking-widest rounded-2xl hover:bg-red-500 hover:text-white transition-all"><LogOut size={16}/> Terminate</button>
+          <button onClick={() => {sessionStorage.clear(); window.location.reload();}} className="flex items-center justify-center gap-3 p-5 bg-red-500/10 text-red-500 font-black uppercase text-[10px] tracking-widest rounded-2xl hover:bg-red-500 hover:text-white transition-all"><LogOut size={16}/> lOGOUT</button>
         </aside>
 
         {/* MAIN AREA */}
@@ -258,7 +258,7 @@ export default function Dashboard() {
               <div>
                 <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter uppercase italic leading-none">Smart Archiv3</h1>
                 <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 mt-2 uppercase tracking-[0.2em] leading-none">
-                  <span className="hover:text-purple-600 cursor-pointer transition-colors" onClick={goHome}>PRIMARY</span>
+                  <span className="hover:text-purple-600 cursor-pointer transition-colors" onClick={goHome}>DIGITAL LHP IRBAN III</span>
                   {folderHistory.map((h, i) => (
                     <React.Fragment key={h.id + i}>
                       <ChevronRight size={10} className="text-slate-300"/> 
