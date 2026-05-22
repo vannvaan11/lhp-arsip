@@ -193,7 +193,7 @@ export default function Dashboard() {
         <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="relative z-10 bg-white/10 backdrop-blur-3xl p-12 rounded-[60px] shadow-2xl w-full max-w-md border border-white/10 text-center">
           <div className="mb-8 flex justify-center">
             <div className="w-24 h-24 bg-white/10 backdrop-blur-md rounded-full p-4 border border-white/20 shadow-inner">
-               <img src="https://i.ibb.co.com/8m4Y3qYf/logo-instansi.png" alt="Logo" className="w-full h-full object-contain" />
+               <img src="https://i.ibb.co.com/L22pdJQ/Coat-of-arms-of-Southeast-Sulawesi-svg.png" alt="Logo" className="w-full h-full object-contain" />
             </div>
           </div>
           <h2 className="text-4xl font-black mb-1 text-white tracking-tighter italic uppercase">DIGITAL ARCHIVE</h2>
@@ -216,7 +216,7 @@ export default function Dashboard() {
         <aside className="w-80 bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border-r border-slate-200 dark:border-slate-800 p-10 flex flex-col gap-10 relative z-20">
           <div className="flex flex-col items-center gap-4 mb-6">
             <div className="w-20 h-20 bg-gradient-to-tr from-purple-500 to-blue-600 rounded-3xl p-4 shadow-xl shadow-purple-500/20">
-               <img src="https://i.ibb.co.com/8m4Y3qYf/logo-instansi.png" alt="Logo" className="w-full h-full object-contain brightness-0 invert" />
+               <img src="https://i.ibb.co.com/L22pdJQ/Coat-of-arms-of-Southeast-Sulawesi-svg.png" alt="Logo" className="w-full h-full object-contain brightness-0 invert" />
             </div>
             <div className="text-center">
               <h1 className="font-black text-2xl tracking-tighter text-slate-800 dark:text-white italic leading-none">ARV<span className="text-purple-600">DRIVE</span></h1>
