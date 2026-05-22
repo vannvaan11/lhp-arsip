@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "formidable": "^3.5.4",
-    "framer-motion": "^12.39.0",
+    "framer-motion": "^12.40.0",
     "googleapis": "^171.4.0",
     "lucide-react": "^1.16.0",
     "next": "16.2.6",
