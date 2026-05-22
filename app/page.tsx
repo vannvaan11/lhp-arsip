@@ -1,5 +1,5 @@
 "use client"
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Folder, FileText, Upload, Lock, Database, LayoutDashboard, 
@@ -61,6 +61,42 @@ export default function Dashboard() {
   const [previewLoading, setPreviewLoading] = useState(true);
 
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
+
+  // --- ONLINE LOGGING LOGIC ---
+  const fetchOnlineLogs = useCallback(async () => {
+    setLogsLoading(true);
+    try {
+      const res = await fetch('/api/logs');
+      const data = await res.json();
+      if (Array.isArray(data)) setActivityLogs(data);
+    } catch (e) { console.error("Gagal mengambil log online", e); }
+    setLogsLoading(false);
+  }, []);
+
+  const addOnlineLog = async (action: string, fileName: string) => {
+    const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : "Unknown";
+    let deviceDesc = "PC / Desktop";
+    if (userAgent.includes("Android")) deviceDesc = "Android";
+    else if (userAgent.includes("iPhone")) deviceDesc = "iPhone";
+    else if (userAgent.includes("Macintosh")) deviceDesc = "MacBook";
+
+    const newEntry = {
+      action,
+      fileName,
+      user: userName || sessionStorage.getItem('userName') || "Guest",
+      device: deviceDesc
+    };
+
+    try {
+      await fetch('/api/logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newEntry)
+      });
+      fetchOnlineLogs(); // Refresh log setelah menambah
+    } catch (e) { console.error("Gagal mengirim log", e); }
+  };
 
   // --- INITIALIZATION ---
   useEffect(() => {
@@ -77,18 +113,17 @@ export default function Dashboard() {
     const savedRole = sessionStorage.getItem('userRole');
     const savedName = sessionStorage.getItem('userName');
     const savedTheme = localStorage.getItem('theme');
-    const savedLogs = localStorage.getItem('drive_logs');
     
     if (savedLogin === 'true' && savedRole && savedName) {
       setIsLoggedIn(true);
       setUserRole(savedRole as 'admin' | 'user');
       setUserName(savedName);
+      fetchOnlineLogs();
     }
     if (savedTheme === 'dark') setIsDarkMode(true);
-    if (savedLogs) setActivityLogs(JSON.parse(savedLogs));
 
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [fetchOnlineLogs]);
 
   useEffect(() => {
     if (isDarkMode) {
@@ -99,27 +134,6 @@ export default function Dashboard() {
       localStorage.setItem('theme', 'light');
     }
   }, [isDarkMode]);
-
-  // --- LOGGING HELPER ---
-  const addLog = (action: string, fileName: string) => {
-    const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : "Unknown";
-    let deviceDesc = "PC / Desktop";
-    if (userAgent.includes("Android")) deviceDesc = "Smartphone Android";
-    else if (userAgent.includes("iPhone")) deviceDesc = "Apple iPhone";
-    else if (userAgent.includes("Macintosh")) deviceDesc = "MacBook/Mac";
-
-    const newLog: ActivityLog = {
-      id: Math.random().toString(36).substr(2, 9),
-      action,
-      fileName,
-      timestamp: new Date().toLocaleString('id-ID'),
-      user: userName || sessionStorage.getItem('userName') || "Guest",
-      device: deviceDesc
-    };
-    const updatedLogs = [newLog, ...activityLogs].slice(0, 100);
-    setActivityLogs(updatedLogs);
-    localStorage.setItem('drive_logs', JSON.stringify(updatedLogs));
-  };
 
   // --- DATA FETCHING ---
   const fetchData = async (fId: string = '') => {
@@ -179,7 +193,6 @@ export default function Dashboard() {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (!tempName.trim()) { alert("Silakan masukkan identitas!"); return; }
-
     if (password === 'adminLhp3') {
       loginProcess('admin');
     } else if (password === 'userLhp3') {
@@ -194,7 +207,7 @@ export default function Dashboard() {
     sessionStorage.setItem('isLoggedIn', 'true');
     sessionStorage.setItem('userRole', role);
     sessionStorage.setItem('userName', tempName);
-    addLog("LOGIN", "Masuk ke Dashboard");
+    addOnlineLog("LOGIN", "Masuk ke Dashboard");
   };
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -209,7 +222,7 @@ export default function Dashboard() {
       formData.append('parentId', dest);
       try {
         const res = await fetch('/api/drive/upload', { method: 'POST', body: formData });
-        if (res.ok) { success++; addLog("UPLOAD", selectedFiles[i].name); }
+        if (res.ok) { success++; addOnlineLog("UPLOAD", selectedFiles[i].name); }
         setUploadProgress(Math.round(((i + 1) / selectedFiles.length) * 100));
       } catch (e) { console.error(e); }
     }
@@ -223,7 +236,7 @@ export default function Dashboard() {
     if (!confirm(`Hapus permanen ${fileName}?`)) return;
     try {
       const res = await fetch(`/api/drive?fileId=${fileId}`, { method: 'DELETE' });
-      if (res.ok) { addLog("DELETE", fileName); fetchData(currentFolder); setSelectedFile(null); }
+      if (res.ok) { addOnlineLog("DELETE", fileName); fetchData(currentFolder); setSelectedFile(null); }
     } catch (e) { console.error(e); }
   };
 
@@ -237,7 +250,7 @@ export default function Dashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fileId, newName })
       });
-      addLog("RENAME", `${oldName} -> ${newName}`);
+      addOnlineLog("RENAME", `${oldName} -> ${newName}`);
       fetchData(currentFolder);
     } catch (e) { console.error(e); }
   };
@@ -273,7 +286,6 @@ export default function Dashboard() {
     );
   }
 
-  // --- DASHBOARD VIEW ---
   return (
     <div className={isDarkMode ? "dark" : ""}>
       <div className="h-screen bg-[#F0F4FF] dark:bg-[#020617] flex text-slate-700 dark:text-slate-200 overflow-hidden transition-all duration-700 font-sans">
@@ -285,8 +297,8 @@ export default function Dashboard() {
                <img src="https://i.ibb.co.com/L22pdJQ/Coat-of-arms-of-Southeast-Sulawesi-svg.png" alt="Logo" className="w-full h-full object-contain" />
             </div>
             <div className="text-center">
-              <h1 className="font-black text-2xl tracking-tighter text-slate-800 dark:text-white italic leading-none">ARV<span className="text-purple-600">DRIV3</span></h1>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1 italic">{userName}</p>
+              <h1 className="font-black text-2xl tracking-tighter text-slate-800 dark:text-white italic leading-none uppercase">Arv<span className="text-purple-600">Driv3</span></h1>
+              <p className="text-[10px] font-black text-purple-500 uppercase tracking-tighter truncate max-w-[180px] mt-2 italic">{userName}</p>
             </div>
           </div>
           
@@ -301,11 +313,10 @@ export default function Dashboard() {
               <button onClick={() => setFilterType('file')} className={`flex items-center gap-3 p-4 rounded-xl text-[10px] uppercase tracking-wider transition-all ${filterType === 'file' ? 'bg-blue-100 text-blue-600' : 'text-slate-400'}`}><FileText size={14}/> Dokumen</button>
             </div>
             <button onClick={() => setIsLogModalOpen(true)} className="w-full flex items-center gap-4 p-4 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-[20px] transition-all text-[10px] uppercase tracking-widest">
-              <History size={18}/> Log Aktivitas
+              <History size={18}/> Log Aktivitas Online
             </button>
           </nav>
 
-          {/* TOTAL DOKUMEN - KEMBALI SEPERTI ASLINYA */}
           <div className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 dark:from-purple-900 dark:to-indigo-900 rounded-[40px] text-white shadow-2xl relative overflow-hidden group">
              <div className="relative z-10">
                <p className="text-[10px] font-black uppercase opacity-50 mb-2 tracking-[0.2em] leading-none">Database Sync</p>
@@ -318,7 +329,6 @@ export default function Dashboard() {
           <button onClick={() => {sessionStorage.clear(); window.location.reload();}} className="flex items-center justify-center gap-3 p-5 bg-red-500/10 text-red-500 font-black uppercase text-[10px] tracking-widest rounded-2xl hover:bg-red-500 hover:text-white transition-all"><LogOut size={16}/> LOGOUT</button>
         </aside>
 
-        {/* MAIN AREA */}
         <main className="flex-1 flex flex-col min-w-0 transition-colors relative bg-[#F8FAFF] dark:bg-[#020617]">
           <header className="p-10 flex justify-between items-center bg-white/20 dark:bg-slate-900/20 backdrop-blur-md border-b border-slate-200/50 dark:border-slate-800 z-10">
             <div className="flex items-center gap-6">
@@ -347,7 +357,6 @@ export default function Dashboard() {
               <div className="flex-1 relative group cursor-pointer" onClick={() => setIsSearchModalOpen(true)}>
                 <Search size={20} className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 group-hover:text-purple-500 transition-colors" />
                 <div className="w-full pl-16 pr-6 py-5 bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-[30px] text-slate-400 text-xs font-black uppercase tracking-widest shadow-xl group-hover:ring-2 group-hover:ring-purple-500/20 transition-all">Cari Dokumen...</div>
-                <div className="absolute right-6 top-1/2 -translate-y-1/2 px-2 py-1 bg-slate-50 dark:bg-slate-800 rounded-lg text-[9px] font-black text-slate-300 border border-slate-100 dark:border-slate-700">CTRL + K</div>
               </div>
               <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-5 bg-white dark:bg-slate-900 shadow-xl border border-slate-100 dark:border-slate-800 rounded-[25px] text-slate-400 dark:text-yellow-400 hover:scale-110 transition-all active:rotate-90">
                 {isDarkMode ? <Sun size={24}/> : <Moon size={24}/>}
@@ -356,7 +365,7 @@ export default function Dashboard() {
 
             {userRole === 'admin' && (
               <button onClick={() => {setUploadDestinationId(currentFolder); setIsUploadModalOpen(true);}} className="flex items-center gap-3 bg-slate-900 dark:bg-purple-600 text-white px-10 py-5 rounded-[30px] font-black uppercase text-[10px] tracking-[0.2em] shadow-xl hover:translate-y-[-2px] transition-all active:scale-95">
-                <Plus size={20} strokeWidth={3} /> Upload Berkas
+                <Plus size={20} strokeWidth={3} /> Unggah LHP
               </button>
             )}
           </header>
@@ -365,7 +374,7 @@ export default function Dashboard() {
             {loading ? (
               <div className="h-full flex flex-col items-center justify-center gap-4 text-slate-400">
                 <Loader2 className="animate-spin text-purple-600" size={40} />
-                <p className="font-black text-xs uppercase tracking-[0.3em]">Sinkronisasi Arsip...</p>
+                <p className="font-black text-xs uppercase tracking-[0.3em]">Singkronisasi Arsip...</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-10 pb-20">
@@ -382,7 +391,7 @@ export default function Dashboard() {
                       </div>
                       <div className="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
                         {!file.mimeType.includes('folder') && (
-                          <button onClick={(e) => { e.stopPropagation(); addLog("DOWNLOAD", file.name); window.open(`https://drive.google.com/uc?export=download&id=${file.id}`, '_blank'); }} className="p-3 bg-white dark:bg-slate-700 rounded-2xl text-slate-400 hover:text-blue-500 shadow-xl border border-slate-100 dark:border-slate-600"><Download size={20}/></button>
+                          <button onClick={(e) => { e.stopPropagation(); addOnlineLog("DOWNLOAD", file.name); window.open(`https://drive.google.com/uc?export=download&id=${file.id}`, '_blank'); }} className="p-3 bg-white dark:bg-slate-700 rounded-2xl text-slate-400 hover:text-blue-500 shadow-xl border border-slate-100 dark:border-slate-600"><Download size={20}/></button>
                         )}
                         {userRole === 'admin' && (
                           <>
@@ -405,14 +414,13 @@ export default function Dashboard() {
           </div>
         </main>
 
-        {/* SEARCH SPOTLIGHT */}
         <AnimatePresence>
           {isSearchModalOpen && (
             <div className="fixed inset-0 z-[200] flex items-start justify-center pt-32 px-4 bg-slate-900/60 backdrop-blur-xl" onClick={() => setIsSearchModalOpen(false)}>
               <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white dark:bg-slate-900 w-full max-w-3xl rounded-[40px] shadow-2xl overflow-hidden border border-white/10" onClick={e => e.stopPropagation()}>
                 <div className="p-8 flex items-center gap-6 border-b border-slate-200 dark:border-slate-800">
                   <Search className="text-purple-600" size={28} />
-                  <input autoFocus type="text" placeholder="Masukkan nama berkas..." className="flex-1 bg-transparent outline-none font-black text-xl dark:text-white uppercase tracking-tighter" onChange={(e) => setSearchTerm(e.target.value)} />
+                  <input autoFocus type="text" placeholder="Cari nama berkas..." className="flex-1 bg-transparent outline-none font-black text-xl dark:text-white uppercase tracking-tighter" onChange={(e) => setSearchTerm(e.target.value)} />
                 </div>
                 <div className="max-h-[400px] overflow-y-auto p-6 scrollbar-hide">
                   {files.filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase())).map(f => (
@@ -427,20 +435,22 @@ export default function Dashboard() {
           )}
         </AnimatePresence>
 
-        {/* LOG MODAL TABLE */}
         <AnimatePresence>
           {isLogModalOpen && (
-            <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-xl" onClick={() => setIsLogModalOpen(false)}>
+            <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-xl" onClick={() => {setIsLogModalOpen(false); fetchOnlineLogs();}}>
               <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-[40px] shadow-2xl overflow-hidden border border-white/10" onClick={e => e.stopPropagation()}>
                 <div className="p-8 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
-                  <h3 className="text-xl font-black uppercase tracking-tighter dark:text-white flex items-center gap-3"><History className="text-purple-500" /> Activity Log</h3>
-                  <button onClick={() => setIsLogModalOpen(false)} className="p-2 hover:bg-red-100 rounded-full transition-all text-slate-400 hover:text-red-500"><X size={24}/></button>
+                  <h3 className="text-xl font-black uppercase tracking-tighter dark:text-white flex items-center gap-3"><History className="text-purple-500" /> Online Activity Tracking</h3>
+                  <div className="flex items-center gap-4">
+                    {logsLoading && <Loader2 className="animate-spin text-purple-500" size={18}/>}
+                    <button onClick={() => {setIsLogModalOpen(false); fetchOnlineLogs();}} className="p-2 hover:bg-red-100 rounded-full transition-all text-slate-400 hover:text-red-500"><X size={24}/></button>
+                  </div>
                 </div>
                 <div className="overflow-x-auto max-h-[60vh]">
                   <table className="w-full text-left border-collapse min-w-[700px]">
                     <thead className="bg-slate-100 dark:bg-slate-800 text-[10px] font-black uppercase tracking-widest text-slate-400">
                       <tr>
-                        <th className="p-6">User / Identitas</th>
+                        <th className="p-6">User / Pelaku</th>
                         <th className="p-6">Aksi</th>
                         <th className="p-6">Berkas</th>
                         <th className="p-6">Perangkat</th>
@@ -461,13 +471,13 @@ export default function Dashboard() {
                       ))}
                     </tbody>
                   </table>
+                  {activityLogs.length === 0 && !logsLoading && <p className="p-20 text-center text-slate-400 uppercase tracking-widest text-xs font-black">Belum ada aktivitas tercatat</p>}
                 </div>
               </motion.div>
             </div>
           )}
         </AnimatePresence>
 
-        {/* UPLOAD MODAL */}
         <AnimatePresence>
           {isUploadModalOpen && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/80 backdrop-blur-2xl">
@@ -500,7 +510,6 @@ export default function Dashboard() {
           )}
         </AnimatePresence>
 
-        {/* PREVIEW PANEL */}
         <AnimatePresence>
           {selectedFile && (
             <motion.div initial={{ x: 700 }} animate={{ x: 0 }} exit={{ x: 700 }} className="w-[650px] bg-white/90 dark:bg-slate-900/90 backdrop-blur-3xl shadow-2xl border-l border-white/20 flex flex-col overflow-hidden relative z-30 transition-all duration-500">
@@ -522,7 +531,7 @@ export default function Dashboard() {
                     onLoad={() => setPreviewLoading(false)}
                   />
                </div>
-               <div className="p-10 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border-t border-slate-200 dark:border-slate-800"><button onClick={() => { addLog("DOWNLOAD", selectedFile.name); window.open(`https://drive.google.com/uc?export=download&id=${selectedFile.id}`, '_blank'); }} className="w-full py-6 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-[35px] font-black text-xs uppercase tracking-[0.3em] flex items-center justify-center gap-4 active:scale-95 shadow-xl transition-all leading-none border border-white/20"><Download size={22} strokeWidth={3}/> Secure Download</button></div>
+               <div className="p-10 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border-t border-slate-200 dark:border-slate-800"><button onClick={() => { addOnlineLog("DOWNLOAD", selectedFile.name); window.open(`https://drive.google.com/uc?export=download&id=${selectedFile.id}`, '_blank'); }} className="w-full py-6 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-[35px] font-black text-xs uppercase tracking-[0.3em] flex items-center justify-center gap-4 active:scale-95 shadow-xl transition-all leading-none border border-white/20"><Download size={22} strokeWidth={3}/> Secure Download</button></div>
             </motion.div>
           )}
         </AnimatePresence>
