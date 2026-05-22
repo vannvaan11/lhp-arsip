@@ -1,0 +1,37 @@
+[33m162d3c8[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m fix: restore file visibility and stable delete
+[33m7f80063[m Beta 1.3.1. back to latest version
+[33m2007171[m Beta 1.3. fix: complete drive api repair delete and upload
+[33m0fb324a[m Beta 1.1. fix: upload route stream and auth formatting
+[33m018c56e[m Beta 1.0. Update: Menambahkan fitur delete, filter, log, dan multi-upload
+[33m1945905[m master luxury edition: logo fix and stylish arvdrive 1.3
+[33m9b1b2db[m master luxury edition: logo fix and stylish arvdrive 1.2
+[33mafc72d6[m master luxury edition: logo fix and stylish arvdrive
+[33m9910da3[m master luxury edition: logo fix and stylish arvdrive
+[33m94e902d[m Luxurious master version fixed
+[33m9d8c2aa[m Luxurious master version fixed
+[33m3194fd0[m Fix dark and light mode
+[33m25402c0[m Final Super Integrated Version
+[33meea1c94[m fixed stable code version 2.0
+[33m03b4123[m new version
+[33m88907fd[m fix persistence login
+[33me2406c1[m fix fitur rename dan hak akses admin user
+[33m81519e8[m Archiv3 judul
+[33md6ce0cd[m new update next level1
+[33m8cd98ed[m update tampilan profesional futuristik
+[33m9872d38[m ganti alert pasword salah
+[33m570050b[m fitur admin user role active
+[33m7fc51df[m clean build: remove old configs for tailwind v4
+[33ma8eb178[m fix tailwind v4 postcss build error
+[33mbe6e78f[m kembali versi sebelumnya
+[33mfb6481e[m fix globals css and manual dark mode
+[33m6179222[m menambah file gambar ke folder public
+[33m5d76621[m menambahkan background image pada login
+[33m770ed4c[m fitur upload ke seluruh sub-folder drive
+[33m2ecf866[m fitur lengkap final: search, upload folder, stats, rename, live view
+[33mf0e8533[m fitur upload dengan pilihan folder tujuan
+[33m69d867b[m fitur lengkap: statistik, navigasi folder, dan live view panel
+[33m3150dff[m fitur lengkap: stats, upload, rename, folder navigation
+[33m79ac332[m fix route handler and dependencies
+[33m7dd2462[m menghubungkan mesin google drive
+[33m2695a62[m first commit
+[33m8e97903[m Initial commit from Create Next App
