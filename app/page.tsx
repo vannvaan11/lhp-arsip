@@ -275,7 +275,7 @@ export default function Dashboard() {
              <img src="https://i.ibb.co.com/L22pdJQ/Coat-of-arms-of-Southeast-Sulawesi-svg.png" alt="Logo" className="w-20 h-20 object-contain" />
           </div>
           <h2 className="text-3xl font-black mb-1 text-white tracking-tighter italic uppercase">DIGITAL ARCHIVE</h2>
-          <p className="text-purple-400 mb-8 text-[10px] font-black uppercase tracking-[0.4em]">Tracking System Active</p>
+          <p className="text-purple-400 mb-8 text-[10px] font-black uppercase tracking-[0.4em]">E-LHP Irban III</p>
           <form onSubmit={handleLogin} className="space-y-4">
             <input required type="text" placeholder="IDENTITAS (NAMA/JABATAN)" className="w-full p-5 rounded-[25px] border-none outline-none bg-white/5 text-white text-center font-bold placeholder:text-white/20 focus:ring-2 focus:ring-purple-500 transition-all text-sm uppercase" onChange={(e) => setTempName(e.target.value)} />
             <input required type="password" placeholder="KODE AKSES" className="w-full p-5 rounded-[25px] border-none outline-none bg-white/5 text-white text-center font-bold placeholder:text-white/20 tracking-[0.5em] focus:ring-2 focus:ring-purple-500 transition-all" onChange={(e) => setPassword(e.target.value)} />
