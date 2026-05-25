@@ -343,7 +343,7 @@ export default function Dashboard() {
             ) : (
               <div className="space-y-12">
                  
-                {/* MODERN FEATURE: QUICK FOLDERS (Only shown in Root or all) */}
+                {/* QUICK FOLDERS */}
                 {!currentFolder && filterType !== 'file' && (
                    <section>
                       <h3 className="text-[10px] font-black uppercase text-slate-600 tracking-[0.4em] mb-6 flex items-center gap-3">
@@ -397,7 +397,10 @@ export default function Dashboard() {
                                        <button onClick={(e) => { e.stopPropagation(); addOnlineLog("DOWNLOAD", file.name); window.open(`https://drive.google.com/uc?export=download&id=${file.id}`, '_blank'); }} className="p-3 bg-slate-800 rounded-xl text-slate-400 hover:text-amber-500 border border-white/5"><Download size={16}/></button>
                                     )}
                                     {userRole === 'admin' && (
-                                       <button onClick={(e) => { e.stopPropagation(); handleDelete(file.id, file.name); }} className="p-3 bg-slate-800 rounded-xl text-slate-400 hover:text-red-400 border border-white/5"><Trash2 size={16}/></button>
+                                       <>
+                                          <button onClick={(e) => { e.stopPropagation(); handleRename(file.id, file.name); }} className="p-3 bg-slate-800 rounded-xl text-slate-400 hover:text-amber-500 border border-white/5"><Edit2 size={16}/></button>
+                                          <button onClick={(e) => { e.stopPropagation(); handleDelete(file.id, file.name); }} className="p-3 bg-slate-800 rounded-xl text-slate-400 hover:text-red-400 border border-white/5"><Trash2 size={16}/></button>
+                                       </>
                                     )}
                                  </div>
                               </div>
@@ -439,7 +442,10 @@ export default function Dashboard() {
                                <div className="col-span-3 flex justify-end gap-2 pr-4">
                                   <button onClick={(e) => { e.stopPropagation(); setSelectedFile(file); }} className="p-3 bg-white/5 rounded-xl text-slate-500 hover:text-amber-500 transition-all"><Info size={16}/></button>
                                   {userRole === 'admin' && (
-                                     <button onClick={(e) => { e.stopPropagation(); handleRename(file.id, file.name); }} className="p-3 bg-white/5 rounded-xl text-slate-500 hover:text-amber-500 transition-all"><Edit2 size={16}/></button>
+                                     <>
+                                        <button onClick={(e) => { e.stopPropagation(); handleRename(file.id, file.name); }} className="p-3 bg-white/5 rounded-xl text-slate-500 hover:text-amber-500 transition-all"><Edit2 size={16}/></button>
+                                        <button onClick={(e) => { e.stopPropagation(); handleDelete(file.id, file.name); }} className="p-3 bg-white/5 rounded-xl text-slate-500 hover:text-red-400 transition-all"><Trash2 size={16}/></button>
+                                     </>
                                   )}
                                </div>
                             </div>
@@ -463,8 +469,6 @@ export default function Dashboard() {
              </div>
           </div>
         </main>
-
-        {/* MODAL & PANEL (Same Logic as Original but enhanced Design) */}
 
         {/* LOG MODAL */}
         <AnimatePresence>
@@ -579,7 +583,7 @@ export default function Dashboard() {
                   </div>
                </div>
                
-               {/* Metadata Bar (Modern Feature) */}
+               {/* Metadata Bar */}
                <div className="grid grid-cols-3 p-8 gap-4 border-b border-white/5 bg-slate-900/20">
                   <div className="p-4 bg-white/5 rounded-2xl border border-white/5 text-center">
                      <p className="text-[8px] font-black uppercase text-slate-500 mb-2 tracking-widest">Type</p>
