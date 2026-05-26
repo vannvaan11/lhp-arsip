@@ -244,28 +244,29 @@ export default function Dashboard() {
         <div className="absolute inset-0 z-0 bg-cover bg-center opacity-[0.07] pointer-events-none grayscale contrast-125" style={{ backgroundImage: "url('https://i.ibb.co.com/NnC3sn3S/bg-login.png')" }}></div>
 
         {/* SIDEBAR */}
-        <aside className="w-80 bg-slate-950/60 backdrop-blur-3xl border-r border-amber-500/10 flex flex-col relative z-20 overflow-hidden">
-          {/* User Card */}
-          <div className="p-8 border-b border-amber-500/10">
-             <div className="bg-gradient-to-br from-slate-900 to-black p-6 rounded-[32px] border border-amber-500/20 flex flex-col items-center gap-4 relative overflow-hidden group">
-                <div className="absolute inset-0 bg-amber-500/5 opacity-0 group-hover:opacity-100 transition-all duration-700"></div>
-                <div className="relative z-10 w-16 h-16 bg-amber-500 rounded-2xl p-3 shadow-2xl">
-                    <img src="https://i.ibb.co.com/L22pdJQ/Coat-of-arms-of-Southeast-Sulawesi-svg.png" alt="Logo" className="w-full h-full object-contain" />
-                </div>
-                <div className="relative z-10 text-center">
-                   <h1 className="text-xl font-black text-white italic uppercase tracking-tighter leading-none mb-2">ARV<span className="text-amber-500 font-black">DRIV3</span></h1>
-                   <div className="px-3 py-1 bg-amber-500/10 rounded-full border border-amber-500/20 text-[8px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-2">
-                      <Shield size={10}/> {userName}
-                   </div>
-                </div>
-             </div>
+        <aside className="w-80 bg-slate-950/40 backdrop-blur-3xl border-r border-amber-500/10 p-8 flex flex-col gap-10 relative z-20">
+          {/* Logo & User Login (KEMBALI KE STYLE ORIGINAL DENGAN CROWN) */}
+          <div className="flex flex-col items-center gap-5">
+            <div className="relative group">
+              <div className="absolute inset-0 bg-amber-500/20 blur-2xl rounded-full scale-0 group-hover:scale-100 transition-all duration-700"></div>
+              <div className="w-20 h-20 bg-gradient-to-br from-slate-800 to-slate-900 rounded-[30px] p-3 border border-amber-500/20 shadow-2xl flex items-center justify-center relative z-10 overflow-hidden">
+                 <img src="https://i.ibb.co.com/L22pdJQ/Coat-of-arms-of-Southeast-Sulawesi-svg.png" alt="Logo" className="w-full h-full object-contain" />
+              </div>
+            </div>
+            <div className="text-center">
+              <h1 className="font-black text-2xl tracking-tighter text-white italic uppercase leading-none">ARV<span className="text-amber-500">DRIV3</span></h1>
+              <div className="mt-4 inline-flex items-center gap-2 px-3 py-1 bg-amber-500/5 rounded-lg border border-amber-500/10">
+                 <Crown size={12} className="text-amber-500" />
+                 <span className="text-[9px] font-black text-amber-500/80 uppercase tracking-widest truncate max-w-[120px]">{userName}</span>
+              </div>
+            </div>
           </div>
           
-          <nav className="flex-1 space-y-2 p-6 font-black text-[10px] uppercase tracking-widest overflow-y-auto scrollbar-hide">
-            <button onClick={goHome} className={`w-full flex items-center gap-4 p-5 rounded-2xl transition-all ${!currentFolder ? 'bg-amber-500 text-slate-950 shadow-xl' : 'text-slate-500 hover:bg-white/5'}`}>
-              <LayoutDashboard size={18}/> Overview
+          <nav className="flex-1 space-y-2 font-black text-[10px] uppercase tracking-widest overflow-y-auto scrollbar-hide">
+            <button onClick={goHome} className={`w-full flex items-center gap-4 p-5 rounded-2xl transition-all group ${!currentFolder ? 'bg-gradient-to-br from-amber-500 to-yellow-600 text-slate-950 shadow-[0_10px_30px_rgba(245,158,11,0.2)]' : 'hover:bg-amber-500/5 text-slate-500'}`}>
+              <LayoutDashboard size={18} className="group-hover:rotate-6 transition-transform"/> Overview
             </button>
-            <div className="pt-6 pb-2 px-4 text-[8px] text-amber-500/40 font-black tracking-[0.4em]">Resource Filters</div>
+            <div className="pt-6 pb-2 px-4 text-[8px] text-amber-500/30 font-black tracking-[0.4em]">Resource Filters</div>
             <button onClick={() => setFilterType('all')} className={`w-full flex items-center gap-4 p-4 rounded-xl transition-all ${filterType === 'all' ? 'text-amber-500 bg-amber-500/5 border border-amber-500/10' : 'text-slate-500 hover:text-slate-300'}`}><LayoutGrid size={16}/> Matrix</button>
             <button onClick={() => setFilterType('folder')} className={`w-full flex items-center gap-4 p-4 rounded-xl transition-all ${filterType === 'folder' ? 'text-amber-500 bg-amber-500/5 border border-amber-500/10' : 'text-slate-500 hover:text-slate-300'}`}><Folder size={16}/> Directories</button>
             <button onClick={() => setFilterType('file')} className={`w-full flex items-center gap-4 p-4 rounded-xl transition-all ${filterType === 'file' ? 'text-amber-500 bg-amber-500/5 border border-amber-500/10' : 'text-slate-500 hover:text-slate-300'}`}><FileText size={16}/> Records</button>
@@ -292,7 +293,7 @@ export default function Dashboard() {
             <div className="flex items-center gap-6">
               <AnimatePresence>
                 {folderHistory.length > 0 && (
-                  <motion.button initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} onClick={goBackOneLevel} className="p-4 bg-slate-900 rounded-2xl text-amber-500 border border-amber-500/20">
+                  <motion.button initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} onClick={goBackOneLevel} className="p-4 bg-slate-900 rounded-2xl text-amber-500 border border-amber-500/20 shadow-xl">
                     <ArrowLeft size={20} strokeWidth={3}/>
                   </motion.button>
                 )}
@@ -343,7 +344,7 @@ export default function Dashboard() {
             ) : (
               <div className="space-y-12">
                  
-                {/* QUICK FOLDERS */}
+                {/* KEY DIRECTORIES */}
                 {!currentFolder && filterType !== 'file' && (
                    <section>
                       <h3 className="text-[10px] font-black uppercase text-slate-600 tracking-[0.4em] mb-6 flex items-center gap-3">
@@ -370,7 +371,7 @@ export default function Dashboard() {
                    </section>
                 )}
 
-                {/* MAIN CONTENT GRID/LIST */}
+                {/* MAIN CONTENT */}
                 <section>
                    <div className="flex items-center justify-between mb-8">
                       <h3 className="text-[10px] font-black uppercase text-slate-600 tracking-[0.4em] flex items-center gap-3">
@@ -457,7 +458,7 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Shortcut Legend Indicator */}
+          {/* Footer Shortcuts */}
           <div className="p-4 px-10 bg-black/40 border-t border-white/5 flex items-center justify-between text-[8px] font-black uppercase text-slate-600 tracking-[0.2em]">
              <div className="flex gap-6">
                 <span className="flex items-center gap-2"><kbd className="bg-white/5 p-1 px-2 rounded-md border border-white/10 text-slate-400 font-mono">CTRL + K</kbd> Global Search</span>
@@ -470,6 +471,8 @@ export default function Dashboard() {
           </div>
         </main>
 
+        {/* MODALS */}
+        
         {/* LOG MODAL */}
         <AnimatePresence>
           {isLogModalOpen && (
@@ -564,11 +567,10 @@ export default function Dashboard() {
           )}
         </AnimatePresence>
 
-        {/* PREVIEW & METADATA PANEL */}
+        {/* PREVIEW & METADATA */}
         <AnimatePresence>
           {selectedFile && (
             <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 200 }} className="w-[850px] bg-slate-950/90 backdrop-blur-3xl shadow-2xl border-l border-amber-500/10 flex flex-col overflow-hidden relative z-[100]">
-               {/* Header Preview */}
                <div className="p-10 border-b border-white/5 flex items-center justify-between">
                   <div className="flex items-center gap-6 min-w-0">
                     <div className="p-4 bg-amber-500/10 rounded-2xl text-amber-500 border border-amber-500/20"><FileText size={28}/></div>
@@ -583,7 +585,6 @@ export default function Dashboard() {
                   </div>
                </div>
                
-               {/* Metadata Bar */}
                <div className="grid grid-cols-3 p-8 gap-4 border-b border-white/5 bg-slate-900/20">
                   <div className="p-4 bg-white/5 rounded-2xl border border-white/5 text-center">
                      <p className="text-[8px] font-black uppercase text-slate-500 mb-2 tracking-widest">Type</p>
@@ -599,7 +600,6 @@ export default function Dashboard() {
                   </div>
                </div>
 
-               {/* Live Sync Preview */}
                <div className="flex-1 relative m-8 bg-black rounded-[40px] overflow-hidden border border-white/5 shadow-inner">
                   {previewLoading && (
                     <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-950/80">
@@ -628,7 +628,7 @@ export default function Dashboard() {
           )}
         </AnimatePresence>
 
-        {/* SEARCH SPOTLIGHT */}
+        {/* SEARCH */}
         <AnimatePresence>
           {isSearchModalOpen && (
             <div className="fixed inset-0 z-[200] flex items-start justify-center pt-32 px-4 bg-slate-950/90 backdrop-blur-xl" onClick={() => setIsSearchModalOpen(false)}>
