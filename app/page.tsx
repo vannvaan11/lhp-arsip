@@ -35,6 +35,7 @@ interface ActivityLog {
 }
 
 export default function Dashboard() {
+  // --- STATES ---
   const [mounted, setMounted] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState<'admin' | 'user' | null>(null);
@@ -42,18 +43,21 @@ export default function Dashboard() {
   const [password, setPassword] = useState('');
   const [tempName, setTempName] = useState('');
   const [isDarkMode, setIsDarkMode] = useState(true);
+
   const [files, setFiles] = useState<DriveFile[]>([]);
-  // --- NEW STATE UNTUK PENCARIAN GLOBAL ---
-  const [globalFiles, setGlobalFiles] = useState<DriveFile[]>([]);
+  const [searchResults, setSearchResults] = useState<DriveFile[]>([]); // State baru untuk pencarian
   const [currentFolder, setCurrentFolder] = useState<string>('');
   const [folderHistory, setFolderHistory] = useState<FolderHistory[]>([]);
   const [selectedFile, setSelectedFile] = useState<DriveFile | null>(null);
   const [allFolders, setAllFolders] = useState<DriveFile[]>([]); 
   const [stats, setStats] = useState({ total: 0 });
+
   const [loading, setLoading] = useState(true);
+  const [searchLoading, setSearchLoading] = useState(false); // Loading khusus pencarian
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'folder' | 'file'>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
@@ -62,9 +66,11 @@ export default function Dashboard() {
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [uploadDestinationId, setUploadDestinationId] = useState<string>('');
   const [previewLoading, setPreviewLoading] = useState(true);
+
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
 
+  // --- LOGIC: FETCH ONLINE LOGS ---
   const fetchOnlineLogs = useCallback(async () => {
     setLogsLoading(true);
     try {
@@ -85,17 +91,22 @@ export default function Dashboard() {
     } catch (e) { console.error(e); }
   };
 
-  // --- LOGIC: FETCH SEMUA FILE UNTUK PENCARIAN GLOBAL ---
-  const fetchGlobalInventory = async () => {
+  // --- LOGIC: PENCARIAN GLOBAL ---
+  const handleGlobalSearch = async (term: string) => {
+    setSearchTerm(term);
+    if (term.length < 2) { setSearchResults([]); return; }
+    
+    setSearchLoading(true);
     try {
-      // Mengasumsikan API tanpa folderId akan mengembalikan seluruh file
-      const res = await fetch(`/api/drive/all-files`);
+      // Kita memanggil API dengan parameter search agar backend mencari ke seluruh Drive
+      const res = await fetch(`/api/drive?search=${term}`);
       const data = await res.json();
-      if (Array.isArray(data)) setGlobalFiles(data);
-      else if (data.files) setGlobalFiles(data.files);
-    } catch (e) { console.error("Global search fetch error:", e); }
+      if (data.files) setSearchResults(data.files);
+    } catch (e) { console.error(e); }
+    setSearchLoading(false);
   };
 
+  // --- INITIALIZATION ---
   useEffect(() => {
     setMounted(true);
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -107,9 +118,7 @@ export default function Dashboard() {
     const savedRole = sessionStorage.getItem('userRole');
     const savedName = sessionStorage.getItem('userName');
     if (savedLogin === 'true' && savedRole && savedName) {
-      setIsLoggedIn(true); setUserRole(savedRole as any); setUserName(savedName); 
-      fetchOnlineLogs();
-      fetchGlobalInventory(); // Ambil data global saat login
+      setIsLoggedIn(true); setUserRole(savedRole as any); setUserName(savedName); fetchOnlineLogs();
     }
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [fetchOnlineLogs]);
@@ -118,6 +127,7 @@ export default function Dashboard() {
     document.documentElement.classList.toggle('dark', isDarkMode);
   }, [isDarkMode]);
 
+  // --- DATA FETCHING ---
   const fetchData = async (fId: string = '') => {
     setLoading(true);
     try {
@@ -140,6 +150,7 @@ export default function Dashboard() {
 
   useEffect(() => { if (isUploadModalOpen) fetchAllFolders(); }, [isUploadModalOpen]);
 
+  // --- NAVIGATION ---
   const navigateToFolder = (id: string, name: string) => {
     setCurrentFolder(id); setFolderHistory(prev => [...prev, { id, name }]); setSelectedFile(null);
   };
@@ -153,6 +164,7 @@ export default function Dashboard() {
 
   const goHome = () => { setCurrentFolder(''); setFolderHistory([]); setSelectedFile(null); };
 
+  // --- ACTIONS ---
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (!tempName.trim()) { alert("Masukkan Nama!"); return; }
@@ -160,7 +172,6 @@ export default function Dashboard() {
       setIsLoggedIn(true); setUserRole(role); setUserName(tempName);
       sessionStorage.setItem('isLoggedIn', 'true'); sessionStorage.setItem('userRole', role); sessionStorage.setItem('userName', tempName);
       addOnlineLog("LOGIN", "Masuk ke Vault");
-      fetchGlobalInventory();
     };
     if (password === 'adminLhp3') processLogin('admin');
     else if (password === 'userLhp3') processLogin('user');
@@ -181,7 +192,7 @@ export default function Dashboard() {
       } catch (e) { console.error(e); }
     }
     setUploadStatus(success > 0 ? 'success' : 'error');
-    setTimeout(() => { setIsUploadModalOpen(false); fetchData(currentFolder); fetchGlobalInventory(); }, 2000);
+    setTimeout(() => { setIsUploadModalOpen(false); fetchData(currentFolder); }, 2000);
     setUploading(false);
   };
 
@@ -189,7 +200,7 @@ export default function Dashboard() {
     if (userRole !== 'admin' || !confirm(`Hapus permanen ${fileName}?`)) return;
     try {
       const res = await fetch(`/api/drive?fileId=${fileId}`, { method: 'DELETE' });
-      if (res.ok) { addOnlineLog("DELETE", fileName); fetchData(currentFolder); setSelectedFile(null); fetchGlobalInventory(); }
+      if (res.ok) { addOnlineLog("DELETE", fileName); fetchData(currentFolder); setSelectedFile(null); }
     } catch (e) { console.error(e); }
   };
 
@@ -198,7 +209,7 @@ export default function Dashboard() {
     const newName = prompt("Nama Baru:", oldName); if (!newName) return;
     try {
       await fetch('/api/drive', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fileId, newName }) });
-      addOnlineLog("RENAME", `${oldName} -> ${newName}`); fetchData(currentFolder); fetchGlobalInventory();
+      addOnlineLog("RENAME", `${oldName} -> ${newName}`); fetchData(currentFolder);
     } catch (e) { console.error(e); }
   };
 
@@ -212,6 +223,7 @@ export default function Dashboard() {
       return true;
     });
 
+  // --- LOGIN VIEW ---
   if (!isLoggedIn) {
     return (
       <div className="relative min-h-screen w-full flex items-center justify-center p-4 bg-[#050505] font-sans overflow-hidden">
@@ -241,6 +253,7 @@ export default function Dashboard() {
     );
   }
 
+  // --- DASHBOARD VIEW ---
   return (
     <div className={isDarkMode ? "dark" : ""}>
       <div className="h-screen bg-[#020202] flex text-slate-300 overflow-hidden font-sans relative">
@@ -248,9 +261,13 @@ export default function Dashboard() {
 
         {/* SIDEBAR */}
         <aside className="w-80 bg-slate-950/80 backdrop-blur-md border-r border-amber-500/10 p-8 flex flex-col gap-10 relative z-20 transform-gpu">
+          {/* LOGO & LOGIN INFO DENGAN CROWN */}
           <div className="flex flex-col items-center gap-5">
-            <div className="w-20 h-20 bg-gradient-to-br from-slate-800 to-slate-900 rounded-[30px] p-3 border border-amber-500/20 shadow-xl flex items-center justify-center relative overflow-hidden">
-               <img src="https://i.ibb.co.com/L22pdJQ/Coat-of-arms-of-Southeast-Sulawesi-svg.png" alt="Logo" className="w-full h-full object-contain" />
+            <div className="relative group">
+              <div className="absolute inset-0 bg-amber-500/20 blur-2xl rounded-full scale-0 group-hover:scale-100 transition-all duration-700"></div>
+              <div className="w-20 h-20 bg-gradient-to-br from-slate-800 to-slate-900 rounded-[30px] p-3 border border-amber-500/20 shadow-xl flex items-center justify-center relative z-10 overflow-hidden">
+                 <img src="https://i.ibb.co.com/L22pdJQ/Coat-of-arms-of-Southeast-Sulawesi-svg.png" alt="Logo" className="w-full h-full object-contain" />
+              </div>
             </div>
             <div className="text-center">
               <h1 className="font-black text-2xl tracking-tighter text-white italic uppercase leading-none">ARV<span className="text-amber-500">DRIV3</span></h1>
@@ -292,7 +309,7 @@ export default function Dashboard() {
             <div className="flex items-center gap-6">
               <AnimatePresence>
                 {folderHistory.length > 0 && (
-                  <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={goBackOneLevel} className="p-4 bg-slate-900 rounded-2xl text-amber-500 border border-amber-500/20">
+                  <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={goBackOneLevel} className="p-4 bg-slate-900 rounded-2xl text-amber-500 border border-amber-500/20 shadow-xl">
                     <ArrowLeft size={20} strokeWidth={3}/>
                   </motion.button>
                 )}
@@ -314,7 +331,7 @@ export default function Dashboard() {
             <div className="flex items-center gap-4 flex-1 max-w-2xl px-12">
                <div className="flex-1 relative group" onClick={() => setIsSearchModalOpen(true)}>
                   <Search size={18} className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600 group-hover:text-amber-500 transition-colors" />
-                  <div className="w-full pl-16 pr-6 py-4 bg-white/5 border border-white/5 rounded-2xl text-slate-600 text-[10px] font-black uppercase tracking-widest cursor-pointer group-hover:border-amber-500/20 transition-all text-left">Search whole vault (Ctrl+K)...</div>
+                  <div className="w-full pl-16 pr-6 py-4 bg-white/5 border border-white/5 rounded-2xl text-slate-600 text-[10px] font-black uppercase tracking-widest cursor-pointer group-hover:border-amber-500/20 transition-all text-left">Deep search in whole vault (Ctrl+K)...</div>
                </div>
                
                <div className="flex items-center bg-white/5 p-1.5 rounded-2xl border border-white/5">
@@ -342,6 +359,8 @@ export default function Dashboard() {
               </div>
             ) : (
               <div className="space-y-12">
+                 
+                {/* KEY DIRECTORIES */}
                 {!currentFolder && filterType !== 'file' && (
                    <section>
                       <h3 className="text-[10px] font-black uppercase text-slate-600 tracking-[0.4em] mb-6 flex items-center gap-3">
@@ -367,6 +386,7 @@ export default function Dashboard() {
                    </section>
                 )}
 
+                {/* MAIN CONTENT */}
                 <section>
                    <div className="flex items-center justify-between mb-8">
                       <h3 className="text-[10px] font-black uppercase text-slate-600 tracking-[0.4em] flex items-center gap-3">
@@ -411,6 +431,7 @@ export default function Dashboard() {
                         ))}
                       </div>
                    ) : (
+                      /* LIST VIEW */
                       <div className="bg-slate-900/10 rounded-[35px] border border-white/5 overflow-hidden transform-gpu">
                          <div className="grid grid-cols-12 p-6 border-b border-white/5 text-[9px] font-black uppercase tracking-widest text-slate-600">
                             <div className="col-span-6 pl-4">Object Name</div>
@@ -462,6 +483,8 @@ export default function Dashboard() {
           </div>
         </main>
 
+        {/* MODALS */}
+        
         {/* LOG MODAL */}
         <AnimatePresence>
           {isLogModalOpen && (
@@ -617,7 +640,7 @@ export default function Dashboard() {
           )}
         </AnimatePresence>
 
-        {/* --- GLOBAL SEARCH MODAL (OPTIMIZED) --- */}
+        {/* --- GLOBAL SEARCH MODAL (MODIFIED TO FIX EMPTY RESULTS) --- */}
         <AnimatePresence>
           {isSearchModalOpen && (
             <div className="fixed inset-0 z-[200] flex items-start justify-center pt-32 px-4 bg-slate-950/90 backdrop-blur-md" onClick={() => setIsSearchModalOpen(false)}>
@@ -629,42 +652,45 @@ export default function Dashboard() {
                     type="text" 
                     placeholder="Search ANY file in the vault..." 
                     className="flex-1 bg-transparent outline-none font-black text-xl text-white uppercase tracking-tighter italic" 
-                    onChange={(e) => setSearchTerm(e.target.value)} 
+                    onChange={(e) => handleGlobalSearch(e.target.value)} 
                   />
+                  {searchLoading && <Loader2 className="animate-spin text-amber-500" size={20} />}
                   <div className="p-3 px-5 bg-white/5 border border-white/5 rounded-2xl text-[9px] font-black text-slate-500 uppercase tracking-widest">ESC</div>
                 </div>
                 
-                <div className="max-h-[500px] overflow-y-auto p-6 space-y-2 scrollbar-hide transform-gpu">
-                  {/* Mencari ke globalFiles (seluruh isi Drive) bukannya files (folder saat ini saja) */}
-                  {globalFiles
-                    .filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase()))
-                    .slice(0, 30) // Batasi 30 hasil pertama untuk performa
-                    .map(f => (
-                      <div 
-                        key={f.id} 
-                        onClick={() => { 
-                          if(f.mimeType.includes('folder')) navigateToFolder(f.id, f.name); 
-                          else setSelectedFile(f); 
-                          setIsSearchModalOpen(false); 
-                        }} 
-                        className="p-5 hover:bg-amber-500 hover:text-slate-950 rounded-2xl cursor-pointer flex items-center justify-between group transition-colors text-slate-400 border border-transparent hover:border-amber-500/20"
-                      >
-                        <div className="flex items-center gap-5 tracking-tighter italic min-w-0">
-                          {f.mimeType.includes('folder') ? <Folder size={20} className="shrink-0"/> : <FileText size={20} className="shrink-0"/>}
-                          <div className="truncate">
-                             <span className="block">{f.name}</span>
-                             {/* Menampilkan label jika ini hasil pencarian global agar user tahu filenya terselip di dalam folder */}
-                             <span className="text-[7px] font-black opacity-40 uppercase tracking-widest">Global Archive Search Result</span>
-                          </div>
+                <div className="max-h-[400px] overflow-y-auto p-6 space-y-2 scrollbar-hide transform-gpu">
+                  {/* SEARCH RESULTS FROM API */}
+                  {searchResults.map(f => (
+                    <div 
+                      key={f.id} 
+                      onClick={() => { 
+                        if(f.mimeType.includes('folder')) navigateToFolder(f.id, f.name); 
+                        else setSelectedFile(f); 
+                        setIsSearchModalOpen(false); 
+                      }} 
+                      className="p-5 hover:bg-amber-500 hover:text-slate-950 rounded-2xl cursor-pointer flex items-center justify-between group transition-colors text-slate-400 border border-transparent hover:border-amber-500/20 shadow-lg"
+                    >
+                      <div className="flex items-center gap-5 tracking-tighter italic min-w-0">
+                        {f.mimeType.includes('folder') ? <Folder size={20} className="shrink-0"/> : <FileText size={20} className="shrink-0"/>}
+                        <div className="truncate">
+                           <span className="block">{f.name}</span>
+                           <span className="text-[7px] font-black opacity-30 uppercase tracking-[0.2em]">Vault Resource Node</span>
                         </div>
-                        <ChevronRight size={16} className="opacity-0 group-hover:opacity-100 group-hover:translate-x-2 transition-all shrink-0" />
                       </div>
+                      <ChevronRight size={16} className="opacity-0 group-hover:opacity-100 group-hover:translate-x-2 transition-all" />
+                    </div>
                   ))}
-                  {searchTerm && globalFiles.filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase())).length === 0 && (
-                    <div className="p-10 text-center opacity-30 text-xs font-black uppercase tracking-[0.4em]">No record found in the entire vault</div>
+
+                  {searchTerm.length > 0 && searchResults.length === 0 && !searchLoading && (
+                    <div className="p-10 text-center opacity-30 text-[10px] font-black uppercase tracking-[0.4em]">
+                      No matching records found in registry
+                    </div>
                   )}
-                  {!searchTerm && (
-                    <div className="p-10 text-center opacity-30 text-xs font-black uppercase tracking-[0.4em]">Type to deep search folders and files...</div>
+
+                  {searchTerm.length < 2 && (
+                    <div className="p-10 text-center opacity-30 text-[10px] font-black uppercase tracking-[0.4em]">
+                      Enter keywords to scan vault database
+                    </div>
                   )}
                 </div>
               </motion.div>
