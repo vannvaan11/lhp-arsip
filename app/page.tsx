@@ -8,7 +8,7 @@ import {
   CheckCircle2, AlertCircle, Filter, History, User,
   Crown, Zap, ShieldCheck, Star, Trash2, Trophy, Coins,
   LayoutGrid, List, Clock, Info, Share2, Pin, Eye, Activity,
-  Cpu, HardDrive, ShieldAlert
+  Cpu, HardDrive, ShieldAlert, CheckSquare, Square
 } from 'lucide-react';
 
 // --- INTERFACES ---
@@ -58,6 +58,9 @@ export default function Dashboard() {
   const [filterType, setFilterType] = useState<'all' | 'folder' | 'file'>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
+  // --- NEW STATE: ELITE SELECTION ---
+  const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
+
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
@@ -103,6 +106,24 @@ export default function Dashboard() {
     setSearchLoading(false);
   };
 
+  const toggleNodeSelection = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedNodes(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleBatchDownload = () => {
+    selectedNodes.forEach(id => {
+      const file = files.find(f => f.id === id);
+      if (file) {
+        window.open(`https://drive.google.com/uc?export=download&id=${id}`, '_blank');
+        addOnlineLog("BATCH_RETRIEVAL", file.name);
+      }
+    });
+    setSelectedNodes([]);
+  };
+
   useEffect(() => {
     setMounted(true);
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -144,17 +165,17 @@ export default function Dashboard() {
   useEffect(() => { if (isUploadModalOpen) fetchAllFolders(); }, [isUploadModalOpen]);
 
   const navigateToFolder = (id: string, name: string) => {
-    setCurrentFolder(id); setFolderHistory(prev => [...prev, { id, name }]); setSelectedFile(null);
+    setCurrentFolder(id); setFolderHistory(prev => [...prev, { id, name }]); setSelectedFile(null); setSelectedNodes([]);
   };
 
   const goBackOneLevel = () => {
     if (folderHistory.length > 0) {
       const newHistory = [...folderHistory]; newHistory.pop(); setFolderHistory(newHistory);
-      const prevFolder = newHistory[newHistory.length - 1]; setCurrentFolder(prevFolder ? prevFolder.id : ''); setSelectedFile(null);
+      const prevFolder = newHistory[newHistory.length - 1]; setCurrentFolder(prevFolder ? prevFolder.id : ''); setSelectedFile(null); setSelectedNodes([]);
     }
   };
 
-  const goHome = () => { setCurrentFolder(''); setFolderHistory([]); setSelectedFile(null); };
+  const goHome = () => { setCurrentFolder(''); setFolderHistory([]); setSelectedFile(null); setSelectedNodes([]); };
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -312,7 +333,7 @@ export default function Dashboard() {
             ) : (
               <div className="space-y-16 pb-20">
                 
-                {/* --- NEXT LEVEL: HOLOGRAPHIC INTELLIGENCE HUD --- */}
+                {/* HUD SECTION */}
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-1 md:grid-cols-4 gap-6 p-1 bg-gradient-to-r from-amber-500/20 via-transparent to-amber-500/20 rounded-[35px]">
                    <div className="bg-slate-900/40 backdrop-blur-md p-6 rounded-[30px] border border-amber-500/10 flex flex-col items-center gap-2 relative overflow-hidden group">
                       <div className="absolute top-[-50%] left-[-50%] w-full h-full bg-amber-500/5 rounded-full blur-3xl animate-pulse"></div>
@@ -342,21 +363,98 @@ export default function Dashboard() {
                    <section><h3 className="text-[11px] font-black uppercase text-slate-500 tracking-[0.5em] mb-8 flex items-center gap-4"><Pin size={14} className="text-amber-500" /> Essential Directories</h3><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">{filteredFilesMain.filter(f => f.mimeType.includes('folder')).slice(0, 4).map(folder => (
                    <div key={folder.id} onClick={() => navigateToFolder(folder.id, folder.name)} className="bg-gradient-to-br from-white/[0.03] to-transparent p-8 rounded-[45px] border border-white/5 flex items-center gap-6 cursor-pointer group hover:border-amber-500/30 transition-all transform-gpu hover:-translate-y-2 shadow-2xl"><div className="p-5 bg-amber-500 rounded-3xl text-slate-900 shadow-xl transition-all group-hover:rotate-6 shadow-amber-500/20"><Folder size={28} fill="currentColor" /></div><div className="min-w-0"><h4 className="font-black text-white text-sm truncate uppercase tracking-tighter group-hover:text-amber-300 transition-colors">{folder.name}</h4><p className="text-[9px] text-slate-500 font-bold uppercase mt-1 tracking-widest">Access Node</p></div></div>))}</div></section>
                 )}
+                
                 <section>
                    <div className="flex items-center justify-between mb-10 border-b border-white/5 pb-6"><h3 className="text-[11px] font-black uppercase text-slate-500 tracking-[0.5em] flex items-center gap-4"><Star size={14} className="text-amber-500" /> Active Ledger</h3><p className="text-[10px] font-bold text-slate-600 italic uppercase tracking-widest">{filteredFilesMain.length} Secured Objects Detected</p></div>
                    {viewMode === 'grid' ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-12">{filteredFilesMain.map((file) => (
-                      <div key={file.id} className={`relative group bg-gradient-to-b from-white/[0.04] to-transparent p-10 rounded-[55px] border transition-all cursor-pointer h-80 flex flex-col justify-between transform-gpu hover:-translate-y-2 ${selectedFile?.id === file.id ? 'border-amber-500 bg-amber-500/10 shadow-[0_20px_50px_rgba(245,158,11,0.1)]' : 'border-white/5 hover:border-amber-500/40 hover:shadow-2xl'}`} onClick={() => file.mimeType.includes('folder') ? navigateToFolder(file.id, file.name) : setSelectedFile(file)}><div className="flex justify-between items-start"><div className={`p-6 rounded-[30px] shadow-2xl transition-all duration-300 group-hover:scale-110 ${file.mimeType.includes('folder') ? 'bg-amber-500 text-slate-950 shadow-amber-500/20' : 'bg-slate-800 text-slate-100 border border-white/10 shadow-black/40'}`}>{file.mimeType.includes('folder') ? <Folder size={32} fill="currentColor" /> : <FileText size={32} />}</div><div className="flex flex-col gap-3 opacity-0 group-hover:opacity-100 transition-all translate-x-3 group-hover:translate-x-0">{!file.mimeType.includes('folder') && (<button onClick={(e) => { e.stopPropagation(); addOnlineLog("DOWNLOAD", file.name); window.open(`https://drive.google.com/uc?export=download&id=${file.id}`, '_blank'); }} className="p-4 bg-slate-800 rounded-2xl text-slate-400 hover:text-amber-400 border border-white/10 transition-colors shadow-lg shadow-black/50"><Download size={18}/></button>)}{userRole === 'admin' && (<><button onClick={(e) => { e.stopPropagation(); handleRename(file.id, file.name); }} className="p-4 bg-slate-800 rounded-2xl text-slate-400 hover:text-amber-400 border border-white/10 transition-colors shadow-lg shadow-black/50"><Edit2 size={18}/></button><button onClick={(e) => { e.stopPropagation(); handleDelete(file.id, file.name); }} className="p-4 bg-slate-800 rounded-2xl text-slate-400 hover:text-red-400 border border-white/10 transition-colors shadow-lg shadow-black/50"><Trash2 size={18}/></button></>)}</div></div><div><h4 className="font-black text-white truncate text-lg uppercase tracking-tighter leading-tight group-hover:text-amber-300 transition-colors">{file.name}</h4><div className="flex items-center gap-3 mt-5"><span className={`text-[9px] font-black uppercase tracking-[0.2em] py-1.5 px-4 rounded-full border shadow-inner ${file.mimeType.includes('folder') ? 'border-amber-500/30 text-amber-500 bg-amber-500/10' : 'border-white/10 text-slate-500 bg-white/5'}`}>{file.mimeType.includes('folder') ? 'DIRECTORY' : 'DATA OBJECT'}</span></div></div></div>))}</div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-12">
+                        {filteredFilesMain.map((file) => (
+                          <div key={file.id} className={`relative group bg-gradient-to-b from-white/[0.04] to-transparent p-10 rounded-[55px] border transition-all cursor-pointer h-80 flex flex-col justify-between transform-gpu hover:-translate-y-2 ${selectedNodes.includes(file.id) ? 'border-amber-500 bg-amber-500/10 shadow-[0_20px_50px_rgba(245,158,11,0.1)] scale-[0.98]' : 'border-white/5 hover:border-amber-500/40 hover:shadow-2xl'}`} onClick={() => file.mimeType.includes('folder') ? navigateToFolder(file.id, file.name) : setSelectedFile(file)}>
+                              <div className="flex justify-between items-start">
+                                 {/* Selection Node Visual */}
+                                 <div onClick={(e) => toggleNodeSelection(file.id, e)} className={`p-2 rounded-full border transition-all ${selectedNodes.includes(file.id) ? 'bg-amber-500 border-amber-400 text-slate-900 animate-pulse' : 'bg-white/5 border-white/10 text-white/20 hover:border-amber-500/50 hover:text-amber-500'}`}>
+                                    {selectedNodes.includes(file.id) ? <CheckSquare size={14} strokeWidth={3} /> : <Square size={14} />}
+                                 </div>
+                                 <div className="flex flex-col gap-3 opacity-0 group-hover:opacity-100 transition-all translate-x-3 group-hover:translate-x-0">
+                                    {!file.mimeType.includes('folder') && (<button onClick={(e) => { e.stopPropagation(); addOnlineLog("DOWNLOAD", file.name); window.open(`https://drive.google.com/uc?export=download&id=${file.id}`, '_blank'); }} className="p-4 bg-slate-800 rounded-2xl text-slate-400 hover:text-amber-400 border border-white/10 transition-colors shadow-lg"><Download size={18}/></button>)}{userRole === 'admin' && (<><button onClick={(e) => { e.stopPropagation(); handleRename(file.id, file.name); }} className="p-4 bg-slate-800 rounded-2xl text-slate-400 hover:text-amber-400 border border-white/10 transition-colors shadow-lg"><Edit2 size={18}/></button><button onClick={(e) => { e.stopPropagation(); handleDelete(file.id, file.name); }} className="p-4 bg-slate-800 rounded-2xl text-slate-400 hover:text-red-400 border border-white/10 transition-colors shadow-lg"><Trash2 size={18}/></button></>)}
+                                 </div>
+                              </div>
+                              <div className="flex flex-col items-center justify-center py-4">
+                                <div className={`p-6 rounded-[30px] shadow-2xl transition-all duration-300 group-hover:scale-110 ${file.mimeType.includes('folder') ? 'bg-amber-500 text-slate-950 shadow-amber-500/20' : 'bg-slate-800 text-slate-100 border border-white/10'}`}>
+                                    {file.mimeType.includes('folder') ? <Folder size={32} fill="currentColor" /> : <FileText size={32} />}
+                                </div>
+                              </div>
+                              <div>
+                                 <h4 className="font-black text-white truncate text-lg uppercase tracking-tighter leading-tight group-hover:text-amber-300 transition-colors">{file.name}</h4>
+                                 <div className="mt-2 text-[7px] font-mono text-slate-600 uppercase tracking-widest truncate opacity-0 group-hover:opacity-100 transition-opacity">Node_ID: 0x{file.id.substring(0,12)}</div>
+                                 <div className="flex items-center gap-3 mt-4">
+                                    <span className={`text-[9px] font-black uppercase tracking-[0.2em] py-1.5 px-4 rounded-full border shadow-inner ${file.mimeType.includes('folder') ? 'border-amber-500/30 text-amber-500 bg-amber-500/10' : 'border-white/10 text-slate-500 bg-white/5'}`}>{file.mimeType.includes('folder') ? 'DIRECTORY' : 'DATA OBJECT'}</span>
+                                 </div>
+                              </div>
+                          </div>
+                        ))}
+                      </div>
                    ) : (
-                      <div className="bg-white/5 rounded-[45px] border border-white/5 overflow-hidden transform-gpu shadow-2xl"><div className="grid grid-cols-12 p-8 border-b border-white/10 text-[10px] font-black uppercase tracking-[0.4em] text-slate-500 bg-white/[0.02]"><div className="col-span-6 pl-4">Object Identity</div><div className="col-span-3">Registry Type</div><div className="col-span-3 text-right pr-6">Vault Actions</div></div>{filteredFilesMain.map(file => (
-                      <div key={file.id} onClick={() => file.mimeType.includes('folder') ? navigateToFolder(file.id, file.name) : setSelectedFile(file)} className={`grid grid-cols-12 p-6 items-center hover:bg-amber-500/5 transition-colors cursor-pointer group border-b border-white/5 last:border-0 ${selectedFile?.id === file.id ? 'bg-amber-500/10' : ''}`}><div className="col-span-6 flex items-center gap-6 pl-4"><div className={`p-3 rounded-xl ${file.mimeType.includes('folder') ? 'text-amber-500 bg-amber-500/10' : 'text-slate-400 bg-white/5'}`}>{file.mimeType.includes('folder') ? <Folder size={22} fill="currentColor"/> : <FileText size={22}/>}</div><span className="text-sm font-bold text-slate-200 group-hover:text-amber-300 truncate uppercase tracking-tighter transition-colors">{file.name}</span></div><div className="col-span-3 text-[10px] font-black text-slate-500 uppercase tracking-widest italic">{file.mimeType.includes('folder') ? 'Folder Node' : 'Encrypted File'}</div><div className="col-span-3 flex justify-end gap-3 pr-6"><button onClick={(e) => { e.stopPropagation(); setSelectedFile(file); }} className="p-3 bg-white/5 rounded-2xl text-slate-500 hover:text-amber-400 border border-white/10 transition-all"><Info size={18}/></button>{userRole === 'admin' && (<><button onClick={(e) => { e.stopPropagation(); handleRename(file.id, file.name); }} className="p-3 bg-white/5 rounded-2xl text-slate-500 hover:text-amber-400 border border-white/10 transition-all"><Edit2 size={18}/></button><button onClick={(e) => { e.stopPropagation(); handleDelete(file.id, file.name); }} className="p-3 bg-white/5 rounded-2xl text-slate-500 hover:text-red-400 border border-white/10 transition-all"><Trash2 size={18}/></button></>)}</div></div>))}</div>
+                      <div className="bg-white/5 rounded-[45px] border border-white/5 overflow-hidden transform-gpu shadow-2xl">
+                         <div className="grid grid-cols-12 p-8 border-b border-white/10 text-[10px] font-black uppercase tracking-[0.4em] text-slate-500 bg-white/[0.02]">
+                            <div className="col-span-1 pl-4">Link</div>
+                            <div className="col-span-5">Object Identity</div>
+                            <div className="col-span-3">Registry Type</div>
+                            <div className="col-span-3 text-right pr-6">Vault Actions</div>
+                         </div>
+                         {filteredFilesMain.map(file => (
+                            <div key={file.id} onClick={() => file.mimeType.includes('folder') ? navigateToFolder(file.id, file.name) : setSelectedFile(file)} className={`grid grid-cols-12 p-6 items-center hover:bg-amber-500/5 transition-colors cursor-pointer group border-b border-white/5 last:border-0 ${selectedNodes.includes(file.id) ? 'bg-amber-500/5' : ''}`}>
+                               <div className="col-span-1 pl-4">
+                                  <div onClick={(e) => toggleNodeSelection(file.id, e)} className={`w-6 h-6 rounded-lg border flex items-center justify-center transition-all ${selectedNodes.includes(file.id) ? 'bg-amber-500 border-amber-400 text-slate-900' : 'bg-white/5 border-white/10 text-white/10'}`}>
+                                    {selectedNodes.includes(file.id) ? <CheckSquare size={12} strokeWidth={3} /> : <Square size={12} />}
+                                  </div>
+                               </div>
+                               <div className="col-span-5 flex items-center gap-6">
+                                  <div className={`p-3 rounded-xl ${file.mimeType.includes('folder') ? 'text-amber-500 bg-amber-500/10' : 'text-slate-400 bg-white/5'}`}>{file.mimeType.includes('folder') ? <Folder size={22} fill="currentColor"/> : <FileText size={22}/>}</div>
+                                  <div>
+                                    <span className="text-sm font-bold text-slate-200 group-hover:text-amber-300 truncate uppercase tracking-tighter block">{file.name}</span>
+                                    <span className="text-[7px] font-mono text-slate-600 uppercase">SHA-256: Node_0x{file.id.substring(0,8)}</span>
+                                  </div>
+                               </div>
+                               <div className="col-span-3 text-[10px] font-black text-slate-500 uppercase tracking-widest italic">{file.mimeType.includes('folder') ? 'Folder Node' : 'Encrypted File'}</div>
+                               <div className="col-span-3 flex justify-end gap-3 pr-6">
+                                  <button onClick={(e) => { e.stopPropagation(); setSelectedFile(file); }} className="p-3 bg-white/5 rounded-2xl text-slate-500 hover:text-amber-400 border border-white/10 transition-all"><Info size={18}/></button>
+                                  {userRole === 'admin' && (<><button onClick={(e) => { e.stopPropagation(); handleRename(file.id, file.name); }} className="p-3 bg-white/5 rounded-2xl text-slate-500 hover:text-amber-400 border border-white/10 transition-all"><Edit2 size={18}/></button><button onClick={(e) => { e.stopPropagation(); handleDelete(file.id, file.name); }} className="p-3 bg-white/5 rounded-2xl text-slate-500 hover:text-red-400 border border-white/10 transition-all"><Trash2 size={18}/></button></>)}
+                               </div>
+                            </div>
+                         ))}
+                      </div>
                    )}
                 </section>
               </div>
             )}
           </div>
 
-          {/* NEXT LEVEL: Security Intelligence Ticker (Smaller Size) */}
+          {/* NEXT LEVEL: Quantum Selection Hub */}
+          <AnimatePresence>
+            {selectedNodes.length > 0 && (
+              <motion.div initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 100, opacity: 0 }} className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[150] w-auto">
+                 <div className="bg-slate-900/90 backdrop-blur-2xl border border-amber-500/30 rounded-full px-8 py-4 shadow-[0_20px_60px_rgba(0,0,0,0.8)] flex items-center gap-10">
+                    <div className="flex items-center gap-4 border-r border-white/10 pr-10">
+                       <div className="relative">
+                          <div className="absolute inset-0 bg-amber-500/20 blur-lg animate-pulse"></div>
+                          <div className="w-10 h-10 bg-amber-500 rounded-xl text-slate-950 flex items-center justify-center font-black text-sm relative">{selectedNodes.length}</div>
+                       </div>
+                       <div className="flex flex-col">
+                          <span className="text-[10px] font-black uppercase text-white tracking-widest leading-none">Nodes Linked</span>
+                          <span className="text-[8px] font-bold uppercase text-amber-500/60 mt-1">Quantum Staging Area</span>
+                       </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                       <button onClick={handleBatchDownload} className="flex items-center gap-3 px-6 py-3 bg-amber-500 text-slate-950 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-amber-400 transition-all shadow-lg active:scale-95"><Download size={14} strokeWidth={3}/> Batch Retrieval</button>
+                       <button onClick={() => setSelectedNodes([])} className="p-3 text-slate-500 hover:text-red-400 transition-colors uppercase text-[9px] font-black tracking-widest flex items-center gap-2 px-6">Clear Links</button>
+                    </div>
+                 </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Ticker (Small Size) */}
           <div className="h-7 bg-black/60 backdrop-blur-md border-t border-white/5 flex items-center relative overflow-hidden shrink-0">
              <div className="absolute left-0 top-0 bottom-0 px-4 bg-amber-500 text-slate-950 text-[8px] font-black flex items-center z-10 uppercase italic tracking-wider">Intelligence Stream</div>
              <div className="whitespace-nowrap flex items-center gap-20 animate-marquee">
@@ -365,7 +463,7 @@ export default function Dashboard() {
                     <span>• SSL Security Layer: AES-256 ACTIVE</span>
                     <span>• Handshake with Node: {userName?.toUpperCase()} AUTHORIZED</span>
                     <span>• Encryption Protocol: RSA-4096 STABLE</span>
-                    <span>• Registry Status: {stats.total} OBJECTS INDEXED</span>
+                    <span>• Selection Engine: {selectedNodes.length > 0 ? `LINKED ${selectedNodes.length} OBJECTS` : 'READY'}</span>
                     <span>• System Health: OPTIMAL</span>
                     <span>• Location: Kendrick Node Knd_0x{stats.total}</span>
                   </div>
