@@ -89,24 +89,16 @@ export default function Dashboard() {
     } catch (e) { console.error(e); }
   };
 
-  // --- LOGIC: PENCARIAN GLOBAL (Hanya mengisi searchResults) ---
   const handleGlobalSearch = async (term: string) => {
     setSearchTerm(term);
-    if (!term.trim() || term.length < 2) { 
-      setSearchResults([]); 
-      return; 
-    }
-    
+    if (!term.trim() || term.length < 2) { setSearchResults([]); return; }
     setSearchLoading(true);
     try {
       const res = await fetch(`/api/drive?search=${encodeURIComponent(term)}`);
       const data = await res.json();
       if (data.files) setSearchResults(data.files);
       else setSearchResults([]);
-    } catch (e) { 
-      console.error(e); 
-      setSearchResults([]);
-    }
+    } catch (e) { setSearchResults([]); }
     setSearchLoading(false);
   };
 
@@ -114,12 +106,7 @@ export default function Dashboard() {
     setMounted(true);
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); setIsSearchModalOpen(true); }
-      if (e.key === 'Escape') { 
-        setSelectedFile(null); 
-        setIsSearchModalOpen(false); 
-        setSearchResults([]); 
-        setSearchTerm('');
-      }
+      if (e.key === 'Escape') { setSelectedFile(null); setIsSearchModalOpen(false); setSearchResults([]); setSearchTerm(''); }
     };
     window.addEventListener('keydown', handleKeyDown);
     const savedLogin = sessionStorage.getItem('isLoggedIn');
@@ -131,9 +118,7 @@ export default function Dashboard() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [fetchOnlineLogs]);
 
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', isDarkMode);
-  }, [isDarkMode]);
+  useEffect(() => { document.documentElement.classList.toggle('dark', isDarkMode); }, [isDarkMode]);
 
   const fetchData = async (fId: string = '') => {
     setLoading(true);
@@ -220,7 +205,6 @@ export default function Dashboard() {
 
   if (!mounted) return null;
 
-  // Filter untuk daftar file di halaman utama (grid/list utama)
   const filteredFilesMain = files
     .filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase()))
     .filter(f => {
@@ -267,7 +251,7 @@ export default function Dashboard() {
         <aside className="w-80 bg-slate-950/80 backdrop-blur-md border-r border-amber-500/10 p-8 flex flex-col gap-10 relative z-20 transform-gpu">
           <div className="flex flex-col items-center gap-5">
             <div className="relative group">
-              <div className="w-20 h-20 bg-gradient-to-br from-slate-800 to-slate-900 rounded-[30px] p-3 border border-amber-500/20 shadow-xl flex items-center justify-center relative z-10 overflow-hidden">
+              <div className="w-20 h-20 bg-gradient-to-br from-slate-800 to-slate-900 rounded-[30px] p-3 border border-amber-500/20 shadow-xl flex items-center justify-center relative overflow-hidden">
                  <img src="https://i.ibb.co.com/L22pdJQ/Coat-of-arms-of-Southeast-Sulawesi-svg.png" alt="Logo" className="w-full h-full object-contain" />
               </div>
             </div>
@@ -281,7 +265,7 @@ export default function Dashboard() {
           </div>
           
           <nav className="flex-1 space-y-2 font-black text-[10px] uppercase tracking-widest overflow-y-auto scrollbar-hide">
-            <button onClick={goHome} className={`w-full flex items-center gap-4 p-5 rounded-2xl transition-all ${!currentFolder ? 'bg-gradient-to-br from-amber-500 to-yellow-600 text-slate-950 shadow-lg' : 'hover:bg-amber-500/5 text-slate-500'}`}>
+            <button onClick={goHome} className={`w-full flex items-center gap-4 p-5 rounded-2xl transition-all group ${!currentFolder ? 'bg-gradient-to-br from-amber-500 to-yellow-600 text-slate-950 shadow-lg' : 'hover:bg-amber-500/5 text-slate-500'}`}>
               <LayoutDashboard size={18}/> Overview
             </button>
             <div className="pt-6 pb-2 px-4 text-[8px] text-amber-500/30 font-black tracking-[0.4em]">Resource Filters</div>
@@ -361,8 +345,6 @@ export default function Dashboard() {
               </div>
             ) : (
               <div className="space-y-12">
-                 
-                {/* KEY DIRECTORIES */}
                 {!currentFolder && filterType !== 'file' && (
                    <section>
                       <h3 className="text-[10px] font-black uppercase text-slate-600 tracking-[0.4em] mb-6 flex items-center gap-3">
@@ -388,7 +370,6 @@ export default function Dashboard() {
                    </section>
                 )}
 
-                {/* MAIN CONTENT */}
                 <section>
                    <div className="flex items-center justify-between mb-8">
                       <h3 className="text-[10px] font-black uppercase text-slate-600 tracking-[0.4em] flex items-center gap-3">
@@ -473,14 +454,8 @@ export default function Dashboard() {
           </div>
 
           <div className="p-4 px-10 bg-black/40 border-t border-white/5 flex items-center justify-between text-[8px] font-black uppercase text-slate-600 tracking-[0.2em]">
-             <div className="flex gap-6">
-                <span>CTRL + K Global Search</span>
-                <span>ESC Close Preview</span>
-             </div>
-             <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-                Royal Vault Security Online
-             </div>
+             <div className="flex gap-6"><span>CTRL + K Search</span><span>ESC Close</span></div>
+             <div className="flex items-center gap-2"><div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>Royal Vault Security Online</div>
           </div>
         </main>
 
@@ -491,27 +466,18 @@ export default function Dashboard() {
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-slate-900 border border-amber-500/20 w-full max-w-5xl rounded-[50px] shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
                 <div className="p-10 border-b border-white/5 flex justify-between items-center">
                   <h3 className="text-2xl font-black uppercase tracking-tighter text-white italic leading-none"><Coins className="text-amber-500" /> Operational Log</h3>
-                  <button onClick={() => setIsLogModalOpen(false)} className="p-4 hover:bg-red-500/10 text-slate-500 hover:text-red-500 rounded-full transition-all border border-white/5 rounded-full"><X size={24}/></button>
+                  <button onClick={() => setIsLogModalOpen(false)} className="p-4 hover:bg-red-500/10 text-slate-500 hover:text-red-500 transition-all border border-white/5 rounded-full"><X size={24}/></button>
                 </div>
                 <div className="overflow-x-auto max-h-[65vh] p-6 scrollbar-hide">
                   <table className="w-full text-left border-collapse min-w-[800px]">
                     <thead className="text-[9px] font-black uppercase tracking-[0.4em] text-slate-600 sticky top-0 bg-slate-900 z-10">
-                      <tr>
-                        <th className="p-6 border-b border-white/5">Actor</th>
-                        <th className="p-6 border-b border-white/5">Command</th>
-                        <th className="p-6 border-b border-white/5">Target Object</th>
-                        <th className="p-6 border-b border-white/5">Timestamp</th>
-                      </tr>
+                      <tr><th className="p-6 border-b border-white/5">Actor</th><th className="p-6 border-b border-white/5">Command</th><th className="p-6 border-b border-white/5">Target Object</th><th className="p-6 border-b border-white/5">Timestamp</th></tr>
                     </thead>
                     <tbody className="text-[11px] font-bold italic">
                       {activityLogs.map((log) => (
                         <tr key={log.id} className="border-b border-white/5 text-slate-400 hover:bg-amber-500/5 transition-colors">
                           <td className="p-6 text-amber-500">{log.user}</td>
-                          <td className="p-6">
-                            <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase border ${log.action === 'DELETE' ? 'border-red-500/50 text-red-400' : log.action === 'UPLOAD' ? 'border-emerald-500/50 text-emerald-400' : 'border-amber-500/50 text-amber-400'}`}>
-                              {log.action}
-                            </span>
-                          </td>
+                          <td className="p-6"><span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase border ${log.action === 'DELETE' ? 'border-red-500/50 text-red-400' : log.action === 'UPLOAD' ? 'border-emerald-500/50 text-emerald-400' : 'border-amber-500/50 text-amber-400'}`}>{log.action}</span></td>
                           <td className="p-6 max-w-[200px] truncate opacity-70 italic font-mono">{log.fileName}</td>
                           <td className="p-6 text-[10px] opacity-30">{log.timestamp}</td>
                         </tr>
@@ -544,32 +510,20 @@ export default function Dashboard() {
                       {uploading ? (
                         <div className="w-full">
                           <Loader2 className="animate-spin mx-auto text-amber-500 mb-6" size={50} />
-                          <div className="w-full bg-white/5 h-2 rounded-full overflow-hidden mb-4">
-                             <motion.div initial={{ width: 0 }} animate={{ width: `${uploadProgress}%` }} className="h-full bg-amber-500" />
-                          </div>
+                          <div className="w-full bg-white/5 h-2 rounded-full overflow-hidden mb-4"><motion.div initial={{ width: 0 }} animate={{ width: `${uploadProgress}%` }} className="h-full bg-amber-500" /></div>
                           <p className="text-[10px] font-black uppercase text-amber-500 tracking-widest">{uploadProgress}% SYNCING...</p>
                         </div>
                       ) : (
-                        <>
-                          <div className="p-6 bg-amber-500 rounded-2xl text-slate-950 mb-6 shadow-lg group-hover:scale-110 transition-transform"><Upload size={32} strokeWidth={3}/></div>
-                          <p className="text-lg font-black text-white uppercase tracking-tighter italic">Upload Dataset</p>
-                          <input type="file" multiple className="hidden" onChange={handleUpload} disabled={uploading} />
-                        </>
+                        <><div className="p-6 bg-amber-500 rounded-2xl text-slate-950 mb-6 shadow-lg group-hover:scale-110 transition-transform"><Upload size={32} strokeWidth={3}/></div><p className="text-lg font-black text-white uppercase tracking-tighter italic">Upload Dataset</p><input type="file" multiple className="hidden" onChange={handleUpload} disabled={uploading} /></>
                       )}
                     </label>
                   </div>
                 ) : (
                   <div className="text-center py-20">
                     {uploadStatus === 'success' ? (
-                      <div>
-                        <ShieldCheck size={100} className="text-amber-500 mx-auto mb-6 animate-pulse" />
-                        <h3 className="text-3xl font-black text-white uppercase tracking-tighter italic">Ledger <span className="text-amber-500">Secured</span></h3>
-                      </div>
+                      <div><ShieldCheck size={100} className="text-amber-500 mx-auto mb-6 animate-pulse" /><h3 className="text-3xl font-black text-white uppercase tracking-tighter italic">Ledger <span className="text-amber-500">Secured</span></h3></div>
                     ) : (
-                      <div>
-                        <AlertCircle size={100} className="text-red-500 mx-auto mb-6" />
-                        <h3 className="text-3xl font-black text-white uppercase tracking-tighter">Auth Denied</h3>
-                      </div>
+                      <div><AlertCircle size={100} className="text-red-500 mx-auto mb-6" /><h3 className="text-3xl font-black text-white uppercase tracking-tighter">Auth Denied</h3></div>
                     )}
                   </div>
                 )}
@@ -578,11 +532,11 @@ export default function Dashboard() {
           )}
         </AnimatePresence>
 
-        {/* PREVIEW PANEL */}
+        {/* PREVIEW PANEL - AREA FRAME DIPERLUAS KE ATAS */}
         <AnimatePresence>
           {selectedFile && (
             <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 30, stiffness: 200 }} className="w-[850px] bg-slate-950/95 backdrop-blur-md shadow-2xl border-l border-amber-500/10 flex flex-col overflow-hidden relative z-[100] transform-gpu">
-               <div className="p-10 border-b border-white/5 flex items-center justify-between">
+               <div className="p-10 border-b border-white/5 flex items-center justify-between bg-slate-900/20">
                   <div className="flex items-center gap-6 min-w-0">
                     <div className="p-4 bg-amber-500/10 rounded-2xl text-amber-500 border border-amber-500/20"><FileText size={28}/></div>
                     <div className="min-w-0">
@@ -596,26 +550,13 @@ export default function Dashboard() {
                   </div>
                </div>
                
-               <div className="grid grid-cols-3 p-8 gap-4 border-b border-white/5 bg-slate-900/10">
-                  <div className="p-4 bg-white/5 rounded-2xl border border-white/5 text-center">
-                     <p className="text-[8px] font-black uppercase text-slate-500 mb-2 tracking-widest">Type</p>
-                     <p className="text-[10px] font-black text-amber-500 truncate uppercase italic">Digital Object</p>
-                  </div>
-                  <div className="p-4 bg-white/5 rounded-2xl border border-white/5 text-center">
-                     <p className="text-[8px] font-black uppercase text-slate-500 mb-2 tracking-widest">Visibility</p>
-                     <p className="text-[10px] font-black text-amber-500 truncate uppercase italic">High-Sec Vault</p>
-                  </div>
-                  <div className="p-4 bg-white/5 rounded-2xl border border-white/5 text-center">
-                     <p className="text-[8px] font-black uppercase text-slate-500 mb-2 tracking-widest">Ownership</p>
-                     <p className="text-[10px] font-black text-amber-500 truncate uppercase italic">Internal Auth</p>
-                  </div>
-               </div>
+               {/* Metadata boxes dihapus untuk meluaskan frame dokumen */}
 
                <div className="flex-1 relative m-8 bg-black rounded-[40px] overflow-hidden border border-white/5 transform-gpu shadow-inner">
                   {previewLoading && (
                     <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-950/80">
                       <Loader2 className="animate-spin text-amber-500 mb-6" size={48} />
-                      <p className="text-[10px] font-black uppercase tracking-[0.4em] text-amber-500/40 italic italic">Syncing Visual Node...</p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.4em] text-amber-500/40 italic">Syncing Visual Node...</p>
                     </div>
                   )}
                   <iframe 
@@ -628,9 +569,7 @@ export default function Dashboard() {
                </div>
 
                <div className="p-8 px-10 bg-slate-900/40 backdrop-blur-md border-t border-white/5 flex items-center justify-between">
-                  <div className="flex items-center gap-3 text-slate-500 text-[10px] font-black uppercase tracking-widest italic">
-                     <Clock size={16}/> Sync: Recently
-                  </div>
+                  <div className="flex items-center gap-3 text-slate-500 text-[10px] font-black uppercase tracking-widest italic"><Clock size={16}/> Sync: Recently</div>
                   <button onClick={() => { addOnlineLog("DOWNLOAD", selectedFile.name); window.open(`https://drive.google.com/uc?export=download&id=${selectedFile.id}`, '_blank'); }} className="px-10 py-6 bg-amber-500 text-slate-950 rounded-[28px] font-black text-[11px] uppercase tracking-[0.5em] flex items-center gap-4 hover:bg-yellow-400 transition-all shadow-xl">
                     <Download size={20} strokeWidth={4}/> Authorize Retrieval
                   </button>
@@ -639,60 +578,26 @@ export default function Dashboard() {
           )}
         </AnimatePresence>
 
-        {/* --- GLOBAL SEARCH MODAL (FIXED LOGIC) --- */}
+        {/* SEARCH MODAL */}
         <AnimatePresence>
           {isSearchModalOpen && (
             <div className="fixed inset-0 z-[200] flex items-start justify-center pt-32 px-4 bg-slate-950/90 backdrop-blur-md" onClick={() => setIsSearchModalOpen(false)}>
               <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} className="bg-slate-900 border border-amber-500/20 w-full max-w-2xl rounded-[35px] shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
                 <div className="p-8 flex items-center gap-6 border-b border-white/5">
                   <Search className="text-amber-500" size={28} />
-                  <input 
-                    autoFocus 
-                    type="text" 
-                    placeholder="Search ANY file in the vault..." 
-                    className="flex-1 bg-transparent outline-none font-black text-xl text-white uppercase tracking-tighter italic" 
-                    onChange={(e) => handleGlobalSearch(e.target.value)} 
-                  />
+                  <input autoFocus type="text" placeholder="Search ANY file in the vault..." className="flex-1 bg-transparent outline-none font-black text-xl text-white uppercase tracking-tighter italic" onChange={(e) => handleGlobalSearch(e.target.value)} />
                   {searchLoading && <Loader2 className="animate-spin text-amber-500" size={20} />}
                   <div className="p-3 px-5 bg-white/5 border border-white/5 rounded-2xl text-[9px] font-black text-slate-500 uppercase tracking-widest">ESC</div>
                 </div>
-                
                 <div className="max-h-[400px] overflow-y-auto p-6 space-y-2 scrollbar-hide transform-gpu">
-                  {/* Hanya tampilkan hasil jika searchTerm tidak kosong */}
                   {searchTerm.length >= 2 ? (
-                    <>
-                      {searchResults.length > 0 ? (
-                        searchResults.map(f => (
-                          <div 
-                            key={f.id} 
-                            onClick={() => { 
-                              if(f.mimeType.includes('folder')) navigateToFolder(f.id, f.name); 
-                              else setSelectedFile(f); 
-                              setIsSearchModalOpen(false); 
-                            }} 
-                            className="p-5 hover:bg-amber-500 hover:text-slate-950 rounded-2xl cursor-pointer flex items-center justify-between group transition-colors text-slate-400 border border-transparent hover:border-amber-500/20 shadow-lg"
-                          >
-                            <div className="flex items-center gap-5 tracking-tighter italic min-w-0">
-                              {f.mimeType.includes('folder') ? <Folder size={20} className="shrink-0"/> : <FileText size={20} className="shrink-0"/>}
-                              <div className="truncate">
-                                <span className="block">{f.name}</span>
-                                <span className="text-[7px] font-black opacity-30 uppercase tracking-[0.2em]">Vault Resource Node</span>
-                              </div>
-                            </div>
-                            <ChevronRight size={16} className="opacity-0 group-hover:opacity-100 group-hover:translate-x-2 transition-all shrink-0" />
-                          </div>
-                        ))
-                      ) : !searchLoading && (
-                        <div className="p-10 text-center opacity-30 text-[10px] font-black uppercase tracking-[0.4em]">
-                          No records match your search
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <div className="p-10 text-center opacity-30 text-[10px] font-black uppercase tracking-[0.4em]">
-                      Type keywords to scan the registry
-                    </div>
-                  )}
+                    <>{searchResults.length > 0 ? (searchResults.map(f => (
+                      <div key={f.id} onClick={() => { if(f.mimeType.includes('folder')) navigateToFolder(f.id, f.name); else setSelectedFile(f); setIsSearchModalOpen(false); }} className="p-5 hover:bg-amber-500 hover:text-slate-950 rounded-2xl cursor-pointer flex items-center justify-between group transition-colors text-slate-400 border border-transparent hover:border-amber-500/20 shadow-lg">
+                        <div className="flex items-center gap-5 tracking-tighter italic min-w-0">{f.mimeType.includes('folder') ? <Folder size={20} className="shrink-0"/> : <FileText size={20} className="shrink-0"/>}<div className="truncate"><span className="block">{f.name}</span><span className="text-[7px] font-black opacity-30 uppercase tracking-[0.2em]">Vault Resource Node</span></div></div>
+                        <ChevronRight size={16} className="opacity-0 group-hover:opacity-100 group-hover:translate-x-2 transition-all shrink-0" />
+                      </div>
+                    ))) : !searchLoading && (<div className="p-10 text-center opacity-30 text-[10px] font-black uppercase tracking-[0.4em]">No records match your search</div>)}</>
+                  ) : (<div className="p-10 text-center opacity-30 text-[10px] font-black uppercase tracking-[0.4em]">Type keywords to scan the registry</div>)}
                 </div>
               </motion.div>
             </div>
