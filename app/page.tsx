@@ -1,5 +1,5 @@
 "use client"
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Folder, FileText, Upload, Lock, Database, LayoutDashboard, 
@@ -8,7 +8,7 @@ import {
   CheckCircle2, AlertCircle, Filter, History, User,
   Crown, Zap, ShieldCheck, Star, Trash2, Trophy, Coins,
   LayoutGrid, List, Clock, Info, Share2, Pin, Eye, Activity,
-  Cpu, HardDrive, ShieldAlert, CheckSquare, Square, Bug, ShieldBan
+  Cpu, HardDrive, ShieldAlert
 } from 'lucide-react';
 
 // --- INTERFACES ---
@@ -57,42 +57,18 @@ export default function Dashboard() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'folder' | 'file'>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
 
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploadStatus, setUploadStatus] = useState<'idle' | 'success' | 'error' | 'scanning'>('idle');
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [uploadDestinationId, setUploadDestinationId] = useState<string>('');
   const [previewLoading, setPreviewLoading] = useState(true);
 
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
-
-  // --- ANTI-HACK LOGIC: PREVENT INSPECTION ---
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const preventDevTools = (e: MouseEvent | KeyboardEvent) => {
-        if (e instanceof MouseEvent && e.button === 2) e.preventDefault(); // Disable Right Click
-        if (e instanceof KeyboardEvent) {
-          if (e.key === 'F12' || 
-              (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) || 
-              (e.ctrlKey && e.key === 'U')) {
-            e.preventDefault();
-            return false;
-          }
-        }
-      };
-      window.addEventListener('contextmenu', preventDevTools);
-      window.addEventListener('keydown', preventDevTools);
-      return () => {
-        window.removeEventListener('contextmenu', preventDevTools);
-        window.removeEventListener('keydown', preventDevTools);
-      };
-    }
-  }, []);
 
   const fetchOnlineLogs = useCallback(async () => {
     setLogsLoading(true);
@@ -125,19 +101,6 @@ export default function Dashboard() {
       else setSearchResults([]);
     } catch (e) { setSearchResults([]); }
     setSearchLoading(false);
-  };
-
-  const toggleNodeSelection = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setSelectedNodes(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
-  };
-
-  const handleBatchDownload = () => {
-    selectedNodes.forEach(id => {
-      const file = files.find(f => f.id === id);
-      if (file) { window.open(`https://drive.google.com/uc?export=download&id=${id}`, '_blank'); addOnlineLog("BATCH_RETRIEVAL", file.name); }
-    });
-    setSelectedNodes([]);
   };
 
   useEffect(() => {
@@ -181,17 +144,17 @@ export default function Dashboard() {
   useEffect(() => { if (isUploadModalOpen) fetchAllFolders(); }, [isUploadModalOpen]);
 
   const navigateToFolder = (id: string, name: string) => {
-    setCurrentFolder(id); setFolderHistory(prev => [...prev, { id, name }]); setSelectedFile(null); setSelectedNodes([]);
+    setCurrentFolder(id); setFolderHistory(prev => [...prev, { id, name }]); setSelectedFile(null);
   };
 
   const goBackOneLevel = () => {
     if (folderHistory.length > 0) {
       const newHistory = [...folderHistory]; newHistory.pop(); setFolderHistory(newHistory);
-      const prevFolder = newHistory[newHistory.length - 1]; setCurrentFolder(prevFolder ? prevFolder.id : ''); setSelectedFile(null); setSelectedNodes([]);
+      const prevFolder = newHistory[newHistory.length - 1]; setCurrentFolder(prevFolder ? prevFolder.id : ''); setSelectedFile(null);
     }
   };
 
-  const goHome = () => { setCurrentFolder(''); setFolderHistory([]); setSelectedFile(null); setSelectedNodes([]); };
+  const goHome = () => { setCurrentFolder(''); setFolderHistory([]); setSelectedFile(null); };
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -208,13 +171,7 @@ export default function Dashboard() {
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = e.target.files; if (!selectedFiles || selectedFiles.length === 0) return;
-    setUploading(true); setUploadStatus('scanning'); // Mulai dengan scanning virus
-    
-    // Simulasi scanning virus (Next-Level Visual)
-    await new Promise(r => setTimeout(r, 2000));
-    
-    setUploadStatus('idle');
-    setUploadProgress(0);
+    setUploading(true); setUploadStatus('idle'); setUploadProgress(0);
     let success = 0;
     for (let i = 0; i < selectedFiles.length; i++) {
       const formData = new FormData(); formData.append('file', selectedFiles[i]);
@@ -226,7 +183,7 @@ export default function Dashboard() {
       } catch (e) { console.error(e); }
     }
     setUploadStatus(success > 0 ? 'success' : 'error');
-    setTimeout(() => { setIsUploadModalOpen(false); setUploadStatus('idle'); fetchData(currentFolder); }, 2000);
+    setTimeout(() => { setIsUploadModalOpen(false); fetchData(currentFolder); }, 2000);
     setUploading(false);
   };
 
@@ -271,7 +228,7 @@ export default function Dashboard() {
           <h2 className="text-4xl font-black mb-1 text-white tracking-tighter italic uppercase">ROYAL <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-yellow-200">VAULT</span></h2>
           <p className="text-amber-500/60 mb-10 text-[10px] font-black uppercase tracking-[0.6em]">Inspectorate Elite Portal</p>
           <form onSubmit={handleLogin} className="space-y-4">
-            <div className="relative group"><User className="absolute left-6 top-1/2 -translate-y-1/2 text-amber-500/40" size={18}/><input required type="text" placeholder="IDENTITAS PENGGUNA" className="w-full py-5 pl-16 pr-5 rounded-3xl border border-white/5 outline-none bg-white/5 text-amber-100 font-bold placeholder:text-slate-600 focus:border-amber-500/50 transition-all text-xs uppercase" onChange={(e) => setTempName(e.target.value)} /></div>
+            <div className="relative group"><User className="absolute left-6 top-1/2 -translate-y-1/2 text-amber-500/40" size={18}/><input required type="text" placeholder="IDENTITAS PENGGUNA" className="w-full py-5 pl-14 pr-5 rounded-3xl border border-white/5 outline-none bg-white/5 text-amber-100 font-bold placeholder:text-slate-600 focus:border-amber-500/50 transition-all text-xs uppercase" onChange={(e) => setTempName(e.target.value)} /></div>
             <div className="relative group"><Lock className="absolute left-6 top-1/2 -translate-y-1/2 text-amber-500/40" size={18}/><input required type="password" placeholder="KUNCI AKSES" className="w-full py-5 pl-14 pr-5 rounded-3xl border border-white/5 outline-none bg-white/5 text-amber-100 font-bold placeholder:text-slate-600 tracking-[0.8em] focus:border-amber-500/50 transition-all" onChange={(e) => setPassword(e.target.value)} /></div>
             <button type="submit" className="w-full bg-gradient-to-r from-amber-600 via-amber-400 to-amber-600 text-slate-950 py-5 rounded-3xl font-black uppercase tracking-widest hover:shadow-[0_0_30px_rgba(245,158,11,0.4)] transition-all active:scale-95 text-xs border border-amber-300/30">Verify Authority</button>
           </form>
@@ -355,7 +312,7 @@ export default function Dashboard() {
             ) : (
               <div className="space-y-16 pb-20">
                 
-                {/* HUD SECTION */}
+                {/* --- NEXT LEVEL: HOLOGRAPHIC INTELLIGENCE HUD --- */}
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-1 md:grid-cols-4 gap-6 p-1 bg-gradient-to-r from-amber-500/20 via-transparent to-amber-500/20 rounded-[35px]">
                    <div className="bg-slate-900/40 backdrop-blur-md p-6 rounded-[30px] border border-amber-500/10 flex flex-col items-center gap-2 relative overflow-hidden group">
                       <div className="absolute top-[-50%] left-[-50%] w-full h-full bg-amber-500/5 rounded-full blur-3xl animate-pulse"></div>
@@ -375,9 +332,9 @@ export default function Dashboard() {
                       <span className="text-lg font-black text-white italic uppercase tracking-tighter">{filteredFilesMain.filter(f => f.mimeType.includes('folder')).length} Nodes</span>
                    </div>
                    <div className="bg-slate-900/40 backdrop-blur-md p-6 rounded-[30px] border border-amber-500/10 flex flex-col items-center gap-2 relative overflow-hidden">
-                      <ShieldCheck size={16} className="text-amber-500 mb-2" />
-                      <span className="text-[8px] font-black uppercase text-amber-500/40 tracking-[0.3em]">Active Firewall</span>
-                      <span className="text-lg font-black text-white italic uppercase tracking-tighter">Secured</span>
+                      <ShieldAlert size={16} className="text-amber-500/40 mb-2" />
+                      <span className="text-[8px] font-black uppercase text-amber-500/40 tracking-[0.3em]">Security Layer</span>
+                      <span className="text-lg font-black text-white italic uppercase tracking-tighter">Level 07</span>
                    </div>
                 </motion.div>
 
@@ -385,48 +342,32 @@ export default function Dashboard() {
                    <section><h3 className="text-[11px] font-black uppercase text-slate-500 tracking-[0.5em] mb-8 flex items-center gap-4"><Pin size={14} className="text-amber-500" /> Essential Directories</h3><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">{filteredFilesMain.filter(f => f.mimeType.includes('folder')).slice(0, 4).map(folder => (
                    <div key={folder.id} onClick={() => navigateToFolder(folder.id, folder.name)} className="bg-gradient-to-br from-white/[0.03] to-transparent p-8 rounded-[45px] border border-white/5 flex items-center gap-6 cursor-pointer group hover:border-amber-500/30 transition-all transform-gpu hover:-translate-y-2 shadow-2xl"><div className="p-5 bg-amber-500 rounded-3xl text-slate-900 shadow-xl transition-all group-hover:rotate-6 shadow-amber-500/20"><Folder size={28} fill="currentColor" /></div><div className="min-w-0"><h4 className="font-black text-white text-sm truncate uppercase tracking-tighter group-hover:text-amber-300 transition-colors">{folder.name}</h4><p className="text-[9px] text-slate-500 font-bold uppercase mt-1 tracking-widest">Access Node</p></div></div>))}</div></section>
                 )}
-                
                 <section>
                    <div className="flex items-center justify-between mb-10 border-b border-white/5 pb-6"><h3 className="text-[11px] font-black uppercase text-slate-500 tracking-[0.5em] flex items-center gap-4"><Star size={14} className="text-amber-500" /> Active Ledger</h3><p className="text-[10px] font-bold text-slate-600 italic uppercase tracking-widest">{filteredFilesMain.length} Secured Objects Detected</p></div>
                    {viewMode === 'grid' ? (
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-12">{filteredFilesMain.map((file) => (
-                      <div key={file.id} className={`relative group bg-gradient-to-b from-white/[0.04] to-transparent p-10 rounded-[55px] border transition-all cursor-pointer h-80 flex flex-col justify-between transform-gpu hover:-translate-y-2 ${selectedNodes.includes(file.id) ? 'border-amber-500 bg-amber-500/10 shadow-[0_20px_50px_rgba(245,158,11,0.1)] scale-[0.98]' : 'border-white/5 hover:border-amber-500/40 hover:shadow-2xl'}`} onClick={() => file.mimeType.includes('folder') ? navigateToFolder(file.id, file.name) : setSelectedFile(file)}><div className="flex justify-between items-start"><div onClick={(e) => toggleNodeSelection(file.id, e)} className={`p-2 rounded-full border transition-all ${selectedNodes.includes(file.id) ? 'bg-amber-500 border-amber-400 text-slate-900 animate-pulse' : 'bg-white/5 border-white/10 text-white/20 hover:border-amber-500/50 hover:text-amber-500'}`}>{selectedNodes.includes(file.id) ? <CheckSquare size={14} strokeWidth={3} /> : <Square size={14} />}</div><div className="flex flex-col gap-3 opacity-0 group-hover:opacity-100 transition-all translate-x-3 group-hover:translate-x-0">{!file.mimeType.includes('folder') && (<button onClick={(e) => { e.stopPropagation(); addOnlineLog("DOWNLOAD", file.name); window.open(`https://drive.google.com/uc?export=download&id=${file.id}`, '_blank'); }} className="p-4 bg-slate-800 rounded-2xl text-slate-400 hover:text-amber-400 border border-white/10 transition-colors shadow-lg shadow-black/50"><Download size={18}/></button>)}{userRole === 'admin' && (<><button onClick={(e) => { e.stopPropagation(); handleRename(file.id, file.name); }} className="p-4 bg-slate-800 rounded-2xl text-slate-400 hover:text-amber-400 border border-white/10 transition-colors shadow-lg shadow-black/50"><Edit2 size={18}/></button><button onClick={(e) => { e.stopPropagation(); handleDelete(file.id, file.name); }} className="p-4 bg-slate-800 rounded-2xl text-slate-400 hover:text-red-400 border border-white/10 transition-colors shadow-lg shadow-black/50"><Trash2 size={18}/></button></>)}</div></div><div className="flex flex-col items-center justify-center py-4"><div className={`p-6 rounded-[30px] shadow-2xl transition-all duration-300 group-hover:scale-110 ${file.mimeType.includes('folder') ? 'bg-amber-500 text-slate-950 shadow-amber-500/20' : 'bg-slate-800 text-slate-100 border border-white/10'}`}>{file.mimeType.includes('folder') ? <Folder size={32} fill="currentColor" /> : <FileText size={32} />}</div></div><div><h4 className="font-black text-white truncate text-lg uppercase tracking-tighter leading-tight group-hover:text-amber-300 transition-colors">{file.name}</h4><div className="mt-2 text-[7px] font-mono text-slate-600 uppercase tracking-widest truncate opacity-0 group-hover:opacity-100 transition-opacity">Node_ID: 0x{file.id.substring(0,12)}</div><div className="flex items-center gap-3 mt-4"><span className={`text-[9px] font-black uppercase tracking-[0.2em] py-1.5 px-4 rounded-full border shadow-inner ${file.mimeType.includes('folder') ? 'border-amber-500/30 text-amber-500 bg-amber-500/10' : 'border-white/10 text-slate-500 bg-white/5'}`}>{file.mimeType.includes('folder') ? 'DIRECTORY' : 'DATA OBJECT'}</span></div></div></div>))}</div>
+                      <div key={file.id} className={`relative group bg-gradient-to-b from-white/[0.04] to-transparent p-10 rounded-[55px] border transition-all cursor-pointer h-80 flex flex-col justify-between transform-gpu hover:-translate-y-2 ${selectedFile?.id === file.id ? 'border-amber-500 bg-amber-500/10 shadow-[0_20px_50px_rgba(245,158,11,0.1)]' : 'border-white/5 hover:border-amber-500/40 hover:shadow-2xl'}`} onClick={() => file.mimeType.includes('folder') ? navigateToFolder(file.id, file.name) : setSelectedFile(file)}><div className="flex justify-between items-start"><div className={`p-6 rounded-[30px] shadow-2xl transition-all duration-300 group-hover:scale-110 ${file.mimeType.includes('folder') ? 'bg-amber-500 text-slate-950 shadow-amber-500/20' : 'bg-slate-800 text-slate-100 border border-white/10 shadow-black/40'}`}>{file.mimeType.includes('folder') ? <Folder size={32} fill="currentColor" /> : <FileText size={32} />}</div><div className="flex flex-col gap-3 opacity-0 group-hover:opacity-100 transition-all translate-x-3 group-hover:translate-x-0">{!file.mimeType.includes('folder') && (<button onClick={(e) => { e.stopPropagation(); addOnlineLog("DOWNLOAD", file.name); window.open(`https://drive.google.com/uc?export=download&id=${file.id}`, '_blank'); }} className="p-4 bg-slate-800 rounded-2xl text-slate-400 hover:text-amber-400 border border-white/10 transition-colors shadow-lg shadow-black/50"><Download size={18}/></button>)}{userRole === 'admin' && (<><button onClick={(e) => { e.stopPropagation(); handleRename(file.id, file.name); }} className="p-4 bg-slate-800 rounded-2xl text-slate-400 hover:text-amber-400 border border-white/10 transition-colors shadow-lg shadow-black/50"><Edit2 size={18}/></button><button onClick={(e) => { e.stopPropagation(); handleDelete(file.id, file.name); }} className="p-4 bg-slate-800 rounded-2xl text-slate-400 hover:text-red-400 border border-white/10 transition-colors shadow-lg shadow-black/50"><Trash2 size={18}/></button></>)}</div></div><div><h4 className="font-black text-white truncate text-lg uppercase tracking-tighter leading-tight group-hover:text-amber-300 transition-colors">{file.name}</h4><div className="flex items-center gap-3 mt-5"><span className={`text-[9px] font-black uppercase tracking-[0.2em] py-1.5 px-4 rounded-full border shadow-inner ${file.mimeType.includes('folder') ? 'border-amber-500/30 text-amber-500 bg-amber-500/10' : 'border-white/10 text-slate-500 bg-white/5'}`}>{file.mimeType.includes('folder') ? 'DIRECTORY' : 'DATA OBJECT'}</span></div></div></div>))}</div>
                    ) : (
-                      <div className="bg-white/5 rounded-[45px] border border-white/5 overflow-hidden transform-gpu shadow-2xl"><div className="grid grid-cols-12 p-8 border-b border-white/10 text-[10px] font-black uppercase tracking-[0.4em] text-slate-500 bg-white/[0.02]"><div className="col-span-1 pl-4">Link</div><div className="col-span-5">Object Identity</div><div className="col-span-3">Registry Type</div><div className="col-span-3 text-right pr-6">Vault Actions</div></div>{filteredFilesMain.map(file => (
-                      <div key={file.id} onClick={() => file.mimeType.includes('folder') ? navigateToFolder(file.id, file.name) : setSelectedFile(file)} className={`grid grid-cols-12 p-6 items-center hover:bg-amber-500/5 transition-colors cursor-pointer group border-b border-white/5 last:border-0 ${selectedNodes.includes(file.id) ? 'bg-amber-500/5' : ''}`}><div className="col-span-1 pl-4"><div onClick={(e) => toggleNodeSelection(file.id, e)} className={`w-6 h-6 rounded-lg border flex items-center justify-center transition-all ${selectedNodes.includes(file.id) ? 'bg-amber-500 border-amber-400 text-slate-900' : 'bg-white/5 border-white/10 text-white/10'}`}>{selectedNodes.includes(file.id) ? <CheckSquare size={12} strokeWidth={3} /> : <Square size={12} />}</div></div><div className="col-span-5 flex items-center gap-6"><div className={`p-3 rounded-xl ${file.mimeType.includes('folder') ? 'text-amber-500 bg-amber-500/10' : 'text-slate-400 bg-white/5'}`}>{file.mimeType.includes('folder') ? <Folder size={22} fill="currentColor"/> : <FileText size={22}/>}</div><div><span className="text-sm font-bold text-slate-200 group-hover:text-amber-300 truncate uppercase tracking-tighter block">{file.name}</span><span className="text-[7px] font-mono text-slate-600 uppercase">SHA-256: Node_0x{file.id.substring(0,8)}</span></div></div><div className="col-span-3 text-[10px] font-black text-slate-500 uppercase tracking-widest italic">{file.mimeType.includes('folder') ? 'Folder Node' : 'Encrypted File'}</div><div className="col-span-3 flex justify-end gap-3 pr-6"><button onClick={(e) => { e.stopPropagation(); setSelectedFile(file); }} className="p-3 bg-white/5 rounded-2xl text-slate-500 hover:text-amber-400 border border-white/10 transition-all"><Info size={18}/></button>{userRole === 'admin' && (<><button onClick={(e) => { e.stopPropagation(); handleRename(file.id, file.name); }} className="p-3 bg-white/5 rounded-2xl text-slate-500 hover:text-amber-400 border border-white/10 transition-all"><Edit2 size={18}/></button><button onClick={(e) => { e.stopPropagation(); handleDelete(file.id, file.name); }} className="p-3 bg-white/5 rounded-2xl text-slate-500 hover:text-red-400 border border-white/10 transition-all"><Trash2 size={18}/></button></>)}</div></div>))}</div>
+                      <div className="bg-white/5 rounded-[45px] border border-white/5 overflow-hidden transform-gpu shadow-2xl"><div className="grid grid-cols-12 p-8 border-b border-white/10 text-[10px] font-black uppercase tracking-[0.4em] text-slate-500 bg-white/[0.02]"><div className="col-span-6 pl-4">Object Identity</div><div className="col-span-3">Registry Type</div><div className="col-span-3 text-right pr-6">Vault Actions</div></div>{filteredFilesMain.map(file => (
+                      <div key={file.id} onClick={() => file.mimeType.includes('folder') ? navigateToFolder(file.id, file.name) : setSelectedFile(file)} className={`grid grid-cols-12 p-6 items-center hover:bg-amber-500/5 transition-colors cursor-pointer group border-b border-white/5 last:border-0 ${selectedFile?.id === file.id ? 'bg-amber-500/10' : ''}`}><div className="col-span-6 flex items-center gap-6 pl-4"><div className={`p-3 rounded-xl ${file.mimeType.includes('folder') ? 'text-amber-500 bg-amber-500/10' : 'text-slate-400 bg-white/5'}`}>{file.mimeType.includes('folder') ? <Folder size={22} fill="currentColor"/> : <FileText size={22}/>}</div><span className="text-sm font-bold text-slate-200 group-hover:text-amber-300 truncate uppercase tracking-tighter transition-colors">{file.name}</span></div><div className="col-span-3 text-[10px] font-black text-slate-500 uppercase tracking-widest italic">{file.mimeType.includes('folder') ? 'Folder Node' : 'Encrypted File'}</div><div className="col-span-3 flex justify-end gap-3 pr-6"><button onClick={(e) => { e.stopPropagation(); setSelectedFile(file); }} className="p-3 bg-white/5 rounded-2xl text-slate-500 hover:text-amber-400 border border-white/10 transition-all"><Info size={18}/></button>{userRole === 'admin' && (<><button onClick={(e) => { e.stopPropagation(); handleRename(file.id, file.name); }} className="p-3 bg-white/5 rounded-2xl text-slate-500 hover:text-amber-400 border border-white/10 transition-all"><Edit2 size={18}/></button><button onClick={(e) => { e.stopPropagation(); handleDelete(file.id, file.name); }} className="p-3 bg-white/5 rounded-2xl text-slate-500 hover:text-red-400 border border-white/10 transition-all"><Trash2 size={18}/></button></>)}</div></div>))}</div>
                    )}
                 </section>
               </div>
             )}
           </div>
 
-          <AnimatePresence>
-            {selectedNodes.length > 0 && (
-              <motion.div initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 100, opacity: 0 }} className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[150] w-auto">
-                 <div className="bg-slate-900/90 backdrop-blur-2xl border border-amber-500/30 rounded-full px-8 py-4 shadow-[0_20px_60px_rgba(0,0,0,0.8)] flex items-center gap-10">
-                    <div className="flex items-center gap-4 border-r border-white/10 pr-10">
-                       <div className="relative"><div className="absolute inset-0 bg-amber-500/20 blur-lg animate-pulse"></div><div className="w-10 h-10 bg-amber-500 rounded-xl text-slate-950 flex items-center justify-center font-black text-sm relative">{selectedNodes.length}</div></div>
-                       <div className="flex flex-col"><span className="text-[10px] font-black uppercase text-white tracking-widest leading-none">Nodes Linked</span><span className="text-[8px] font-bold uppercase text-amber-500/60 mt-1">Quantum Staging Area</span></div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                       <button onClick={handleBatchDownload} className="flex items-center gap-3 px-6 py-3 bg-amber-500 text-slate-950 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-amber-400 transition-all shadow-lg active:scale-95"><Download size={14} strokeWidth={3}/> Batch Retrieval</button>
-                       <button onClick={() => setSelectedNodes([])} className="p-3 text-slate-500 hover:text-red-400 transition-colors uppercase text-[9px] font-black tracking-widest flex items-center gap-2 px-6">Clear Links</button>
-                    </div>
-                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
+          {/* NEXT LEVEL: Security Intelligence Ticker (Smaller Size) */}
           <div className="h-7 bg-black/60 backdrop-blur-md border-t border-white/5 flex items-center relative overflow-hidden shrink-0">
              <div className="absolute left-0 top-0 bottom-0 px-4 bg-amber-500 text-slate-950 text-[8px] font-black flex items-center z-10 uppercase italic tracking-wider">Intelligence Stream</div>
              <div className="whitespace-nowrap flex items-center gap-20 animate-marquee">
                 {[1,2,3].map(i => (
                   <div key={i} className="flex gap-20 items-center text-[9px] font-bold text-amber-500/60 uppercase tracking-[0.3em]">
-                    <span>• Active Firewall: VERIFIED SECURE</span>
-                    <span>• Virus Scan Protocol: ALL NODES CLEAR</span>
+                    <span>• SSL Security Layer: AES-256 ACTIVE</span>
                     <span>• Handshake with Node: {userName?.toUpperCase()} AUTHORIZED</span>
-                    <span>• Selection Engine: {selectedNodes.length > 0 ? `LINKED ${selectedNodes.length} OBJECTS` : 'READY'}</span>
-                    <span>• Intrusion Detection: 0 THREATS</span>
+                    <span>• Encryption Protocol: RSA-4096 STABLE</span>
+                    <span>• Registry Status: {stats.total} OBJECTS INDEXED</span>
+                    <span>• System Health: OPTIMAL</span>
+                    <span>• Location: Kendrick Node Knd_0x{stats.total}</span>
                   </div>
                 ))}
              </div>
@@ -453,43 +394,7 @@ export default function Dashboard() {
         <AnimatePresence>
           {isUploadModalOpen && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-[#0f172a]/95 backdrop-blur-md">
-              <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-slate-900 rounded-[70px] p-16 w-full max-w-xl relative border border-amber-500/20 shadow-[0_40px_100px_rgba(0,0,0,0.6)]">
-                <button onClick={() => setIsUploadModalOpen(false)} className="absolute right-12 top-12 text-slate-600 hover:text-amber-400 transition-all"><X size={32}/></button>
-                <div className="text-center mb-12">
-                   <h3 className="text-4xl font-black text-white uppercase tracking-tighter italic leading-none">Record <span className="text-amber-500">Submission</span></h3>
-                   <p className="text-[10px] text-slate-500 font-black uppercase tracking-[0.6em] mt-4 italic opacity-60">Anti-Vulnerability Layer Active</p>
-                </div>
-
-                {uploadStatus === 'scanning' ? (
-                  <div className="text-center py-20">
-                     <motion.div animate={{ rotate: 360 }} transition={{ duration: 4, repeat: Infinity, ease: "linear" }} className="mb-8">
-                        <Bug size={80} className="text-amber-500 mx-auto opacity-20" />
-                     </motion.div>
-                     <Loader2 className="animate-spin mx-auto text-amber-500 mb-6" size={40} />
-                     <h4 className="text-xl font-black text-white uppercase tracking-widest">Active Virus Scan...</h4>
-                     <p className="text-[10px] text-amber-500/40 font-black uppercase mt-4 animate-pulse tracking-[0.4em]">Analyzing File Integrity & Malware Scripts</p>
-                  </div>
-                ) : uploadStatus === 'idle' ? (
-                  <div className="space-y-10">
-                    <select value={uploadDestinationId} onChange={(e) => setUploadDestinationId(e.target.value)} className="w-full p-6 rounded-3xl bg-white/5 border border-white/10 outline-none font-black text-[11px] text-slate-400 cursor-pointer focus:border-amber-500 transition-all uppercase tracking-[0.2em] shadow-inner"><option value="">🏠 CENTRAL ARCHIVE CORE</option>{allFolders.map(f => (<option key={f.id} value={f.id} className="bg-slate-900 text-white">📁 {f.name.toUpperCase()}</option>))}</select>
-                    <label className="flex flex-col items-center justify-center w-full h-80 border-2 border-dashed border-amber-500/20 rounded-[50px] cursor-pointer hover:bg-amber-500/5 transition-all text-center p-8 relative overflow-hidden group shadow-inner">
-                      {uploading ? (
-                        <div className="w-full px-10"><Loader2 className="animate-spin mx-auto text-amber-500 mb-8" size={60} /><div className="w-full bg-white/5 h-2 rounded-full overflow-hidden mb-6 shadow-inner"><motion.div initial={{ width: 0 }} animate={{ width: `${uploadProgress}%` }} className="h-full bg-gradient-to-r from-amber-600 to-amber-300 shadow-[0_0_20px_rgba(245,158,11,0.5)]" /></div><p className="text-[11px] font-black uppercase text-amber-400 tracking-[0.5em] animate-pulse">{uploadProgress}% AUTHENTICATING...</p></div>
-                      ) : (
-                        <><div className="p-8 bg-amber-500 rounded-[30px] text-slate-950 mb-8 shadow-[0_15px_40px_rgba(245,158,11,0.4)] group-hover:scale-110 transition-all duration-500 transform-gpu"><Upload size={40} strokeWidth={3}/></div><p className="text-xl font-black text-white uppercase tracking-tighter italic">Upload Intelligence Data</p><p className="text-[10px] text-slate-500 font-bold uppercase mt-2 opacity-50">Drag & Drop or Click to Select</p><input type="file" multiple className="hidden" onChange={handleUpload} disabled={uploading} /></>
-                      )}
-                    </label>
-                  </div>
-                ) : (
-                  <div className="text-center py-20">
-                    {uploadStatus === 'success' ? (
-                      <motion.div initial={{ scale: 0.5 }} animate={{ scale: 1 }}><ShieldCheck size={120} className="text-amber-500 mx-auto mb-8 shadow-amber-500/20" /><h3 className="text-3xl font-black text-white uppercase tracking-tighter italic">Ledger <span className="text-amber-500">Secured</span></h3></motion.div>
-                    ) : (
-                      <motion.div initial={{ scale: 0.5 }} animate={{ scale: 1 }}><AlertCircle size={120} className="text-red-500 mx-auto mb-8" /><h3 className="text-3xl font-black text-white uppercase tracking-tighter">Authority Denied</h3></motion.div>
-                    )}
-                  </div>
-                )}
-              </motion.div>
+              <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-slate-900 rounded-[70px] p-16 w-full max-w-xl relative border border-amber-500/20 shadow-[0_40px_100px_rgba(0,0,0,0.6)]"><button onClick={() => setIsUploadModalOpen(false)} className="absolute right-12 top-12 text-slate-600 hover:text-amber-400 transition-all"><X size={32}/></button><div className="text-center mb-12"><h3 className="text-4xl font-black text-white uppercase tracking-tighter italic leading-none">Record <span className="text-amber-500">Submission</span></h3><p className="text-[10px] text-slate-500 font-black uppercase tracking-[0.6em] mt-4 italic opacity-60">High-Security Authority Active</p></div>{uploadStatus === 'idle' ? (<div className="space-y-10"><select value={uploadDestinationId} onChange={(e) => setUploadDestinationId(e.target.value)} className="w-full p-6 rounded-3xl bg-white/5 border border-white/10 outline-none font-black text-[11px] text-slate-400 cursor-pointer focus:border-amber-500 transition-all uppercase tracking-[0.2em] shadow-inner"><option value="">🏠 CENTRAL ARCHIVE CORE</option>{allFolders.map(f => (<option key={f.id} value={f.id} className="bg-slate-900 text-white">📁 {f.name.toUpperCase()}</option>))}</select><label className="flex flex-col items-center justify-center w-full h-80 border-2 border-dashed border-amber-500/20 rounded-[50px] cursor-pointer hover:bg-amber-500/5 transition-all text-center p-8 relative overflow-hidden group shadow-inner">{uploading ? (<div className="w-full px-10"><Loader2 className="animate-spin mx-auto text-amber-500 mb-8" size={60} /><div className="w-full bg-white/5 h-2 rounded-full overflow-hidden mb-6 shadow-inner"><motion.div initial={{ width: 0 }} animate={{ width: `${uploadProgress}%` }} className="h-full bg-gradient-to-r from-amber-600 to-amber-300 shadow-[0_0_20px_rgba(245,158,11,0.5)]" /></div><p className="text-[11px] font-black uppercase text-amber-400 tracking-[0.5em] animate-pulse">{uploadProgress}% AUTHENTICATING...</p></div>) : (<><div className="p-8 bg-amber-500 rounded-[30px] text-slate-950 mb-8 shadow-[0_15px_40px_rgba(245,158,11,0.4)] group-hover:scale-110 transition-all duration-500 transform-gpu"><Upload size={40} strokeWidth={3}/></div><p className="text-xl font-black text-white uppercase tracking-tighter italic">Upload Intelligence Data</p><p className="text-[10px] text-slate-500 font-bold uppercase mt-2 opacity-50">Drag & Drop or Click to Select</p><input type="file" multiple className="hidden" onChange={handleUpload} disabled={uploading} /></>)}</label></div>) : (<div className="text-center py-20">{uploadStatus === 'success' ? (<motion.div initial={{ scale: 0.5 }} animate={{ scale: 1 }}><ShieldCheck size={120} className="text-amber-500 mx-auto mb-8 shadow-amber-500/20" /><h3 className="text-3xl font-black text-white uppercase tracking-tighter italic">Ledger <span className="text-amber-500">Secured</span></h3></motion.div>) : (<motion.div initial={{ scale: 0.5 }} animate={{ scale: 1 }}><AlertCircle size={120} className="text-red-500 mx-auto mb-8" /><h3 className="text-3xl font-black text-white uppercase tracking-tighter">Authority Denied</h3></motion.div>)}</div>)}</motion.div>
             </div>
           )}
         </AnimatePresence>
