@@ -7,7 +7,8 @@ import {
   Download, ArrowLeft, Sun, Moon, Shield, 
   CheckCircle2, AlertCircle, Filter, History, User,
   Crown, Zap, ShieldCheck, Star, Trash2, Trophy, Coins,
-  LayoutGrid, List, Clock, Info, Share2, Pin, Eye, Activity
+  LayoutGrid, List, Clock, Info, Share2, Pin, Eye, Activity,
+  Cpu, HardDrive, ShieldAlert
 } from 'lucide-react';
 
 // --- INTERFACES ---
@@ -227,7 +228,7 @@ export default function Dashboard() {
           <h2 className="text-4xl font-black mb-1 text-white tracking-tighter italic uppercase">ROYAL <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-yellow-200">VAULT</span></h2>
           <p className="text-amber-500/60 mb-10 text-[10px] font-black uppercase tracking-[0.6em]">Inspectorate Elite Portal</p>
           <form onSubmit={handleLogin} className="space-y-4">
-            <div className="relative group"><User className="absolute left-6 top-1/2 -translate-y-1/2 text-amber-500/40" size={18}/><input required type="text" placeholder="IDENTITAS PENGGUNA" className="w-full py-5 pl-16 pr-5 rounded-3xl border border-white/5 outline-none bg-white/5 text-amber-100 font-bold placeholder:text-slate-600 focus:border-amber-500/50 transition-all text-xs uppercase" onChange={(e) => setTempName(e.target.value)} /></div>
+            <div className="relative group"><User className="absolute left-6 top-1/2 -translate-y-1/2 text-amber-500/40" size={18}/><input required type="text" placeholder="IDENTITAS PENGGUNA" className="w-full py-5 pl-14 pr-5 rounded-3xl border border-white/5 outline-none bg-white/5 text-amber-100 font-bold placeholder:text-slate-600 focus:border-amber-500/50 transition-all text-xs uppercase" onChange={(e) => setTempName(e.target.value)} /></div>
             <div className="relative group"><Lock className="absolute left-6 top-1/2 -translate-y-1/2 text-amber-500/40" size={18}/><input required type="password" placeholder="KUNCI AKSES" className="w-full py-5 pl-14 pr-5 rounded-3xl border border-white/5 outline-none bg-white/5 text-amber-100 font-bold placeholder:text-slate-600 tracking-[0.8em] focus:border-amber-500/50 transition-all" onChange={(e) => setPassword(e.target.value)} /></div>
             <button type="submit" className="w-full bg-gradient-to-r from-amber-600 via-amber-400 to-amber-600 text-slate-950 py-5 rounded-3xl font-black uppercase tracking-widest hover:shadow-[0_0_30px_rgba(245,158,11,0.4)] transition-all active:scale-95 text-xs border border-amber-300/30">Verify Authority</button>
           </form>
@@ -309,7 +310,34 @@ export default function Dashboard() {
             {loading ? (
               <div className="h-full flex flex-col items-center justify-center gap-8"><div className="relative"><div className="absolute inset-0 bg-amber-500/20 blur-3xl animate-pulse"></div><Loader2 className="animate-spin text-amber-500 relative z-10" size={64} /></div><p className="font-black text-[11px] uppercase tracking-[0.6em] text-amber-500/40 animate-pulse italic">Syncing Royal Matrix Assets...</p></div>
             ) : (
-              <div className="space-y-16">
+              <div className="space-y-16 pb-20">
+                
+                {/* --- NEXT LEVEL: HOLOGRAPHIC INTELLIGENCE HUD --- */}
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-1 md:grid-cols-4 gap-6 p-1 bg-gradient-to-r from-amber-500/20 via-transparent to-amber-500/20 rounded-[35px]">
+                   <div className="bg-slate-900/40 backdrop-blur-md p-6 rounded-[30px] border border-amber-500/10 flex flex-col items-center gap-2 relative overflow-hidden group">
+                      <div className="absolute top-[-50%] left-[-50%] w-full h-full bg-amber-500/5 rounded-full blur-3xl animate-pulse"></div>
+                      <Cpu size={16} className="text-amber-500/40 mb-2" />
+                      <span className="text-[8px] font-black uppercase text-amber-500/40 tracking-[0.3em]">Vault Integrity</span>
+                      <span className="text-lg font-black text-white italic uppercase tracking-tighter">Verified</span>
+                      <div className="w-16 h-1 bg-white/5 rounded-full mt-2 overflow-hidden"><motion.div initial={{ width: 0 }} animate={{ width: '100%' }} transition={{ duration: 2 }} className="h-full bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]"></motion.div></div>
+                   </div>
+                   <div className="bg-slate-900/40 backdrop-blur-md p-6 rounded-[30px] border border-amber-500/10 flex flex-col items-center gap-2 relative overflow-hidden">
+                      <HardDrive size={16} className="text-amber-500/40 mb-2" />
+                      <span className="text-[8px] font-black uppercase text-amber-500/40 tracking-[0.3em]">Data Objects</span>
+                      <span className="text-lg font-black text-white italic uppercase tracking-tighter">{filteredFilesMain.filter(f => !f.mimeType.includes('folder')).length} Files</span>
+                   </div>
+                   <div className="bg-slate-900/40 backdrop-blur-md p-6 rounded-[30px] border border-amber-500/10 flex flex-col items-center gap-2 relative overflow-hidden">
+                      <Folder size={16} className="text-amber-500/40 mb-2" />
+                      <span className="text-[8px] font-black uppercase text-amber-500/40 tracking-[0.3em]">Directory Nodes</span>
+                      <span className="text-lg font-black text-white italic uppercase tracking-tighter">{filteredFilesMain.filter(f => f.mimeType.includes('folder')).length} Nodes</span>
+                   </div>
+                   <div className="bg-slate-900/40 backdrop-blur-md p-6 rounded-[30px] border border-amber-500/10 flex flex-col items-center gap-2 relative overflow-hidden">
+                      <ShieldAlert size={16} className="text-amber-500/40 mb-2" />
+                      <span className="text-[8px] font-black uppercase text-amber-500/40 tracking-[0.3em]">Security Layer</span>
+                      <span className="text-lg font-black text-white italic uppercase tracking-tighter">Level 07</span>
+                   </div>
+                </motion.div>
+
                 {!currentFolder && filterType !== 'file' && (
                    <section><h3 className="text-[11px] font-black uppercase text-slate-500 tracking-[0.5em] mb-8 flex items-center gap-4"><Pin size={14} className="text-amber-500" /> Essential Directories</h3><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">{filteredFilesMain.filter(f => f.mimeType.includes('folder')).slice(0, 4).map(folder => (
                    <div key={folder.id} onClick={() => navigateToFolder(folder.id, folder.name)} className="bg-gradient-to-br from-white/[0.03] to-transparent p-8 rounded-[45px] border border-white/5 flex items-center gap-6 cursor-pointer group hover:border-amber-500/30 transition-all transform-gpu hover:-translate-y-2 shadow-2xl"><div className="p-5 bg-amber-500 rounded-3xl text-slate-900 shadow-xl transition-all group-hover:rotate-6 shadow-amber-500/20"><Folder size={28} fill="currentColor" /></div><div className="min-w-0"><h4 className="font-black text-white text-sm truncate uppercase tracking-tighter group-hover:text-amber-300 transition-colors">{folder.name}</h4><p className="text-[9px] text-slate-500 font-bold uppercase mt-1 tracking-widest">Access Node</p></div></div>))}</div></section>
@@ -329,7 +357,7 @@ export default function Dashboard() {
           </div>
 
           {/* NEXT LEVEL: Security Intelligence Ticker (Smaller Size) */}
-          <div className="h-7 bg-black/60 backdrop-blur-md border-t border-white/5 flex items-center relative overflow-hidden">
+          <div className="h-7 bg-black/60 backdrop-blur-md border-t border-white/5 flex items-center relative overflow-hidden shrink-0">
              <div className="absolute left-0 top-0 bottom-0 px-4 bg-amber-500 text-slate-950 text-[8px] font-black flex items-center z-10 uppercase italic tracking-wider">Intelligence Stream</div>
              <div className="whitespace-nowrap flex items-center gap-20 animate-marquee">
                 {[1,2,3].map(i => (
@@ -345,7 +373,7 @@ export default function Dashboard() {
              </div>
           </div>
 
-          <div className="p-6 px-12 bg-slate-900/60 backdrop-blur-md border-t border-white/5 flex items-center justify-between text-[10px] font-black uppercase text-slate-500 tracking-[0.4em]">
+          <div className="p-6 px-12 bg-slate-900/60 backdrop-blur-md border-t border-white/5 flex items-center justify-between text-[10px] font-black uppercase text-slate-500 tracking-[0.4em] shrink-0">
              <div className="flex gap-10"><span className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-ping"></div> CTRL + K Search</span><span>ESC Reset View</span></div>
              <div className="flex items-center gap-3"><div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>End-to-End Encryption Active</div>
           </div>
@@ -357,7 +385,7 @@ export default function Dashboard() {
             <div className="fixed inset-0 z-[200] flex items-start justify-center pt-24 p-6 bg-[#0f172a]/95 backdrop-blur-md" onClick={() => setIsLogModalOpen(false)}>
               <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="bg-slate-900 border border-amber-500/20 w-full max-w-5xl rounded-[60px] shadow-[0_30px_100px_rgba(0,0,0,0.8)] overflow-hidden" onClick={e => e.stopPropagation()}>
                 <div className="p-12 border-b border-white/10 flex justify-between items-center bg-white/[0.02]"><h3 className="text-2xl font-black uppercase tracking-tighter text-white flex items-center gap-5 italic leading-none"><Coins className="text-amber-500" size={32} /> Operational Transactions</h3><button onClick={() => setIsLogModalOpen(false)} className="p-4 hover:bg-red-500/10 text-slate-500 hover:text-red-500 transition-all border border-white/10 rounded-full"><X size={28}/></button></div>
-                <div className="overflow-x-auto max-h-[60vh] p-8 scrollbar-hide"><table className="w-full text-left border-collapse min-w-[800px]"><thead className="text-[10px] font-black uppercase tracking-[0.5em] text-slate-600 sticky top-0 bg-slate-900 z-10 border-b border-white/5"><tr><th className="p-6">Actor</th><th className="p-6">Command</th><th className="p-6">Target Object</th><th className="p-6">Timestamp</th></tr></thead><tbody className="text-[11px] font-bold">{activityLogs.map((log) => (<tr key={log.id} className="border-b border-white/5 text-slate-400 hover:bg-amber-500/5 transition-colors"><td className="p-6 text-amber-500/80">{log.user}</td><td className="p-6"><span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase border shadow-inner ${log.action === 'DELETE' ? 'border-red-500/50 text-red-400 bg-red-500/5' : log.action === 'UPLOAD' ? 'border-emerald-500/50 text-emerald-400 bg-emerald-500/5' : 'border-amber-500/50 text-amber-400 bg-amber-500/5'}`}>{log.action}</span></td><td className="p-6 max-w-[250px] truncate opacity-70 italic font-mono tracking-tighter">{log.fileName}</td><td className="p-6 text-[10px] opacity-40 uppercase tracking-widest">{log.timestamp}</td></tr>))}</tbody></table></div>
+                <div className="overflow-x-auto max-h-[60vh] p-8 scrollbar-hide"><table className="w-full text-left border-collapse min-w-[800px]"><thead className="text-[10px] font-black uppercase tracking-[0.5em] text-slate-600 sticky top-0 bg-slate-900 z-10 border-b border-white/5"><tr><th className="p-6">Actor</th><th className="p-6">Command</th><th className="p-6">Target Object</th><th className="p-6">Timestamp</th></tr></thead><tbody className="text-[11px] font-bold">{activityLogs.map((log) => (<tr key={log.id} className="border-b border-white/5 text-slate-400 hover:bg-amber-500/5 transition-colors"><td className="p-6 text-amber-500/80">{log.user}</td><td className="p-6"><span className="px-4 py-1.5 rounded-full text-[9px] font-black uppercase border shadow-inner border-amber-500/50 text-amber-400 bg-amber-500/5">{log.action}</span></td><td className="p-6 max-w-[250px] truncate opacity-70 italic font-mono tracking-tighter">{log.fileName}</td><td className="p-6 text-[10px] opacity-40 uppercase tracking-widest">{log.timestamp}</td></tr>))}</tbody></table></div>
               </motion.div>
             </div>
           )}
