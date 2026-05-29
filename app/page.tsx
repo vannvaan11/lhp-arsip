@@ -216,7 +216,11 @@ export default function Dashboard() {
   if (!isLoggedIn) {
     return (
       <div className="relative min-h-screen w-full flex items-center justify-center p-4 bg-[#0a0f1a] font-sans overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-blue-900/20 via-transparent to-amber-900/10"></div>
+        {/* Background Image Layer (Login) */}
+        <div className="absolute inset-0 z-0 bg-cover bg-center opacity-40 grayscale-[0.5] contrast-125" style={{ backgroundImage: "url('https://i.ibb.co.com/NnC3sn3S/bg-login.png')" }}></div>
+        
+        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-blue-900/20 via-transparent to-amber-900/10 z-[1]"></div>
+        
         <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="relative z-10 bg-slate-900/90 backdrop-blur-xl p-12 rounded-[60px] shadow-[0_0_100px_rgba(0,0,0,0.5)] w-full max-w-md border border-amber-500/20 text-center">
           <div className="mb-8 flex justify-center">
              <div className="p-6 bg-gradient-to-br from-amber-300 to-amber-600 rounded-full shadow-[0_10px_40px_rgba(245,158,11,0.3)]">
@@ -243,12 +247,14 @@ export default function Dashboard() {
 
   return (
     <div className={isDarkMode ? "dark" : ""}>
-      {/* Background: Slate-Blue Gradient (Bukan Hitam Pekat) */}
       <div className="h-screen bg-[#0f172a] flex text-slate-300 overflow-hidden font-sans relative">
-        <div className="fixed inset-0 z-0 bg-gradient-to-tr from-slate-900 via-[#1e293b] to-slate-900 pointer-events-none opacity-100"></div>
+        {/* Fixed Background Image Layer (Dashboard) */}
+        <div className="fixed inset-0 z-0 bg-cover bg-center opacity-[0.07] pointer-events-none grayscale contrast-125" style={{ backgroundImage: "url('https://i.ibb.co.com/NnC3sn3S/bg-login.png')" }}></div>
+        
+        <div className="fixed inset-0 z-0 bg-gradient-to-tr from-slate-900 via-[#1e293b] to-slate-900 pointer-events-none opacity-90"></div>
         <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-amber-500/5 blur-[120px] rounded-full pointer-events-none"></div>
 
-        {/* SIDEBAR - Brushed Metal Look */}
+        {/* SIDEBAR */}
         <aside className="w-80 bg-slate-900/60 backdrop-blur-xl border-r border-amber-500/10 p-8 flex flex-col gap-10 relative z-20 shadow-2xl">
           <div className="flex flex-col items-center gap-5">
             <div className="relative group p-1 bg-gradient-to-br from-amber-500/30 to-transparent rounded-[35px]">
@@ -296,7 +302,7 @@ export default function Dashboard() {
             <div className="flex items-center gap-6">
               <AnimatePresence>
                 {folderHistory.length > 0 && (
-                  <motion.button initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} onClick={goBackOneLevel} className="p-4 bg-white/5 rounded-2xl text-amber-400 border border-amber-500/20 hover:bg-amber-500 hover:text-slate-950 transition-all shadow-xl">
+                  <motion.button initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} onClick={goBackOneLevel} className="p-4 bg-white/5 rounded-2xl text-amber-400 border border-amber-500/20 hover:bg-amber-500 hover:text-slate-950 transition-all shadow-xl">
                     <ArrowLeft size={20} strokeWidth={3}/>
                   </motion.button>
                 )}
@@ -556,7 +562,7 @@ export default function Dashboard() {
           )}
         </AnimatePresence>
 
-        {/* PREVIEW PANEL - Area Frame Diperluas */}
+        {/* PREVIEW PANEL */}
         <AnimatePresence>
           {selectedFile && (
             <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 30, stiffness: 200 }} className="w-[850px] bg-slate-900/95 backdrop-blur-2xl shadow-[-50px_0_100px_rgba(0,0,0,0.5)] border-l border-amber-500/10 flex flex-col overflow-hidden relative z-[100] transform-gpu">
