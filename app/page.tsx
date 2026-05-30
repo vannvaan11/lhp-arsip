@@ -1,6 +1,6 @@
 "use client"
 import React, { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Folder, FileText, Upload, Lock, Database, LayoutDashboard, 
   Search, LogOut, ChevronRight, Loader2, Edit2, Plus, X, 
@@ -8,7 +8,7 @@ import {
   CheckCircle2, AlertCircle, Filter, History, User,
   Crown, Zap, ShieldCheck, Star, Trash2, Trophy, Coins,
   LayoutGrid, List, Clock, Info, Share2, Pin, Eye, Activity,
-  Cpu, HardDrive, ShieldAlert, Command, Settings, Bell, ChevronDown
+  Cpu, HardDrive, ShieldAlert, Command
 } from 'lucide-react';
 
 // --- INTERFACES ---
@@ -70,7 +70,6 @@ export default function Dashboard() {
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
 
-  // --- HANDLERS ---
   const fetchOnlineLogs = useCallback(async () => {
     setLogsLoading(true);
     try {
@@ -215,643 +214,217 @@ export default function Dashboard() {
       return true;
     });
 
-  // --- LOGIN PAGE RENDER ---
   if (!isLoggedIn) {
     return (
       <div className="relative min-h-screen w-full flex items-center justify-center p-6 bg-[#020617] font-sans overflow-hidden">
-        {/* Animated Background Canvas */}
+        {/* Background Image Layer (Thin and Transparent Gradient) */}
+        <div className="absolute inset-0 z-0 bg-cover bg-center opacity-[0.15]" style={{ backgroundImage: "url('https://i.ibb.co.com/NnC3sn3S/bg-login.png')" }}></div>
+        <div className="absolute inset-0 z-0 bg-gradient-to-b from-[#020617]/50 via-transparent to-[#020617] opacity-90"></div>
+        
+        {/* Light & Dot Effects */}
         <div className="absolute inset-0 z-0">
-          <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,#1e293b_0%,#020617_100%)]"></div>
           <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-amber-600/10 blur-[120px] rounded-full animate-pulse"></div>
           <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/10 blur-[120px] rounded-full animate-pulse delay-700"></div>
-          <div className="absolute inset-0 opacity-20" style={{ backgroundImage: "url('https://www.transparenttextures.com/patterns/carbon-fibre.png')" }}></div>
+          <div className="absolute inset-0 opacity-20" style={{ backgroundImage: "url('https://www.transparenttextures.com/patterns/grid-me.png')" }}></div>
         </div>
 
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }} 
-          animate={{ opacity: 1, y: 0 }} 
-          className="relative z-10 w-full max-w-[450px]"
-        >
-          <div className="bg-slate-900/40 backdrop-blur-3xl p-10 rounded-[48px] border border-white/10 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.6)]">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="relative z-10 w-full max-w-[450px]">
+          <div className="bg-[#0f172a]/80 backdrop-blur-3xl p-10 rounded-[50px] border border-white/10 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)]">
             <div className="flex flex-col items-center mb-10">
-              <motion.div 
-                whileHover={{ rotate: 360 }}
-                transition={{ duration: 1, ease: "anticipate" }}
-                className="w-24 h-24 mb-6 relative"
-              >
-                <div className="absolute inset-0 bg-amber-500 blur-2xl opacity-20 animate-pulse"></div>
-                <img 
-                  src="https://i.ibb.co.com/L22pdJQ/Coat-of-arms-of-Southeast-Sulawesi-svg.png" 
-                  alt="Logo" 
-                  className="w-full h-full object-contain relative z-10 drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]" 
-                />
-              </motion.div>
-              <h2 className="text-3xl font-black text-white tracking-tighter uppercase italic">
-                ROYAL <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-yellow-200 to-amber-600">VAULT</span>
-              </h2>
+              <div className="w-24 h-24 mb-6 p-4 bg-gradient-to-br from-amber-500/20 to-transparent rounded-full border border-amber-500/20">
+                <img src="https://i.ibb.co.com/L22pdJQ/Coat-of-arms-of-Southeast-Sulawesi-svg.png" alt="Logo" className="w-full h-full object-contain" />
+              </div>
+              <h2 className="text-3xl font-black text-white tracking-tighter uppercase italic">ROYAL <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-yellow-200">VAULT</span></h2>
               <p className="text-amber-500/60 text-[9px] font-black uppercase tracking-[0.5em] mt-2">Inspectorate Elite Access</p>
             </div>
-
             <form onSubmit={handleLogin} className="space-y-5">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-500 uppercase ml-4 tracking-widest">Identitas</label>
-                <div className="relative group">
-                  <User className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-amber-500 transition-colors" size={18}/>
-                  <input required type="text" placeholder="MASUKKAN NAMA" className="w-full py-5 pl-14 pr-6 rounded-3xl border border-white/5 outline-none bg-white/5 text-white font-bold placeholder:text-slate-600 focus:border-amber-500/50 focus:bg-amber-500/5 transition-all text-sm uppercase" onChange={(e) => setTempName(e.target.value)} />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-500 uppercase ml-4 tracking-widest">Kunci Akses</label>
-                <div className="relative group">
-                  <Lock className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-amber-500 transition-colors" size={18}/>
-                  <input required type="password" placeholder="••••••••" className="w-full py-5 pl-14 pr-6 rounded-3xl border border-white/5 outline-none bg-white/5 text-white font-bold placeholder:text-slate-600 tracking-[0.5em] focus:border-amber-500/50 focus:bg-amber-500/5 transition-all" onChange={(e) => setPassword(e.target.value)} />
-                </div>
-              </div>
-
-              <button type="submit" className="w-full relative overflow-hidden group mt-4">
-                <div className="absolute inset-0 bg-gradient-to-r from-amber-600 via-amber-400 to-amber-600 group-hover:scale-105 transition-transform duration-500"></div>
-                <div className="relative px-8 py-5 flex items-center justify-center gap-3">
-                  <span className="text-slate-950 font-black uppercase tracking-widest text-xs">Verify Authority</span>
-                  <ShieldCheck size={18} className="text-slate-950" />
-                </div>
-              </button>
+              <div className="relative group"><User className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500" size={18}/><input required type="text" placeholder="IDENTITAS PENGGUNA" className="w-full py-5 pl-14 pr-6 rounded-3xl border border-white/5 outline-none bg-white/5 text-white font-bold placeholder:text-slate-600 focus:border-amber-500/50 transition-all text-xs uppercase" onChange={(e) => setTempName(e.target.value)} /></div>
+              <div className="relative group"><Lock className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500" size={18}/><input required type="password" placeholder="KUNCI AKSES" className="w-full py-5 pl-14 pr-6 rounded-3xl border border-white/5 outline-none bg-white/5 text-white font-bold placeholder:text-slate-600 tracking-[0.5em] focus:border-amber-500/50 transition-all" onChange={(e) => setPassword(e.target.value)} /></div>
+              <button type="submit" className="w-full bg-gradient-to-r from-amber-600 via-amber-400 to-amber-600 text-slate-950 py-5 rounded-3xl font-black uppercase tracking-widest hover:shadow-[0_0_30px_rgba(245,158,11,0.4)] transition-all active:scale-95 text-xs">Verify Authority</button>
             </form>
           </div>
-          <p className="text-center mt-8 text-[9px] text-slate-600 font-bold uppercase tracking-[0.3em]">Secure End-to-End Encryption Node v2.0</p>
         </motion.div>
       </div>
     );
   }
 
-  // --- MAIN DASHBOARD RENDER ---
   return (
-    <div className={`${isDarkMode ? "dark" : ""} font-sans`}>
-      <div className="h-screen bg-[#020617] text-slate-300 flex overflow-hidden relative">
-        
-        {/* Background Overlay Decor */}
-        <div className="fixed inset-0 pointer-events-none">
-          <div className="absolute top-0 right-0 w-[60%] h-[60%] bg-blue-600/5 blur-[150px] rounded-full"></div>
-          <div className="absolute bottom-0 left-0 w-[60%] h-[60%] bg-amber-600/5 blur-[150px] rounded-full"></div>
-          <div className="absolute inset-0 opacity-[0.02]" style={{ backgroundImage: "url('https://www.transparenttextures.com/patterns/grid-me.png')" }}></div>
-        </div>
+    <div className={isDarkMode ? "dark" : ""}>
+      <div className="h-screen bg-[#020617] flex text-slate-300 overflow-hidden font-sans relative">
+        <div className="fixed inset-0 z-0 bg-cover bg-center opacity-[0.05] pointer-events-none grayscale contrast-125" style={{ backgroundImage: "url('https://i.ibb.co.com/NnC3sn3S/bg-login.png')" }}></div>
+        <div className="fixed inset-0 z-0 bg-gradient-to-tr from-[#020617] via-[#0f172a] to-[#020617] pointer-events-none opacity-95"></div>
 
-        {/* SIDEBAR - MODERN DETACHED STYLE */}
-        <aside className="w-24 lg:w-72 m-6 mr-0 rounded-[40px] bg-slate-900/40 backdrop-blur-2xl border border-white/10 flex flex-col items-center py-10 relative z-30 shadow-2xl">
-          <div className="flex flex-col items-center gap-8 w-full px-6">
-            <motion.div 
-              whileHover={{ scale: 1.05 }}
-              onClick={goHome}
-              className="cursor-pointer flex flex-col items-center"
-            >
-              <div className="w-16 h-16 bg-gradient-to-br from-amber-500/20 to-transparent p-3 rounded-2xl border border-amber-500/30 mb-4">
-                <img src="https://i.ibb.co.com/L22pdJQ/Coat-of-arms-of-Southeast-Sulawesi-svg.png" alt="Logo" className="w-full h-full object-contain shadow-2xl" />
-              </div>
-              <h1 className="hidden lg:block font-black text-xl tracking-tighter text-white italic">ARV<span className="text-amber-500">DRIV3</span></h1>
-            </motion.div>
-
-            <div className="w-full h-px bg-gradient-to-r from-transparent via-white/10 to-transparent my-4"></div>
-
-            <nav className="w-full space-y-3">
-              {[
-                { icon: LayoutDashboard, label: 'Overview', active: !currentFolder, onClick: goHome },
-                { icon: Folder, label: 'Directories', active: filterType === 'folder', onClick: () => setFilterType('folder') },
-                { icon: FileText, label: 'Records', active: filterType === 'file', onClick: () => setFilterType('file') },
-                { icon: History, label: 'Audit Logs', active: false, onClick: () => setIsLogModalOpen(true) },
-              ].map((item, idx) => (
-                <button
-                  key={idx}
-                  onClick={item.onClick}
-                  className={`w-full flex items-center justify-center lg:justify-start gap-4 p-4 rounded-2xl transition-all relative group ${item.active ? 'bg-amber-500 text-slate-950 shadow-xl shadow-amber-500/20' : 'text-slate-500 hover:text-white hover:bg-white/5'}`}
-                >
-                  <item.icon size={20} />
-                  <span className="hidden lg:block text-[11px] font-black uppercase tracking-widest">{item.label}</span>
-                  {item.active && <motion.div layoutId="nav-active" className="absolute left-0 w-1 h-8 bg-slate-950 rounded-r-full" />}
-                </button>
-              ))}
-            </nav>
-          </div>
-
-          <div className="mt-auto w-full px-6 space-y-6">
-            <div className="bg-white/5 rounded-3xl p-5 border border-white/5 text-center hidden lg:block">
-              <p className="text-[8px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-2">Vault Health</p>
-              <div className="flex items-center justify-center gap-2">
-                <div className="flex gap-0.5">
-                  {[1,2,3,4,5].map(i => <div key={i} className={`w-1 h-4 rounded-full ${i < 5 ? 'bg-amber-500' : 'bg-slate-700'}`}></div>)}
-                </div>
-                <span className="text-xs font-black text-white italic">98%</span>
+        {/* SIDEBAR */}
+        <aside className="w-80 bg-[#0f172a]/40 backdrop-blur-2xl border-r border-white/5 p-8 flex flex-col gap-10 relative z-20 shadow-2xl">
+          <div className="flex flex-col items-center gap-5">
+            <div className="w-20 h-20 bg-[#1e293b] rounded-[30px] p-4 shadow-2xl border border-white/5 overflow-hidden">
+               <img src="https://i.ibb.co.com/L22pdJQ/Coat-of-arms-of-Southeast-Sulawesi-svg.png" alt="Logo" className="w-full h-full object-contain" />
+            </div>
+            <div className="text-center">
+              <h1 className="font-black text-2xl tracking-tighter text-white italic uppercase leading-none">ARV<span className="text-amber-500">DRIV3</span></h1>
+              <div className="mt-5 inline-flex items-center gap-2 px-4 py-1.5 bg-amber-500/10 rounded-full border border-amber-500/20">
+                 <Crown size={14} className="text-amber-400" />
+                 <span className="text-[10px] font-black text-amber-200 uppercase tracking-widest">{userName}</span>
               </div>
             </div>
-
-            <button 
-              onClick={() => {sessionStorage.clear(); window.location.reload();}}
-              className="w-full p-4 rounded-2xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center lg:justify-start gap-4 group"
-            >
-              <LogOut size={20} className="group-hover:rotate-12 transition-transform" />
-              <span className="hidden lg:block text-[11px] font-black uppercase tracking-widest">Sign Out</span>
-            </button>
           </div>
+          <nav className="flex-1 space-y-3 font-black text-[10px] uppercase tracking-widest overflow-y-auto scrollbar-hide">
+            <button onClick={goHome} className={`w-full flex items-center gap-5 p-5 rounded-3xl transition-all border ${!currentFolder ? 'bg-amber-500 text-slate-950 border-amber-400' : 'bg-white/5 text-slate-500 border-transparent hover:text-white'}`}><LayoutDashboard size={18}/> Overview</button>
+            <button onClick={() => setFilterType('folder')} className={`w-full flex items-center gap-5 p-4 rounded-2xl transition-all border ${filterType === 'folder' ? 'text-amber-400 bg-amber-500/5 border-amber-500/20' : 'text-slate-500 border-transparent'}`}><Folder size={16}/> Directories</button>
+            <button onClick={() => setFilterType('file')} className={`w-full flex items-center gap-5 p-4 rounded-2xl transition-all border ${filterType === 'file' ? 'text-amber-400 bg-amber-500/5 border-amber-500/20' : 'text-slate-500 border-transparent'}`}><FileText size={16}/> Records</button>
+            <button onClick={() => setIsLogModalOpen(true)} className="w-full flex items-center gap-5 p-4 text-slate-500 hover:bg-white/5 rounded-2xl transition-all"><History size={18}/> Audit Logs</button>
+          </nav>
+          <button onClick={() => {sessionStorage.clear(); window.location.reload();}} className="w-full flex items-center justify-center gap-3 p-4 bg-red-500/10 text-red-400 font-black uppercase text-[9px] tracking-widest rounded-2xl border border-red-500/20 hover:bg-red-500 hover:text-white transition-all">Signout</button>
         </aside>
 
         {/* MAIN AREA */}
-        <main className="flex-1 flex flex-col min-w-0 relative overflow-hidden">
-          
-          {/* HEADER - FLOATING GLASS STYLE */}
-          <header className="m-6 p-6 rounded-[32px] bg-slate-900/40 backdrop-blur-xl border border-white/10 flex items-center justify-between gap-8 z-20 shadow-xl">
+        <main className="flex-1 flex flex-col min-w-0 transition-colors relative z-10 overflow-hidden">
+          <header className="px-10 py-8 flex justify-between items-center bg-[#0f172a]/20 backdrop-blur-md border-b border-white/5">
             <div className="flex items-center gap-6">
-              <AnimatePresence>
-                {folderHistory.length > 0 && (
-                  <motion.button 
-                    initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}
-                    onClick={goBackOneLevel}
-                    className="p-3 bg-white/5 rounded-xl text-amber-400 border border-white/10 hover:bg-amber-500 hover:text-slate-950 transition-all"
-                  >
-                    <ArrowLeft size={18} />
-                  </motion.button>
-                )}
-              </AnimatePresence>
-              <div className="hidden sm:block">
-                <h2 className="text-lg font-black text-white uppercase italic leading-none tracking-tight">Smart <span className="text-amber-500">Archive</span></h2>
-                <div className="flex items-center gap-2 text-[9px] font-black text-slate-500 mt-1 uppercase tracking-widest">
-                  <span className="hover:text-amber-500 cursor-pointer" onClick={goHome}>CORE</span>
-                  {folderHistory.map((h, i) => (
-                    <React.Fragment key={h.id}>
-                      <ChevronRight size={10} />
-                      <span className={i === folderHistory.length -1 ? "text-amber-400" : ""}>{h.name.substring(0, 15)}</span>
-                    </React.Fragment>
-                  ))}
-                </div>
+              {folderHistory.length > 0 && (<button onClick={goBackOneLevel} className="p-3 bg-white/5 rounded-xl text-amber-400 border border-white/10"><ArrowLeft size={18} /></button>)}
+              <div>
+                <h1 className="text-2xl font-black text-white tracking-tighter uppercase italic">Smart <span className="text-amber-500">Archive</span></h1>
+                <div className="flex items-center gap-2 text-[9px] font-black text-slate-500 mt-1 uppercase tracking-widest cursor-pointer" onClick={goHome}>CENTRAL REPOSITORY {folderHistory.map(h => <><ChevronRight size={10}/><span className="text-amber-500/60">{h.name}</span></>)}</div>
               </div>
             </div>
-
-            <div className="flex-1 max-w-xl relative group">
-              <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-amber-500 transition-colors" size={16} />
-              <input 
-                onClick={() => setIsSearchModalOpen(true)}
-                readOnly
-                placeholder="SEARCH REGISTRY (CTRL + K)"
-                className="w-full bg-white/5 border border-white/5 rounded-[20px] py-4 pl-14 pr-6 text-[10px] font-black tracking-widest text-slate-400 cursor-pointer hover:bg-white/10 transition-all"
-              />
+            <div className="flex items-center gap-5 flex-1 max-w-xl px-12">
+               <div className="flex-1 relative" onClick={() => setIsSearchModalOpen(true)}><Search size={16} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500" /><div className="w-full pl-14 pr-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-slate-500 text-[10px] font-black tracking-widest cursor-pointer">GLOBAL SCAN (CTRL+K)</div></div>
+               <button onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')} className="p-4 bg-white/5 rounded-2xl text-slate-500 border border-white/5">{viewMode === 'grid' ? <List size={18}/> : <LayoutGrid size={18}/>}</button>
             </div>
-
-            <div className="flex items-center gap-3">
-              <div className="hidden md:flex bg-white/5 p-1 rounded-2xl border border-white/5">
-                <button onClick={() => setViewMode('grid')} className={`p-3 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-amber-500 text-slate-950 shadow-lg' : 'text-slate-500 hover:text-white'}`}><LayoutGrid size={18}/></button>
-                <button onClick={() => setViewMode('list')} className={`p-3 rounded-xl transition-all ${viewMode === 'list' ? 'bg-amber-500 text-slate-950 shadow-lg' : 'text-slate-500 hover:text-white'}`}><List size={18}/></button>
-              </div>
-              <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-3 bg-white/5 rounded-2xl text-slate-500 border border-white/5 hover:text-amber-500 transition-all">
-                {isDarkMode ? <Sun size={18}/> : <Moon size={18}/>}
-              </button>
-              {userRole === 'admin' && (
-                <button 
-                  onClick={() => {setUploadDestinationId(currentFolder); setIsUploadModalOpen(true);}}
-                  className="bg-gradient-to-r from-amber-600 to-amber-400 text-slate-950 p-4 rounded-2xl font-black shadow-lg shadow-amber-500/20 hover:scale-105 transition-all flex items-center gap-2"
-                >
-                  <Plus size={20} strokeWidth={3} />
-                  <span className="hidden lg:block text-[10px] uppercase tracking-tighter">New Record</span>
-                </button>
-              )}
-            </div>
+            {userRole === 'admin' && (<button onClick={() => {setUploadDestinationId(currentFolder); setIsUploadModalOpen(true);}} className="flex items-center gap-3 bg-gradient-to-r from-amber-600 to-amber-400 text-slate-950 px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl"><Plus size={18} strokeWidth={3} /> New Record</button>)}
           </header>
 
-          {/* MAIN CONTENT SCROLLABLE AREA */}
-          <div className="flex-1 overflow-y-auto px-6 pb-24 scrollbar-hide">
-            
+          <div className="flex-1 overflow-y-auto p-12 scrollbar-hide">
             {loading ? (
-              <div className="h-full flex flex-col items-center justify-center">
-                <div className="relative w-24 h-24 flex items-center justify-center">
-                  <div className="absolute inset-0 border-4 border-amber-500/10 border-t-amber-500 rounded-full animate-spin"></div>
-                  <Database className="text-amber-500 animate-pulse" size={32} />
-                </div>
-                <p className="mt-6 text-[10px] font-black uppercase tracking-[0.5em] text-amber-500/40 italic">Decrypting Matrix...</p>
-              </div>
+              <div className="h-full flex flex-col items-center justify-center gap-4"><Loader2 className="animate-spin text-amber-500" size={48} /><p className="font-black text-[10px] uppercase tracking-[0.5em] text-amber-500/40 animate-pulse italic">Visualizing Node Nodes...</p></div>
             ) : (
-              <div className="max-w-[1600px] mx-auto space-y-10">
-                
-                {/* HERO STATS - BENTO STYLE */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                  {[
-                    { label: 'Security Layer', value: 'Level 07', icon: Shield, color: 'text-blue-500' },
-                    { label: 'Total Objects', value: stats.total, icon: Database, color: 'text-amber-500' },
-                    { label: 'Registry Status', value: 'Authorized', icon: CheckCircle2, color: 'text-emerald-500' },
-                    { label: 'Active User', value: userName.split(' ')[0], icon: User, color: 'text-purple-500' },
-                  ].map((stat, i) => (
-                    <motion.div 
-                      initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}
-                      key={i} className="bg-slate-900/40 backdrop-blur-xl p-6 rounded-[32px] border border-white/5 hover:border-white/10 transition-all group"
-                    >
-                      <div className="flex items-center justify-between mb-4">
-                        <div className={`p-3 rounded-2xl bg-white/5 ${stat.color} group-hover:scale-110 transition-transform`}>
-                          <stat.icon size={20} />
-                        </div>
-                        <Activity size={14} className="text-slate-700" />
-                      </div>
-                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{stat.label}</p>
-                      <h4 className="text-2xl font-black text-white mt-1 italic uppercase tracking-tighter">{stat.value}</h4>
-                    </motion.div>
-                  ))}
+              <section>
+                <div className="flex items-center justify-between mb-10 pb-4 border-b border-white/5">
+                   <h3 className="text-[11px] font-black uppercase text-slate-500 tracking-[0.4em] flex items-center gap-3"><Star size={14} className="text-amber-500" /> Active Ledger</h3>
+                   <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">{filteredFilesMain.length} Secured Objects Detected</p>
                 </div>
-
-                {/* ESSENTIAL DIRECTORIES */}
-                {!currentFolder && filterType !== 'file' && (
-                  <section>
-                    <div className="flex items-center gap-4 mb-6">
-                      <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
-                      <h3 className="text-[10px] font-black uppercase text-amber-500/60 tracking-[0.5em] flex items-center gap-3">
-                        <Pin size={14} /> Root Directories
-                      </h3>
-                      <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                      {filteredFilesMain.filter(f => f.mimeType.includes('folder')).slice(0, 4).map((folder, i) => (
-                        <motion.div 
-                          whileHover={{ y: -5 }}
-                          key={folder.id} 
-                          onClick={() => navigateToFolder(folder.id, folder.name)}
-                          className="bg-white/5 hover:bg-amber-500/5 p-6 rounded-[32px] border border-white/5 hover:border-amber-500/30 cursor-pointer transition-all group flex items-center gap-5"
-                        >
-                          <div className="p-4 bg-amber-500 rounded-2xl text-slate-950 group-hover:rotate-6 transition-all shadow-lg shadow-amber-500/20">
-                            <Folder size={24} fill="currentColor" />
-                          </div>
-                          <div className="min-w-0">
-                            <h4 className="font-black text-white text-sm truncate uppercase tracking-tighter group-hover:text-amber-400">{folder.name}</h4>
-                            <p className="text-[8px] text-slate-600 font-bold uppercase mt-1 tracking-widest">Entry Point</p>
-                          </div>
-                        </motion.div>
-                      ))}
-                    </div>
-                  </section>
-                )}
-
-                {/* MAIN GRID/LIST FILES */}
-                <section>
-                  <div className="flex items-center justify-between mb-8">
-                    <h3 className="text-[11px] font-black uppercase text-slate-500 tracking-[0.4em] flex items-center gap-3">
-                      <Star size={14} className="text-amber-500" /> Active Registry
-                    </h3>
-                    <div className="flex items-center gap-4 text-[10px] font-bold text-slate-600">
-                      <span className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div> {filteredFilesMain.length} Nodes</span>
-                    </div>
-                  </div>
-
-                  {viewMode === 'grid' ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-8">
-                      {filteredFilesMain.map((file, i) => (
-                        <motion.div 
-                          initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.05 }}
-                          key={file.id}
-                          onClick={() => file.mimeType.includes('folder') ? navigateToFolder(file.id, file.name) : setSelectedFile(file)}
-                          className={`relative group bg-slate-900/40 backdrop-blur-xl p-8 rounded-[40px] border transition-all cursor-pointer overflow-hidden ${selectedFile?.id === file.id ? 'border-amber-500 bg-amber-500/5 shadow-2xl' : 'border-white/5 hover:border-white/20'}`}
-                        >
-                          {/* Card Background Glow */}
-                          <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                          
-                          <div className="flex justify-between items-start relative z-10">
-                            <div className={`p-5 rounded-[24px] ${file.mimeType.includes('folder') ? 'bg-amber-500 text-slate-950' : 'bg-white/5 text-white border border-white/10'} group-hover:scale-110 transition-all duration-300`}>
-                              {file.mimeType.includes('folder') ? <Folder size={28} fill="currentColor" /> : <FileText size={28} />}
-                            </div>
-                            
-                            <div className="flex flex-col gap-2 opacity-0 translate-x-4 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300">
+                
+                {viewMode === 'grid' ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                    {filteredFilesMain.map((file) => (
+                      <div 
+                        key={file.id} 
+                        onClick={() => file.mimeType.includes('folder') ? navigateToFolder(file.id, file.name) : setSelectedFile(file)}
+                        className={`relative group bg-[#161d2a] p-10 rounded-[45px] border border-transparent transition-all cursor-pointer hover:bg-[#1a2333] ${selectedFile?.id === file.id ? 'border-amber-500 shadow-[0_0_40px_rgba(245,158,11,0.1)]' : 'hover:border-white/10'}`}
+                      >
+                        <div className="flex justify-between items-start mb-8">
+                           {/* Folder/File Icon with Glow */}
+                           <div className={`p-6 rounded-[30px] shadow-2xl ${file.mimeType.includes('folder') ? 'bg-[#ff9d00] text-slate-950 shadow-[0_0_30px_rgba(255,157,0,0.3)]' : 'bg-slate-800 text-white shadow-black/40'}`}>
+                              {file.mimeType.includes('folder') ? <Folder size={38} fill="currentColor" /> : <FileText size={38} />}
+                           </div>
+                           
+                           {/* VERTICAL ACTION BUTTONS - AS PER IMAGE */}
+                           <div className="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
                               {!file.mimeType.includes('folder') && (
-                                <button onClick={(e) => { e.stopPropagation(); window.open(`https://drive.google.com/uc?export=download&id=${file.id}`, '_blank'); }} className="p-3 bg-white/10 hover:bg-amber-500 hover:text-slate-950 rounded-xl transition-all border border-white/10"><Download size={16}/></button>
+                                <button onClick={(e) => { e.stopPropagation(); addOnlineLog("DOWNLOAD", file.name); window.open(`https://drive.google.com/uc?export=download&id=${file.id}`, '_blank'); }} className="p-3 bg-[#1e2738] rounded-xl text-slate-400 hover:text-amber-400 border border-white/5 transition-all shadow-lg"><Download size={16}/></button>
                               )}
                               {userRole === 'admin' && (
                                 <>
-                                  <button onClick={(e) => { e.stopPropagation(); handleRename(file.id, file.name); }} className="p-3 bg-white/10 hover:bg-blue-500 hover:text-white rounded-xl transition-all border border-white/10"><Edit2 size={16}/></button>
-                                  <button onClick={(e) => { e.stopPropagation(); handleDelete(file.id, file.name); }} className="p-3 bg-white/10 hover:bg-red-500 hover:text-white rounded-xl transition-all border border-white/10"><Trash2 size={16}/></button>
+                                  <button onClick={(e) => { e.stopPropagation(); handleRename(file.id, file.name); }} className="p-3 bg-[#1e2738] rounded-xl text-slate-400 hover:text-amber-400 border border-white/5 transition-all shadow-lg"><Edit2 size={16}/></button>
+                                  <button onClick={(e) => { e.stopPropagation(); handleDelete(file.id, file.name); }} className="p-3 bg-[#1e2738] rounded-xl text-slate-400 hover:text-red-400 border border-white/5 transition-all shadow-lg"><Trash2 size={16}/></button>
                                 </>
                               )}
-                            </div>
-                          </div>
-
-                          <div className="mt-12 relative z-10">
-                            <h4 className="font-black text-white truncate text-base uppercase tracking-tighter italic group-hover:text-amber-400 transition-colors">{file.name}</h4>
-                            <div className="flex items-center gap-3 mt-4">
-                              <span className={`text-[8px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border ${file.mimeType.includes('folder') ? 'border-amber-500/30 text-amber-500 bg-amber-500/10' : 'border-white/10 text-slate-500 bg-white/5'}`}>
-                                {file.mimeType.includes('folder') ? 'Directory' : 'Data Object'}
-                              </span>
-                            </div>
-                          </div>
-                        </motion.div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="bg-slate-900/40 backdrop-blur-xl rounded-[32px] border border-white/10 overflow-hidden">
-                      <div className="grid grid-cols-12 p-6 border-b border-white/5 text-[9px] font-black uppercase tracking-[0.3em] text-slate-500 bg-white/[0.02]">
-                        <div className="col-span-7 pl-4">Object Identity</div>
-                        <div className="col-span-3">Type</div>
-                        <div className="col-span-2 text-right pr-4">Action</div>
-                      </div>
-                      {filteredFilesMain.map(file => (
-                        <div key={file.id} onClick={() => file.mimeType.includes('folder') ? navigateToFolder(file.id, file.name) : setSelectedFile(file)} className="grid grid-cols-12 p-5 items-center hover:bg-white/[0.03] transition-colors cursor-pointer group border-b border-white/5 last:border-0">
-                          <div className="col-span-7 flex items-center gap-4 pl-4">
-                            <div className={`p-2 rounded-xl ${file.mimeType.includes('folder') ? 'text-amber-500 bg-amber-500/10' : 'text-slate-400 bg-white/5'}`}>
-                              {file.mimeType.includes('folder') ? <Folder size={18} fill="currentColor"/> : <FileText size={18}/>}
-                            </div>
-                            <span className="text-xs font-bold text-slate-200 group-hover:text-amber-400 truncate uppercase tracking-tight">{file.name}</span>
-                          </div>
-                          <div className="col-span-3 text-[9px] font-black text-slate-600 uppercase italic tracking-widest">{file.mimeType.includes('folder') ? 'Folder Node' : 'Encrypted File'}</div>
-                          <div className="col-span-2 flex justify-end gap-2 pr-4">
-                            <button onClick={(e) => { e.stopPropagation(); setSelectedFile(file); }} className="p-2 bg-white/5 rounded-lg text-slate-500 hover:text-amber-400 transition-all border border-white/5"><Info size={16}/></button>
-                            {userRole === 'admin' && <button onClick={(e) => { e.stopPropagation(); handleDelete(file.id, file.name); }} className="p-2 bg-white/5 rounded-lg text-slate-500 hover:text-red-500 transition-all border border-white/5"><Trash2 size={16}/></button>}
-                          </div>
+                           </div>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </section>
-              </div>
+
+                        <h4 className="font-black text-white truncate text-base uppercase tracking-tighter group-hover:text-amber-400 transition-colors">{file.name}</h4>
+                        
+                        {/* DIRECTORY BADGE - AS PER IMAGE */}
+                        <div className="mt-6">
+                           <span className={`inline-block text-[9px] font-black uppercase tracking-[0.2em] py-2 px-6 rounded-full border shadow-inner ${file.mimeType.includes('folder') ? 'border-amber-500/20 text-amber-500 bg-amber-500/5' : 'border-white/5 text-slate-500 bg-white/5'}`}>
+                              {file.mimeType.includes('folder') ? 'DIRECTORY' : 'DATA OBJECT'}
+                           </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="bg-[#161d2a] rounded-[30px] border border-white/5 overflow-hidden">
+                    {filteredFilesMain.map(file => (
+                      <div key={file.id} onClick={() => file.mimeType.includes('folder') ? navigateToFolder(file.id, file.name) : setSelectedFile(file)} className="flex items-center justify-between p-6 hover:bg-white/[0.02] border-b border-white/5 last:border-0 cursor-pointer group">
+                        <div className="flex items-center gap-5">
+                          <div className={file.mimeType.includes('folder') ? 'text-amber-500' : 'text-slate-500'}><Folder size={20} fill={file.mimeType.includes('folder') ? 'currentColor' : 'none'}/></div>
+                          <span className="text-sm font-bold text-slate-200 uppercase tracking-tight group-hover:text-amber-400">{file.name}</span>
+                        </div>
+                        <div className="flex gap-3">
+                           {!file.mimeType.includes('folder') && <button onClick={(e) => {e.stopPropagation(); window.open(`https://drive.google.com/uc?export=download&id=${file.id}`, '_blank');}} className="p-2 hover:text-amber-400 transition-colors"><Download size={18}/></button>}
+                           {userRole === 'admin' && <button onClick={(e) => {e.stopPropagation(); handleDelete(file.id, file.name);}} className="p-2 hover:text-red-400 transition-colors"><Trash2 size={18}/></button>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
             )}
           </div>
 
-          {/* BOTTOM TICKER & STATUS */}
-          <div className="absolute bottom-6 left-6 right-6 z-30 space-y-4">
-            <div className="bg-slate-900/60 backdrop-blur-xl border border-white/10 rounded-2xl h-10 overflow-hidden flex items-center shadow-2xl relative">
-              <div className="absolute left-0 top-0 bottom-0 px-4 bg-amber-500 text-slate-950 text-[9px] font-black flex items-center z-20 italic uppercase tracking-widest">
-                <Zap size={12} className="mr-2" /> Live Intel Stream
-              </div>
-              <div className="whitespace-nowrap flex items-center gap-16 animate-marquee pl-32">
-                {[1,2,3].map(i => (
-                  <div key={i} className="flex gap-16 items-center text-[10px] font-black text-amber-500/60 uppercase tracking-[0.2em] italic">
-                    <span>• Status: SSL Active AES-256</span>
-                    <span>• Node: Authorized {userName?.split(' ')[0]}</span>
-                    <span>• Protocol: RSA-4096 Secured</span>
-                    <span>• Records: {stats.total} Objects Index</span>
-                    <span>• Intelligence: Southeast Sulawesi Inspectorate Portal</span>
+          {/* BOTTOM BAR */}
+          <div className="bg-[#020617] border-t border-white/5 p-4 px-10 flex items-center justify-between relative overflow-hidden">
+             <div className="flex items-center gap-10 whitespace-nowrap animate-marquee">
+                {[1,2].map(i => (
+                  <div key={i} className="flex gap-10 text-[9px] font-black text-amber-500/40 uppercase tracking-[0.3em]">
+                    <span>• SSL Security: AES-256 ACTIVE</span>
+                    <span>• Status: Authorized Node Access</span>
+                    <span>• Registry: {stats.total} Objects Secure</span>
+                    <span>• Protocol: RSA-4096 STABLE</span>
                   </div>
                 ))}
-              </div>
-            </div>
-
-            <div className="bg-slate-950/80 backdrop-blur-md border border-white/5 rounded-2xl p-4 px-8 flex items-center justify-between text-[9px] font-black uppercase text-slate-500 tracking-widest">
-              <div className="flex gap-8">
-                <span className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-ping"></div> 
-                  Verified Connection: Kendrick Node 0x{stats.total}
-                </span>
-                <span className="flex items-center gap-2"><Command size={12} /> Press K for Global Scan</span>
-              </div>
-              <div className="flex items-center gap-6">
-                <span className="flex items-center gap-2"><Shield size={12} className="text-emerald-500" /> End-to-End Encrypted</span>
-                <span className="text-slate-700">© 2024 ROYAL VAULT v2.0</span>
-              </div>
-            </div>
+             </div>
+             <div className="bg-[#020617] pl-10 z-10 flex items-center gap-3 text-[9px] font-black uppercase text-slate-600 tracking-widest">
+                <div className="w-2 h-2 bg-emerald-500 rounded-full"></div> End-to-End Encryption
+             </div>
           </div>
         </main>
 
-        {/* --- MODALS - RE-DESIGNED --- */}
-        
-        {/* LOG MODAL */}
+        {/* MODALS (UPLOAD, LOGS, PREVIEW, SEARCH) - Tetap dengan desain konsisten */}
         <AnimatePresence>
           {isLogModalOpen && (
-            <motion.div 
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-950/90 backdrop-blur-md"
-              onClick={() => setIsLogModalOpen(false)}
-            >
-              <motion.div 
-                initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-                className="bg-slate-900 border border-white/10 w-full max-w-5xl rounded-[48px] shadow-[0_40px_100px_rgba(0,0,0,0.8)] overflow-hidden" 
-                onClick={e => e.stopPropagation()}
-              >
-                <div className="p-10 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-amber-500 rounded-2xl text-slate-950 shadow-lg shadow-amber-500/20">
-                      <History size={24} />
-                    </div>
-                    <div>
-                      <h3 className="text-2xl font-black uppercase tracking-tighter text-white italic">Operational Transactions</h3>
-                      <p className="text-[9px] text-slate-500 font-bold uppercase tracking-[0.3em] mt-1">Audit Trail & Access History</p>
-                    </div>
-                  </div>
-                  <button onClick={() => setIsLogModalOpen(false)} className="p-4 bg-white/5 hover:bg-red-500 hover:text-white text-slate-500 rounded-2xl transition-all border border-white/10"><X size={24}/></button>
-                </div>
-                <div className="max-h-[60vh] overflow-y-auto p-4 scrollbar-hide">
-                  <table className="w-full border-collapse">
-                    <thead className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 sticky top-0 bg-slate-900 z-10">
-                      <tr>
-                        <th className="p-6 text-left">Actor Identity</th>
-                        <th className="p-6 text-left">Command Executed</th>
-                        <th className="p-6 text-left">Target Object</th>
-                        <th className="p-6 text-right">Timestamp</th>
-                      </tr>
-                    </thead>
-                    <tbody className="text-xs font-bold text-slate-400">
-                      {activityLogs.map((log) => (
-                        <tr key={log.id} className="border-b border-white/5 hover:bg-amber-500/5 transition-colors group">
-                          <td className="p-6">
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-amber-500 text-[10px]">{log.user.charAt(0)}</div>
-                              <span className="group-hover:text-amber-500">{log.user}</span>
-                            </div>
-                          </td>
-                          <td className="p-6">
-                            <span className="px-3 py-1 rounded-lg text-[9px] font-black uppercase border border-amber-500/30 text-amber-500 bg-amber-500/5">{log.action}</span>
-                          </td>
-                          <td className="p-6 max-w-xs truncate italic text-slate-500 group-hover:text-slate-300">{log.fileName}</td>
-                          <td className="p-6 text-right font-mono text-[10px] opacity-40">{log.timestamp}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+            <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-[#020617]/95 backdrop-blur-md" onClick={() => setIsLogModalOpen(false)}>
+              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-[#0f172a] border border-white/10 w-full max-w-5xl rounded-[50px] overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="p-10 border-b border-white/5 flex justify-between items-center"><h3 className="text-2xl font-black uppercase italic text-white flex items-center gap-4"><History className="text-amber-500" size={28} /> Audit Logs</h3><button onClick={() => setIsLogModalOpen(false)} className="p-4 hover:bg-white/5 rounded-full"><X size={24}/></button></div>
+                <div className="max-h-[60vh] overflow-y-auto p-8"><table className="w-full text-left"><thead className="text-[10px] font-black uppercase tracking-widest text-slate-600 border-b border-white/5"><tr><th className="p-4">Actor</th><th className="p-4">Command</th><th className="p-4">Target</th><th className="p-4">Timestamp</th></tr></thead><tbody className="text-xs font-bold">{activityLogs.map((log) => (<tr key={log.id} className="border-b border-white/5 text-slate-400 hover:bg-white/[0.02]"><td className="p-4 text-amber-500/80">{log.user}</td><td className="p-4"><span className="px-3 py-1 rounded-lg border border-amber-500/30 text-amber-400 bg-amber-500/5">{log.action}</span></td><td className="p-4 max-w-[200px] truncate">{log.fileName}</td><td className="p-4 opacity-40">{log.timestamp}</td></tr>))}</tbody></table></div>
               </motion.div>
-            </motion.div>
+            </div>
           )}
         </AnimatePresence>
 
-        {/* UPLOAD MODAL */}
         <AnimatePresence>
           {isUploadModalOpen && (
-            <motion.div 
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-950/90 backdrop-blur-md"
-            >
-              <motion.div 
-                initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-                className="bg-slate-900 rounded-[56px] p-12 w-full max-w-xl relative border border-white/10 shadow-3xl"
-              >
-                <button onClick={() => setIsUploadModalOpen(false)} className="absolute right-10 top-10 text-slate-500 hover:text-white transition-all"><X size={28}/></button>
-                <div className="text-center mb-10">
-                  <div className="w-20 h-20 bg-amber-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-amber-500/20 text-amber-500">
-                    <Upload size={32} />
-                  </div>
-                  <h3 className="text-3xl font-black text-white uppercase tracking-tighter italic">Record Submission</h3>
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.4em] mt-2">Authority Level High-Security</p>
-                </div>
-
-                {uploadStatus === 'idle' ? (
-                  <div className="space-y-8">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-500 uppercase ml-4 tracking-widest italic">Destination Node</label>
-                      <select 
-                        value={uploadDestinationId} 
-                        onChange={(e) => setUploadDestinationId(e.target.value)} 
-                        className="w-full p-5 rounded-2xl bg-white/5 border border-white/10 outline-none font-black text-xs text-amber-500 focus:border-amber-500/50 appearance-none uppercase tracking-widest cursor-pointer"
-                      >
-                        <option value="">🏠 ROOT ARCHIVE CORE</option>
-                        {allFolders.map(f => (<option key={f.id} value={f.id} className="bg-slate-900 text-white font-sans uppercase tracking-tight italic text-sm">📁 {f.name}</option>))}
-                      </select>
-                    </div>
-
-                    <label className="flex flex-col items-center justify-center w-full h-72 border-2 border-dashed border-white/10 rounded-[40px] cursor-pointer hover:bg-amber-500/5 hover:border-amber-500/30 transition-all text-center p-8 group relative overflow-hidden">
-                      {uploading ? (
-                        <div className="w-full px-8">
-                          <Loader2 className="animate-spin mx-auto text-amber-500 mb-6" size={48} />
-                          <div className="w-full bg-white/5 h-2 rounded-full overflow-hidden mb-4">
-                            <motion.div initial={{ width: 0 }} animate={{ width: `${uploadProgress}%` }} className="h-full bg-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.5)]" />
-                          </div>
-                          <p className="text-[10px] font-black uppercase text-amber-400 tracking-[0.4em] animate-pulse italic">{uploadProgress}% Synchronizing...</p>
-                        </div>
-                      ) : (
-                        <>
-                          <p className="text-lg font-black text-white uppercase tracking-tight italic">Drop Intelligence Data</p>
-                          <p className="text-[9px] text-slate-500 font-bold uppercase mt-2 opacity-50">Select high-integrity file records</p>
-                          <input type="file" multiple className="hidden" onChange={handleUpload} disabled={uploading} />
-                        </>
-                      )}
-                    </label>
-                  </div>
-                ) : (
-                  <div className="text-center py-10">
-                    {uploadStatus === 'success' ? (
-                      <motion.div initial={{ scale: 0.5 }} animate={{ scale: 1 }}>
-                        <ShieldCheck size={100} className="text-amber-500 mx-auto mb-6" />
-                        <h3 className="text-2xl font-black text-white uppercase tracking-tighter italic">Ledger Secured Successfully</h3>
-                      </motion.div>
-                    ) : (
-                      <motion.div initial={{ scale: 0.5 }} animate={{ scale: 1 }}>
-                        <AlertCircle size={100} className="text-red-500 mx-auto mb-6" />
-                        <h3 className="text-2xl font-black text-white uppercase tracking-tighter">Authorization Denied</h3>
-                      </motion.div>
-                    )}
-                  </div>
-                )}
-              </motion.div>
-            </motion.div>
+            <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-[#020617]/95 backdrop-blur-md">
+              <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-[#0f172a] rounded-[50px] p-16 w-full max-w-xl relative border border-white/10"><button onClick={() => setIsUploadModalOpen(false)} className="absolute right-10 top-10 text-slate-500 hover:text-white"><X size={32}/></button><div className="text-center mb-10"><h3 className="text-3xl font-black text-white uppercase italic">Record <span className="text-amber-500">Submission</span></h3><p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mt-4">Security Level High Active</p></div><label className="flex flex-col items-center justify-center w-full h-80 border-2 border-dashed border-amber-500/20 rounded-[40px] cursor-pointer hover:bg-amber-500/5 transition-all text-center p-8">{uploading ? (<div className="w-full px-8"><Loader2 className="animate-spin mx-auto text-amber-500 mb-6" size={48} /><div className="w-full bg-white/5 h-2 rounded-full overflow-hidden mb-4"><motion.div initial={{ width: 0 }} animate={{ width: `${uploadProgress}%` }} className="h-full bg-amber-500" /></div><p className="text-[10px] font-black uppercase text-amber-400">{uploadProgress}% SYNCING...</p></div>) : (<><div className="p-6 bg-amber-500 rounded-3xl text-slate-950 mb-6"><Upload size={32} strokeWidth={3}/></div><p className="text-xl font-black text-white uppercase italic">Upload Intel Data</p><input type="file" multiple className="hidden" onChange={handleUpload} disabled={uploading} /></>)}</label></motion.div>
+            </div>
           )}
         </AnimatePresence>
 
-        {/* PREVIEW PANEL - SLEEK SLIDE OUT */}
         <AnimatePresence>
           {selectedFile && (
-            <motion.div 
-              initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} 
-              transition={{ type: 'spring', damping: 30, stiffness: 200 }} 
-              className="fixed inset-y-0 right-0 w-full lg:w-[800px] bg-slate-900/95 backdrop-blur-3xl shadow-[-50px_0_100px_rgba(0,0,0,0.5)] border-l border-white/10 z-[150] flex flex-col"
-            >
-              <div className="p-10 border-b border-white/5 flex items-center justify-between">
-                <div className="flex items-center gap-6 min-w-0">
-                  <div className="p-4 bg-amber-500/10 rounded-2xl text-amber-500 border border-amber-500/20">
-                    <FileText size={28}/>
-                  </div>
-                  <div className="min-w-0">
-                    <span className="text-[9px] font-black uppercase tracking-[0.4em] text-amber-500/50 block mb-1">Intelligence Stream Identity</span>
-                    <h4 className="font-black text-xl truncate uppercase tracking-tighter text-white italic">{selectedFile.name}</h4>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <button onClick={() => { addOnlineLog("DOWNLOAD", selectedFile.name); window.open(`https://drive.google.com/uc?export=download&id=${selectedFile.id}`, '_blank'); }} className="p-4 bg-amber-500 rounded-2xl text-slate-950 hover:scale-105 transition-all shadow-lg shadow-amber-500/20"><Download size={22}/></button>
-                  <button onClick={() => { setSelectedFile(null); setPreviewLoading(true); }} className="p-4 bg-white/5 text-slate-500 hover:text-white rounded-2xl border border-white/10 transition-all"><X size={22}/></button>
-                </div>
-              </div>
-              
-              <div className="flex-1 relative bg-black/40 overflow-hidden">
-                {previewLoading && (
-                  <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-900">
-                    <Loader2 className="animate-spin text-amber-500 mb-6" size={48} />
-                    <p className="text-[10px] font-black uppercase tracking-[0.5em] text-amber-500/40 italic">Visualizing Node Data...</p>
-                  </div>
-                )}
-                <iframe src={`https://drive.google.com/file/d/${selectedFile.id}/preview`} className="w-full h-full border-0" title="Preview" onLoad={() => setPreviewLoading(false)} />
-              </div>
-
-              <div className="p-10 bg-slate-950/60 backdrop-blur-md border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-6">
-                <div className="flex items-center gap-4 text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] italic">
-                  <Clock size={16} className="text-amber-500" /> Synced in Real-Time: Global Ledger v.07
-                </div>
-                <button 
-                  onClick={() => { addOnlineLog("DOWNLOAD", selectedFile.name); window.open(`https://drive.google.com/uc?export=download&id=${selectedFile.id}`, '_blank'); }}
-                  className="w-full sm:w-auto px-10 py-5 bg-white/5 text-amber-500 hover:bg-amber-500 hover:text-slate-950 rounded-2xl font-black text-xs uppercase tracking-widest border border-amber-500/30 transition-all"
-                >
-                  Authorize Retrieval
-                </button>
-              </div>
+            <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} className="fixed inset-y-0 right-0 w-full lg:w-[850px] bg-[#0f172a]/95 backdrop-blur-3xl border-l border-white/10 z-[300] flex flex-col shadow-2xl">
+               <div className="p-10 border-b border-white/5 flex items-center justify-between"><div className="flex items-center gap-6"><div className="p-4 bg-amber-500/10 rounded-2xl text-amber-500"><FileText size={28}/></div><div><span className="text-[9px] font-black uppercase text-amber-500/50 block mb-1">Visual Intelligence</span><h4 className="font-black text-xl truncate uppercase text-white italic">{selectedFile.name}</h4></div></div><div className="flex gap-4"><button onClick={() => window.open(`https://drive.google.com/uc?export=download&id=${selectedFile.id}`, '_blank')} className="p-4 bg-amber-500 rounded-2xl text-slate-950 hover:bg-amber-400 transition-all"><Download size={22}/></button><button onClick={() => { setSelectedFile(null); setPreviewLoading(true); }} className="p-4 bg-white/5 text-slate-500 hover:text-white rounded-2xl border border-white/10 transition-all"><X size={22}/></button></div></div>
+               <div className="flex-1 relative m-10 bg-black/40 rounded-[40px] overflow-hidden border border-white/5">{previewLoading && (<div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-[#0f172a]"><Loader2 className="animate-spin text-amber-500 mb-6" size={48} /><p className="text-[10px] font-black uppercase text-amber-500/40 animate-pulse italic">Visualizing Node Node...</p></div>)}<iframe src={`https://drive.google.com/file/d/${selectedFile.id}/preview`} className="w-full h-full border-0" title="Vault Sync" onLoad={() => setPreviewLoading(false)} /></div>
+               <div className="p-10 bg-[#020617] border-t border-white/5 flex items-center justify-between"><div className="flex items-center gap-4 text-slate-500 text-[10px] font-black uppercase tracking-widest italic"><Clock size={16} className="text-amber-500/50" /> Synchronization: Real-Time</div><button onClick={() => window.open(`https://drive.google.com/uc?export=download&id=${selectedFile.id}`, '_blank')} className="px-10 py-5 bg-amber-500 text-slate-950 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-amber-400 transition-all">Authorize Node Retrieval</button></div>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* SEARCH MODAL */}
         <AnimatePresence>
           {isSearchModalOpen && (
-            <motion.div 
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[200] flex items-start justify-center pt-32 px-4 bg-slate-950/90 backdrop-blur-xl"
-              onClick={() => setIsSearchModalOpen(false)}
-            >
-              <motion.div 
-                initial={{ scale: 0.95, y: -20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: -20 }}
-                className="bg-slate-900 border border-white/10 w-full max-w-2xl rounded-[40px] shadow-3xl overflow-hidden" 
-                onClick={e => e.stopPropagation()}
-              >
-                <div className="p-8 flex items-center gap-6 border-b border-white/5 bg-white/[0.02]">
-                  <Search className="text-amber-500" size={24} />
-                  <input 
-                    autoFocus 
-                    type="text" 
-                    placeholder="SCANNING ARCHIVE REGISTRY..." 
-                    className="flex-1 bg-transparent outline-none font-black text-xl text-white uppercase tracking-tighter italic placeholder:text-slate-700" 
-                    onChange={(e) => handleGlobalSearch(e.target.value)} 
-                  />
-                  {searchLoading && <Loader2 className="animate-spin text-amber-500" size={20} />}
-                  <div className="px-3 py-1 bg-white/5 border border-white/10 rounded-lg text-[10px] font-black text-slate-500 uppercase">ESC</div>
-                </div>
-                <div className="max-h-[400px] overflow-y-auto p-4 space-y-2 scrollbar-hide">
-                  {searchTerm.length >= 2 ? (
-                    searchResults.length > 0 ? (
-                      searchResults.map(f => (
-                        <div 
-                          key={f.id} 
-                          onClick={() => { if(f.mimeType.includes('folder')) navigateToFolder(f.id, f.name); else setSelectedFile(f); setIsSearchModalOpen(false); }} 
-                          className="p-4 hover:bg-amber-500/10 rounded-2xl cursor-pointer flex items-center justify-between group transition-all text-slate-400 border border-transparent hover:border-amber-500/20"
-                        >
-                          <div className="flex items-center gap-4 min-w-0">
-                            {f.mimeType.includes('folder') ? <Folder size={18} className="text-amber-500/60"/> : <FileText size={18}/>}
-                            <div className="truncate">
-                              <span className="block font-black uppercase text-xs text-white tracking-tight">{f.name}</span>
-                              <span className="text-[8px] font-bold opacity-30 uppercase tracking-widest mt-0.5 block">0x{f.id.substring(0,8)}</span>
-                            </div>
-                          </div>
-                          <ChevronRight size={16} className="opacity-0 group-hover:opacity-100 group-hover:translate-x-2 transition-all" />
-                        </div>
-                      ))
-                    ) : !searchLoading && <div className="p-12 text-center opacity-30 text-[10px] font-black uppercase tracking-[0.5em] italic">No Match Found</div>
-                  ) : <div className="p-12 text-center opacity-30 text-[10px] font-black uppercase tracking-[0.5em] italic">Initializing Scan...</div>}
-                </div>
-              </motion.div>
-            </motion.div>
+            <div className="fixed inset-0 z-[400] flex items-start justify-center pt-32 px-4 bg-[#020617]/95 backdrop-blur-xl" onClick={() => setIsSearchModalOpen(false)}>
+              <motion.div initial={{ scale: 0.95, y: -20 }} animate={{ scale: 1, y: 0 }} className="bg-[#0f172a] border border-white/10 w-full max-w-2xl rounded-[40px] overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}><div className="p-8 flex items-center gap-6 border-b border-white/5"><Search className="text-amber-500" size={24} /><input autoFocus type="text" placeholder="Scanning Archive Registry..." className="flex-1 bg-transparent outline-none font-black text-xl text-white uppercase italic placeholder:text-slate-700" onChange={(e) => handleGlobalSearch(e.target.value)} />{searchLoading && <Loader2 className="animate-spin text-amber-500" size={20} />}</div><div className="max-h-[400px] overflow-y-auto p-4 space-y-2">{searchTerm.length >= 2 ? (searchResults.length > 0 ? (searchResults.map(f => (<div key={f.id} onClick={() => { if(f.mimeType.includes('folder')) navigateToFolder(f.id, f.name); else setSelectedFile(f); setIsSearchModalOpen(false); }} className="p-4 hover:bg-white/5 rounded-2xl cursor-pointer flex items-center justify-between text-slate-400 group"><div className="flex items-center gap-4 min-w-0">{f.mimeType.includes('folder') ? <Folder size={18} className="text-amber-500"/> : <FileText size={18}/>}<div className="truncate"><span className="block font-black uppercase text-xs group-hover:text-amber-500">{f.name}</span><span className="text-[8px] font-black opacity-30 uppercase mt-0.5 block">Node ID: {f.id.substring(0,8)}</span></div></div><ChevronRight size={16}/></div>))) : <div className="p-10 text-center opacity-30 text-[10px] font-black uppercase italic">No Match Found</div>) : <div className="p-10 text-center opacity-30 text-[10px] font-black uppercase italic">Initialize Scan...</div>}</div></motion.div>
+            </div>
           )}
         </AnimatePresence>
 
-        {/* GLOBAL MARQUEE ANIMATION */}
         <style jsx global>{`
-          @keyframes marquee {
-            0% { transform: translateX(0); }
-            100% { transform: translateX(-50%); }
-          }
-          .animate-marquee {
-            animation: marquee 30s linear infinite;
-            display: flex;
-          }
-          .scrollbar-hide::-webkit-scrollbar {
-            display: none;
-          }
-          .scrollbar-hide {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-          }
+          @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+          .animate-marquee { animation: marquee 30s linear infinite; display: flex; }
+          .scrollbar-hide::-webkit-scrollbar { display: none; }
+          .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
         `}</style>
-
       </div>
     </div>
   );
