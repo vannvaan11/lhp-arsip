@@ -6,10 +6,7 @@ const LOG_FILE_NAME = 'activity_logs.json';
 
 const getDriveClient = () => {
   const auth = new google.auth.GoogleAuth({
-    credentials: {
-      client_email: process.env.GOOGLE_CLIENT_EMAIL,
-      private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    },
+    credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON!),
     scopes: ['https://www.googleapis.com/auth/drive'],
   });
   return google.drive({ version: 'v3', auth });
@@ -86,7 +83,7 @@ export async function POST(req: NextRequest) {
       await drive.files.create({
         requestBody: {
           name: LOG_FILE_NAME,
-          parents: [process.env.GOOGLE_DRIVE_FOLDER_ID!],
+          parents: [process.env.DRIVE_FOLDER_ID!],
         },
         media: { mimeType: 'application/json', body: stream },
       });
