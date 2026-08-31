@@ -33,6 +33,7 @@ interface ActivityLog {
   timestamp: string;
   user: string;
   device: string;
+  ip?: string;
 }
 
 export default function Dashboard() {
@@ -146,12 +147,19 @@ export default function Dashboard() {
 
   const navigateToFolder = (id: string, name: string) => {
     setCurrentFolder(id); setFolderHistory(prev => [...prev, { id, name }]); setSelectedFile(null);
+    addOnlineLog("OPEN_FOLDER", name);
+  };
+
+  const handleFileSelect = (file: DriveFile) => {
+    setSelectedFile(file);
+    addOnlineLog("VIEW_DOCUMENT", file.name);
   };
 
   const goBackOneLevel = () => {
     if (folderHistory.length > 0) {
       const newHistory = [...folderHistory]; newHistory.pop(); setFolderHistory(newHistory);
       const prevFolder = newHistory[newHistory.length - 1]; setCurrentFolder(prevFolder ? prevFolder.id : ''); setSelectedFile(null);
+      if (prevFolder) addOnlineLog("OPEN_FOLDER", prevFolder.name);
     }
   };
 
@@ -345,7 +353,10 @@ export default function Dashboard() {
             </div>
 
             <button 
-              onClick={() => {sessionStorage.clear(); window.location.reload();}}
+              onClick={() => {
+                addOnlineLog("LOGOUT", "Keluar dari sistem");
+                setTimeout(() => { sessionStorage.clear(); window.location.reload(); }, 300);
+              }}
               className="w-full p-4 rounded-2xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center lg:justify-start gap-4 group"
             >
               <LogOut size={20} className="group-hover:rotate-12 transition-transform" />
@@ -507,7 +518,7 @@ export default function Dashboard() {
                         <motion.div 
                           initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.05 }}
                           key={file.id}
-                          onClick={() => file.mimeType.includes('folder') ? navigateToFolder(file.id, file.name) : setSelectedFile(file)}
+                          onClick={() => file.mimeType.includes('folder') ? navigateToFolder(file.id, file.name) : handleFileSelect(file)}
                           className={`relative group bg-slate-900/40 backdrop-blur-xl p-8 rounded-[40px] border transition-all cursor-pointer overflow-hidden ${selectedFile?.id === file.id ? 'border-amber-500 bg-amber-500/5 shadow-2xl' : 'border-white/5 hover:border-white/20'}`}
                         >
                           {/* Card Background Glow */}
@@ -550,7 +561,7 @@ export default function Dashboard() {
                         <div className="col-span-2 text-right pr-4">Action</div>
                       </div>
                       {filteredFilesMain.map(file => (
-                        <div key={file.id} onClick={() => file.mimeType.includes('folder') ? navigateToFolder(file.id, file.name) : setSelectedFile(file)} className="grid grid-cols-12 p-5 items-center hover:bg-white/[0.03] transition-colors cursor-pointer group border-b border-white/5 last:border-0">
+                        <div key={file.id} onClick={() => file.mimeType.includes('folder') ? navigateToFolder(file.id, file.name) : handleFileSelect(file)} className="grid grid-cols-12 p-5 items-center hover:bg-white/[0.03] transition-colors cursor-pointer group border-b border-white/5 last:border-0">
                           <div className="col-span-7 flex items-center gap-4 pl-4">
                             <div className={`p-2 rounded-xl ${file.mimeType.includes('folder') ? 'text-amber-500 bg-amber-500/10' : 'text-slate-400 bg-white/5'}`}>
                               {file.mimeType.includes('folder') ? <Folder size={18} fill="currentColor"/> : <FileText size={18}/>}
@@ -559,7 +570,7 @@ export default function Dashboard() {
                           </div>
                           <div className="col-span-3 text-[9px] font-black text-slate-600 uppercase italic tracking-widest">{file.mimeType.includes('folder') ? 'Folder Node' : 'Encrypted File'}</div>
                           <div className="col-span-2 flex justify-end gap-2 pr-4">
-                            <button onClick={(e) => { e.stopPropagation(); setSelectedFile(file); }} className="p-2 bg-white/5 rounded-lg text-slate-500 hover:text-amber-400 transition-all border border-white/5"><Info size={16}/></button>
+                            <button onClick={(e) => { e.stopPropagation(); handleFileSelect(file); }} className="p-2 bg-white/5 rounded-lg text-slate-500 hover:text-amber-400 transition-all border border-white/5"><Info size={16}/></button>
                             {userRole === 'admin' && <button onClick={(e) => { e.stopPropagation(); handleDelete(file.id, file.name); }} className="p-2 bg-white/5 rounded-lg text-slate-500 hover:text-red-500 transition-all border border-white/5"><Trash2 size={16}/></button>}
                           </div>
                         </div>
@@ -649,7 +660,10 @@ export default function Dashboard() {
                           <td className="p-6">
                             <div className="flex items-center gap-3">
                               <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-amber-500 text-[10px]">{log.user.charAt(0)}</div>
-                              <span className="group-hover:text-amber-500">{log.user}</span>
+                              <div className="flex flex-col">
+                                <span className="group-hover:text-amber-500">{log.user}</span>
+                                <span className="text-[9px] opacity-40 uppercase tracking-widest mt-0.5">{log.ip || log.device}</span>
+                              </div>
                             </div>
                           </td>
                           <td className="p-6">
@@ -826,7 +840,7 @@ export default function Dashboard() {
                       searchResults.map(f => (
                         <div 
                           key={f.id} 
-                          onClick={() => { if(f.mimeType.includes('folder')) navigateToFolder(f.id, f.name); else setSelectedFile(f); setIsSearchModalOpen(false); }} 
+                          onClick={() => { if(f.mimeType.includes('folder')) navigateToFolder(f.id, f.name); else handleFileSelect(f); setIsSearchModalOpen(false); }} 
                           className="p-4 hover:bg-amber-500/10 rounded-2xl cursor-pointer flex items-center justify-between group transition-all text-slate-400 border border-transparent hover:border-amber-500/20"
                         >
                           <div className="flex items-center gap-4 min-w-0">

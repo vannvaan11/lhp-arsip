@@ -61,9 +61,11 @@ export async function POST(req: NextRequest) {
     }
 
     // Tambah log baru di posisi paling atas
+    const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'Unknown IP';
     const newEntry = {
       id: Math.random().toString(36).substr(2, 9),
       ...body,
+      ip,
       timestamp: new Date().toLocaleString('id-ID'),
     };
     
