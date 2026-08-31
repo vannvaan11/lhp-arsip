@@ -155,7 +155,7 @@ export default function Dashboard() {
     }
   };
 
-  const goHome = () => { setCurrentFolder(''); setFolderHistory([]); setSelectedFile(null); };
+  const goHome = () => { setCurrentFolder(''); setFolderHistory([]); setSelectedFile(null); setSearchTerm(''); };
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -207,8 +207,9 @@ export default function Dashboard() {
 
   if (!mounted) return null;
 
-  const filteredFilesMain = files
-    .filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase()))
+  const baseFiles = searchTerm.length >= 2 ? searchResults : files.filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase()));
+
+  const filteredFilesMain = baseFiles
     .filter(f => {
       if (filterType === 'folder') return f.mimeType.includes('folder');
       if (filterType === 'file') return !f.mimeType.includes('folder');
@@ -389,9 +390,15 @@ export default function Dashboard() {
               <input 
                 onClick={() => setIsSearchModalOpen(true)}
                 readOnly
+                value={searchTerm}
                 placeholder="SEARCH REGISTRY (CTRL + K)"
-                className="w-full bg-white/5 border border-white/5 rounded-[20px] py-4 pl-14 pr-6 text-[10px] font-black tracking-widest text-slate-400 cursor-pointer hover:bg-white/10 transition-all"
+                className="w-full bg-white/5 border border-white/5 rounded-[20px] py-4 pl-14 pr-6 text-[10px] font-black tracking-widest text-slate-400 cursor-pointer hover:bg-white/10 transition-all outline-none"
               />
+              {searchTerm && (
+                <button onClick={(e) => { e.stopPropagation(); setSearchTerm(''); setSearchResults([]); }} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-amber-500 z-10">
+                  <X size={14} />
+                </button>
+              )}
             </div>
 
             <div className="flex items-center gap-3">
@@ -799,9 +806,16 @@ export default function Dashboard() {
                   <input 
                     autoFocus 
                     type="text" 
+                    value={searchTerm}
                     placeholder="SCANNING ARCHIVE REGISTRY..." 
                     className="flex-1 bg-transparent outline-none font-black text-xl text-white uppercase tracking-tighter italic placeholder:text-slate-700" 
                     onChange={(e) => handleGlobalSearch(e.target.value)} 
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        setIsSearchModalOpen(false);
+                      }
+                    }}
                   />
                   {searchLoading && <Loader2 className="animate-spin text-amber-500" size={20} />}
                   <div className="px-3 py-1 bg-white/5 border border-white/10 rounded-lg text-[10px] font-black text-slate-500 uppercase">ESC</div>
