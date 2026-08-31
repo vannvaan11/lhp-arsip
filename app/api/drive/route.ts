@@ -6,6 +6,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const folderId = searchParams.get('folderId') || process.env.DRIVE_FOLDER_ID;
+  const search = searchParams.get('search');
 
   try {
     const auth = new google.auth.GoogleAuth({
@@ -14,9 +15,14 @@ export async function GET(request: Request) {
     });
     const drive = google.drive({ version: 'v3', auth });
 
-    // 1. Ambil daftar file & folder di folder saat ini
+    // 1. Ambil daftar file & folder
+    let query = `'${folderId}' in parents and trashed = false`;
+    if (search) {
+      query = `name contains '${search}' and trashed = false`;
+    }
+
     const list = await drive.files.list({
-      q: `'${folderId}' in parents and trashed = false`,
+      q: query,
       fields: 'files(id, name, mimeType, size, createdTime)',
       orderBy: 'folder, name',
     });

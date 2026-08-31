@@ -207,7 +207,7 @@ export default function Dashboard() {
 
   if (!mounted) return null;
 
-  const baseFiles = searchTerm.length >= 2 ? searchResults : files.filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  const baseFiles = (searchTerm.length >= 2 ? searchResults : files).filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
   const filteredFilesMain = baseFiles
     .filter(f => {
