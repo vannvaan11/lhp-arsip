@@ -605,13 +605,13 @@ export default function Dashboard() {
               <div className="flex gap-8">
                 <span className="flex items-center gap-2">
                   <div className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-ping"></div> 
-                  Verified Connection: Kendrick Node 0x{stats.total}
+                  Kendrick Node 0x{stats.total}
                 </span>
-                <span className="flex items-center gap-2"><Command size={12} /> Press K for Global Scan</span>
+                <span className="flex items-center gap-2"><Command size={12} /> Press ctrl+k for Global Scan</span>
               </div>
               <div className="flex items-center gap-6">
                 <span className="flex items-center gap-2"><Shield size={12} className="text-emerald-500" /> End-to-End Encrypted</span>
-                <span className="text-slate-700">© 2024 ROYAL VAULT v2.0</span>
+                <span className="text-slate-700">© 2026 Royal Vault v2.0</span>
               </div>
             </div>
           </div>
