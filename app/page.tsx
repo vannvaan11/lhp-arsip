@@ -275,12 +275,11 @@ export default function Dashboard() {
   const folders = filteredFilesMain.filter(f => f.mimeType.includes('folder'));
   const documents = filteredFilesMain.filter(f => !f.mimeType.includes('folder'));
 
-  if (!mounted) return null;
-
   // --- SHARED VIEW (Bypass Login) ---
   if (isSharedView) {
     return (
-      <div className="min-h-screen bg-[var(--bg-main)] flex flex-col items-center justify-center p-4 sm:p-8 relative">
+      <div className={`${isDarkMode ? "dark" : "light"} theme-${themeColor}`}>
+        <div className="min-h-screen bg-[var(--bg-main)] flex items-center justify-center p-4 relative overflow-hidden transition-colors">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-[var(--accent)]/[0.05] blur-[120px] rounded-full pointer-events-none"></div>
         
         {sharedFileError ? (
@@ -311,6 +310,7 @@ export default function Dashboard() {
             </div>
           </motion.div>
         )}
+        </div>
       </div>
     );
   }
@@ -318,7 +318,8 @@ export default function Dashboard() {
   // --- LOGIN PAGE ---
   if (!isLoggedIn) {
     return (
-      <div className="relative min-h-screen w-full flex items-center justify-center p-6 bg-[var(--bg-main)]">
+      <div className={`${isDarkMode ? "dark" : "light"} theme-${themeColor}`}>
+        <div className="relative min-h-screen w-full flex items-center justify-center p-6 bg-[var(--bg-main)] transition-colors">
         {/* Subtle background gradient */}
         <div className="absolute inset-0">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-[var(--accent)]/[0.07] blur-[150px] rounded-full"></div>
@@ -384,7 +385,7 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              <button type="submit" className="w-full bg-[var(--accent)] hover:bg-amber-400 text-slate-950 py-3.5 rounded-xl font-semibold text-sm transition-colors mt-2 flex items-center justify-center gap-2">
+              <button type="submit" className="w-full bg-[var(--accent)] hover:opacity-90 text-[var(--accent-fg)] py-3.5 rounded-xl font-semibold text-sm transition-all mt-2 flex items-center justify-center gap-2">
                 <span>Masuk</span>
                 <ChevronRight size={16} />
               </button>
@@ -395,6 +396,7 @@ export default function Dashboard() {
             © 2026 Royal Vault v2.0
           </p>
         </motion.div>
+        </div>
       </div>
     );
   }
@@ -540,7 +542,7 @@ export default function Dashboard() {
               {userRole === 'admin' && (
                 <button 
                   onClick={() => {setUploadDestinationId(currentFolder); setIsUploadModalOpen(true);}}
-                  className="bg-[var(--accent)] hover:bg-amber-400 text-slate-950 px-4 py-2.5 rounded-xl font-semibold text-sm transition-colors flex items-center gap-2"
+                  className="bg-[var(--accent)] hover:opacity-90 text-[var(--accent-fg)] px-4 py-2.5 rounded-xl font-semibold text-sm transition-all flex items-center gap-2"
                 >
                   <Plus size={16} strokeWidth={2.5} />
                   <span className="hidden lg:block">Upload</span>

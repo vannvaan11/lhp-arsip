@@ -34,18 +34,22 @@
 .theme-amber {
   --accent: #f59e0b; /* amber-500 */
   --accent-light: rgba(245, 158, 11, 0.1);
+  --accent-fg: #0f172a; /* dark text for amber */
 }
 .theme-blue {
   --accent: #3b82f6; /* blue-500 */
   --accent-light: rgba(59, 130, 246, 0.1);
+  --accent-fg: #ffffff;
 }
 .theme-emerald {
   --accent: #10b981; /* emerald-500 */
   --accent-light: rgba(16, 185, 129, 0.1);
+  --accent-fg: #ffffff;
 }
 .theme-purple {
   --accent: #a855f7; /* purple-500 */
   --accent-light: rgba(168, 85, 247, 0.1);
+  --accent-fg: #ffffff;
 }
 
 body {
