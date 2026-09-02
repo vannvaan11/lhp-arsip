@@ -15,11 +15,11 @@ export async function GET(request: Request) {
     });
     const drive = google.drive({ version: 'v3', auth });
 
-    // 1. Ambil daftar file & folder (Pencarian Super)
+    // 1. Ambil daftar file & folder (Pencarian Standar)
     let query = `'${folderId}' in parents and trashed = false`;
     if (search) {
-      // Menggunakan fullText contains untuk mencari hingga ke dalam dokumen
-      query = `(name contains '${search}' or fullText contains '${search}') and trashed = false`;
+      // Dikembalikan ke pencarian berdasarkan nama saja sesuai permintaan
+      query = `name contains '${search}' and trashed = false`;
     }
 
     const list = await drive.files.list({
