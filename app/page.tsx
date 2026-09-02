@@ -8,8 +8,9 @@ import {
   CheckCircle2, AlertCircle, Filter, History, User,
   ShieldCheck, Trash2,
   LayoutGrid, List, Clock, Eye, EyeOff,
-  Command, Share2, Palette
+  Command, Share2, Palette, BarChart2
 } from 'lucide-react';
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 // --- INTERFACES ---
 interface DriveFile {
@@ -57,6 +58,7 @@ export default function Dashboard() {
   const [selectedFile, setSelectedFile] = useState<DriveFile | null>(null);
   const [allFolders, setAllFolders] = useState<DriveFile[]>([]); 
   const [stats, setStats] = useState({ total: 0 });
+  const [analyticsData, setAnalyticsData] = useState<any>(null);
 
   const [loading, setLoading] = useState(true);
   const [searchLoading, setSearchLoading] = useState(false); 
@@ -68,6 +70,7 @@ export default function Dashboard() {
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
+  const [isAnalyticsModalOpen, setIsAnalyticsModalOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -158,7 +161,12 @@ export default function Dashboard() {
     try {
       const res = await fetch(`/api/drive?folderId=${fId}`);
       const data = await res.json();
-      if (data.files) { setFiles(data.files); setStats({ total: data.totalDocs || 0 }); }
+      if (data.files) {
+        setFiles(data.files);
+        setAllFolders(data.files.filter((f: any) => f.mimeType.includes('folder')));
+      }
+      if (data.totalDocs !== undefined) setStats({ total: data.totalDocs });
+      if (data.analytics) setAnalyticsData(data.analytics);
     } catch (e) { console.error(e); }
     setLoading(false);
   };
@@ -582,6 +590,18 @@ export default function Dashboard() {
                     </motion.div>
                   ))}
                 </div>
+
+                {/* ANALYTICS BUTTON */}
+                {userRole === 'admin' && !currentFolder && filterType === 'all' && analyticsData && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-end">
+                    <button 
+                      onClick={() => setIsAnalyticsModalOpen(true)}
+                      className="flex items-center gap-2 px-5 py-3 bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded-xl text-sm font-semibold text-[var(--text-main)] hover:bg-[var(--accent)] hover:border-[var(--accent)] hover:text-[var(--accent-fg)] transition-all shadow-sm"
+                    >
+                      <BarChart2 size={16} /> Lihat Analitik Pimpinan
+                    </button>
+                  </motion.div>
+                )}
 
                 {/* FOLDERS SECTION (only on root) */}
                 {!currentFolder && filterType !== 'file' && folders.length > 0 && (
@@ -1087,6 +1107,105 @@ export default function Dashboard() {
                           style={{ backgroundColor: theme.color }}
                         />
                       ))}
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ANALYTICS MODAL */}
+        <AnimatePresence>
+          {isAnalyticsModalOpen && analyticsData && (
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+              onClick={() => setIsAnalyticsModalOpen(false)}
+            >
+              <motion.div 
+                initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 10 }}
+                className="bg-[var(--bg-panel)] border border-[var(--border-line)] w-full max-w-4xl max-h-[90vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col relative" 
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="p-6 border-b border-[var(--border-line)] flex justify-between items-center bg-[var(--bg-panel-trans)]">
+                  <div>
+                    <h3 className="text-xl font-bold text-[var(--text-main)] flex items-center gap-2">
+                      <BarChart2 size={24} className="text-[var(--accent)]" /> Dashboard Analitik Pimpinan
+                    </h3>
+                    <p className="text-sm text-[var(--text-muted)] mt-1">Rekapitulasi data arsip Inspektorat secara real-time</p>
+                  </div>
+                  <button onClick={() => setIsAnalyticsModalOpen(false)} className="p-2 bg-[var(--hover-fill)] hover:bg-[var(--border-line)] text-[var(--text-muted)] rounded-full transition-colors">
+                    <X size={20} />
+                  </button>
+                </div>
+
+                <div className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-8">
+                  {/* Stats Cards */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="bg-[var(--hover-fill)] p-5 rounded-2xl border border-[var(--border-line)]">
+                      <p className="text-xs text-[var(--text-muted)] mb-1">Total Arsip</p>
+                      <p className="text-2xl font-bold text-[var(--accent)]">{stats.total}</p>
+                    </div>
+                    <div className="bg-[var(--hover-fill)] p-5 rounded-2xl border border-[var(--border-line)]">
+                      <p className="text-xs text-[var(--text-muted)] mb-1">Total PDF</p>
+                      <p className="text-2xl font-bold text-red-500">{analyticsData.types.find((t:any) => t.name === 'PDF')?.value || 0}</p>
+                    </div>
+                    <div className="bg-[var(--hover-fill)] p-5 rounded-2xl border border-[var(--border-line)]">
+                      <p className="text-xs text-[var(--text-muted)] mb-1">Total Word</p>
+                      <p className="text-2xl font-bold text-blue-500">{analyticsData.types.find((t:any) => t.name === 'Word')?.value || 0}</p>
+                    </div>
+                    <div className="bg-[var(--hover-fill)] p-5 rounded-2xl border border-[var(--border-line)]">
+                      <p className="text-xs text-[var(--text-muted)] mb-1">Total Excel</p>
+                      <p className="text-2xl font-bold text-emerald-500">{analyticsData.types.find((t:any) => t.name === 'Excel')?.value || 0}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Pie Chart */}
+                    <div className="bg-[var(--hover-fill)] p-6 rounded-2xl border border-[var(--border-line)]">
+                      <h4 className="text-sm font-semibold text-[var(--text-main)] mb-6 text-center">Komposisi Format Dokumen</h4>
+                      <div className="h-64">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie data={analyticsData.types} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value">
+                              {analyticsData.types.map((entry: any, index: number) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
+                              ))}
+                            </Pie>
+                            <Tooltip 
+                              contentStyle={{ backgroundColor: 'var(--bg-panel)', borderColor: 'var(--border-line)', color: 'var(--text-main)', borderRadius: '12px' }}
+                              itemStyle={{ color: 'var(--text-main)' }}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <div className="flex flex-wrap justify-center gap-4 mt-4">
+                        {analyticsData.types.map((entry: any, index: number) => (
+                          <div key={index} className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }} />
+                            <span className="text-xs text-[var(--text-muted)]">{entry.name} ({entry.value})</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Bar Chart */}
+                    <div className="bg-[var(--hover-fill)] p-6 rounded-2xl border border-[var(--border-line)]">
+                      <h4 className="text-sm font-semibold text-[var(--text-main)] mb-6 text-center">Tren Aktivitas Unggah (6 Bulan Terakhir)</h4>
+                      <div className="h-64">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={analyticsData.trends}>
+                            <XAxis dataKey="month" stroke="var(--text-muted)" fontSize={12} tickLine={false} axisLine={false} />
+                            <YAxis stroke="var(--text-muted)" fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
+                            <Tooltip 
+                              contentStyle={{ backgroundColor: 'var(--bg-panel)', borderColor: 'var(--border-line)', color: 'var(--text-main)', borderRadius: '12px' }}
+                              cursor={{ fill: 'var(--hover-fill)' }}
+                            />
+                            <Bar dataKey="total" fill="var(--accent)" radius={[4, 4, 0, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
                     </div>
                   </div>
                 </div>
