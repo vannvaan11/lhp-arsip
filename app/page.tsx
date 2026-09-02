@@ -7,7 +7,7 @@ import {
   Download, ArrowLeft, Sun, Moon, Shield, 
   CheckCircle2, AlertCircle, Filter, History, User,
   ShieldCheck, Trash2,
-  LayoutGrid, List, Clock, Eye,
+  LayoutGrid, List, Clock, Eye, EyeOff,
   Command
 } from 'lucide-react';
 
@@ -44,6 +44,7 @@ export default function Dashboard() {
   const [password, setPassword] = useState('');
   const [tempName, setTempName] = useState('');
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
 
   const [files, setFiles] = useState<DriveFile[]>([]);
   const [searchResults, setSearchResults] = useState<DriveFile[]>([]); 
@@ -281,11 +282,18 @@ export default function Dashboard() {
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={16}/>
                   <input 
                     required 
-                    type="password" 
+                    type={showPassword ? "text" : "password"}
                     placeholder="••••••••" 
-                    className="w-full py-3.5 pl-11 pr-4 rounded-xl border border-white/[0.08] outline-none bg-white/[0.04] text-white text-sm placeholder:text-slate-600 tracking-widest focus:border-amber-500/40 focus:bg-amber-500/[0.03] transition-all" 
+                    className="w-full py-3.5 pl-11 pr-12 rounded-xl border border-white/[0.08] outline-none bg-white/[0.04] text-white text-sm placeholder:text-slate-600 tracking-widest focus:border-amber-500/40 focus:bg-amber-500/[0.03] transition-all" 
                     onChange={(e) => setPassword(e.target.value)} 
                   />
+                  <button 
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
                 </div>
               </div>
 
