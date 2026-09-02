@@ -8,7 +8,7 @@ import {
   CheckCircle2, AlertCircle, Filter, History, User,
   ShieldCheck, Trash2,
   LayoutGrid, List, Clock, Eye, EyeOff,
-  Command
+  Command, Share2
 } from 'lucide-react';
 
 // --- INTERFACES ---
@@ -45,6 +45,9 @@ export default function Dashboard() {
   const [tempName, setTempName] = useState('');
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
+  const [sharedFileId, setSharedFileId] = useState<string | null>(null);
+  const [sharedFileError, setSharedFileError] = useState<string | null>(null);
+  const [isSharedView, setIsSharedView] = useState(false);
 
   const [files, setFiles] = useState<DriveFile[]>([]);
   const [searchResults, setSearchResults] = useState<DriveFile[]>([]); 
@@ -107,6 +110,24 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const shareToken = params.get('share');
+    if (shareToken) {
+      setIsSharedView(true);
+      try {
+        const decoded = JSON.parse(atob(shareToken));
+        if (Date.now() > decoded.exp) {
+          setSharedFileError("Tautan ini telah kedaluwarsa.");
+        } else {
+          setSharedFileId(decoded.id);
+        }
+      } catch (e) {
+        setSharedFileError("Tautan tidak valid.");
+      }
+      setMounted(true);
+      return;
+    }
+
     setMounted(true);
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); setIsSearchModalOpen(true); }
@@ -245,6 +266,46 @@ export default function Dashboard() {
 
   const folders = filteredFilesMain.filter(f => f.mimeType.includes('folder'));
   const documents = filteredFilesMain.filter(f => !f.mimeType.includes('folder'));
+
+  if (!mounted) return null;
+
+  // --- SHARED VIEW (Bypass Login) ---
+  if (isSharedView) {
+    return (
+      <div className="min-h-screen bg-[#0c1220] flex flex-col items-center justify-center p-4 sm:p-8 relative">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-amber-500/[0.05] blur-[120px] rounded-full pointer-events-none"></div>
+        
+        {sharedFileError ? (
+          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-slate-900 border border-white/[0.08] p-8 rounded-2xl max-w-md w-full text-center shadow-2xl relative z-10">
+            <AlertCircle size={48} className="text-red-500 mx-auto mb-4" />
+            <h2 className="text-xl font-bold text-white mb-2">Akses Ditolak</h2>
+            <p className="text-slate-400">{sharedFileError}</p>
+          </motion.div>
+        ) : (
+          <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="w-full max-w-5xl h-[85vh] bg-slate-900 rounded-2xl border border-white/[0.08] flex flex-col overflow-hidden shadow-2xl relative z-10">
+            <div className="p-5 border-b border-white/[0.06] flex items-center justify-between bg-slate-900/50 backdrop-blur-xl z-30">
+              <div className="flex items-center gap-4">
+                <div className="p-2.5 bg-emerald-500/10 rounded-xl text-emerald-500">
+                  <ShieldCheck size={24} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Dokumen Dibagikan</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Akses Terbatas - Inspektorat Sultra</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex-1 relative bg-black/50">
+              <div className="absolute inset-0 z-20 pointer-events-none"
+                style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='400' height='400' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='50%25' y='50%25' font-size='28' font-family='Arial' font-weight='bold' fill='%23ef4444' opacity='0.15' transform='translate(200, 200) rotate(-45) translate(-200, -200)' text-anchor='middle'%3EDOKUMEN INSPEKTORAT%3C/text%3E%3C/svg%3E")`, backgroundRepeat: 'repeat' }}
+              />
+              <iframe src={`https://drive.google.com/file/d/${sharedFileId}/preview`} className="w-full h-full border-0 relative z-0" title="Shared Preview" />
+            </div>
+          </motion.div>
+        )}
+      </div>
+    );
+  }
 
   // --- LOGIN PAGE ---
   if (!isLoggedIn) {
@@ -819,6 +880,13 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  <button onClick={() => {
+                    const token = btoa(JSON.stringify({ id: selectedFile.id, exp: Date.now() + 86400000 }));
+                    const shareUrl = `${window.location.origin}?share=${token}`;
+                    navigator.clipboard.writeText(shareUrl);
+                    alert("Tautan rahasia (berlaku 24 jam) berhasil disalin ke clipboard!");
+                    addOnlineLog("SHARE", selectedFile.name);
+                  }} className="p-2.5 bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 rounded-xl transition-all" title="Bagikan Tautan Sementara"><Share2 size={18}/></button>
                   <button onClick={() => { addOnlineLog("DOWNLOAD", selectedFile.name); window.open(`https://drive.google.com/uc?export=download&id=${selectedFile.id}`, '_blank'); }} className="p-2.5 bg-amber-500 rounded-xl text-slate-950 hover:bg-amber-400 transition-colors"><Download size={18}/></button>
                   <button onClick={() => { setSelectedFile(null); setPreviewLoading(true); }} className="p-2.5 bg-white/[0.06] text-slate-400 hover:text-white rounded-xl transition-all"><X size={18}/></button>
                 </div>
