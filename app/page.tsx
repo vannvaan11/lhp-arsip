@@ -240,7 +240,7 @@ export default function Dashboard() {
     const csvContent = [
       headers.join(","),
       ...activityLogs.map(log => 
-        `"${log.userName}","${log.action}","${log.fileName}","${new Date(log.timestamp).toLocaleString('id-ID')}"`
+        `"${log.user}","${log.action}","${log.fileName}","${new Date(log.timestamp).toLocaleString('id-ID')}"`
       )
     ].join("\n");
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
