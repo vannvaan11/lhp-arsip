@@ -8,7 +8,7 @@ import {
   CheckCircle2, AlertCircle, Filter, History, User,
   ShieldCheck, Trash2,
   LayoutGrid, List, Clock, Eye, EyeOff,
-  Command, Share2, Palette, BarChart2
+  Command, Share2, Palette, BarChart2, KeyRound, Copy, Check
 } from 'lucide-react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -52,6 +52,17 @@ export default function Dashboard() {
   const [sharedFileId, setSharedFileId] = useState<string | null>(null);
   const [sharedFileError, setSharedFileError] = useState<string | null>(null);
   const [isSharedView, setIsSharedView] = useState(false);
+  const [sharedPinInput, setSharedPinInput] = useState('');
+  const [sharedPinVerified, setSharedPinVerified] = useState(false);
+  const [sharedPinLoading, setSharedPinLoading] = useState(false);
+  const [shareModalFileId, setShareModalFileId] = useState<string | null>(null);
+  const [shareModalFileName, setShareModalFileName] = useState('');
+  const [generatedPin, setGeneratedPin] = useState<string | null>(null);
+  const [generatedShareUrl, setGeneratedShareUrl] = useState<string | null>(null);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [shareGenerating, setShareGenerating] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
+  const [pinCopied, setPinCopied] = useState(false);
 
   const [files, setFiles] = useState<DriveFile[]>([]);
   const [searchResults, setSearchResults] = useState<DriveFile[]>([]); 
@@ -137,6 +148,15 @@ export default function Dashboard() {
       } catch (e) {
         setSharedFileError("Tautan tidak valid.");
       }
+      setMounted(true);
+      return;
+    }
+
+    // Handle PIN-secured share link
+    const pinShareFileId = params.get('pinshare');
+    if (pinShareFileId) {
+      setIsSharedView(true);
+      setSharedFileId(pinShareFileId);
       setMounted(true);
       return;
     }
@@ -296,6 +316,31 @@ export default function Dashboard() {
 
   // --- SHARED VIEW (Bypass Login) ---
   if (isSharedView) {
+    const handlePinVerify = async () => {
+      if (!sharedFileId || !sharedPinInput.trim()) return;
+      setSharedPinLoading(true);
+      try {
+        const res = await fetch('/api/share', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileId: sharedFileId, pin: sharedPinInput.trim() })
+        });
+        const data = await res.json();
+        if (data.valid) {
+          setSharedPinVerified(true);
+        } else {
+          setSharedFileError(data.error || 'PIN tidak valid atau sudah digunakan.');
+        }
+      } catch (e) {
+        setSharedFileError('Gagal memverifikasi PIN. Coba lagi.');
+      }
+      setSharedPinLoading(false);
+    };
+
+    // Check if this is a PIN-secured link (uses ?pinshare= param)
+    const params = new URLSearchParams(window.location.search);
+    const isPinSecured = !!params.get('pinshare');
+
     return (
       <div className={`${isDarkMode ? "dark" : "light"} theme-${themeColor}`}>
         <div className="min-h-screen bg-[var(--bg-main)] flex items-center justify-center p-4 relative overflow-hidden transition-colors">
@@ -307,7 +352,45 @@ export default function Dashboard() {
             <h2 className="text-xl font-bold text-[var(--text-main)] mb-2">Akses Ditolak</h2>
             <p className="text-[var(--text-muted)]">{sharedFileError}</p>
           </motion.div>
+
+        ) : isPinSecured && !sharedPinVerified ? (
+          /* PIN INPUT GATE */
+          <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-[var(--bg-panel)]/80 backdrop-blur-xl border border-[var(--border-line)] p-10 rounded-3xl max-w-md w-full shadow-2xl relative z-10">
+            <div className="flex flex-col items-center mb-8">
+              <div className="w-16 h-16 rounded-2xl bg-[var(--accent)]/10 flex items-center justify-center mb-5">
+                <KeyRound size={32} className="text-[var(--accent)]" />
+              </div>
+              <h2 className="text-xl font-bold text-[var(--text-main)] text-center">Dokumen Dilindungi PIN</h2>
+              <p className="text-sm text-[var(--text-muted)] mt-2 text-center">Masukkan PIN 6-digit yang diberikan oleh pengirim untuk membuka dokumen ini.</p>
+            </div>
+            <div className="space-y-4">
+              <div className="relative">
+                <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" size={16} />
+                <input 
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="Masukkan 6-digit PIN"
+                  value={sharedPinInput}
+                  onChange={(e) => setSharedPinInput(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  onKeyDown={(e) => e.key === 'Enter' && handlePinVerify()}
+                  className="w-full py-4 pl-12 pr-4 rounded-xl border border-[var(--border-line)] outline-none bg-white/[0.04] text-[var(--text-main)] text-2xl text-center tracking-[0.5em] font-bold placeholder:text-slate-600 placeholder:text-sm placeholder:tracking-normal focus:border-[var(--accent)] transition-all"
+                />
+              </div>
+              <button 
+                onClick={handlePinVerify}
+                disabled={sharedPinInput.length !== 6 || sharedPinLoading}
+                className="w-full bg-[var(--accent)] hover:opacity-90 text-[var(--accent-fg)] py-4 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {sharedPinLoading ? <Loader2 size={18} className="animate-spin" /> : <ShieldCheck size={18} />}
+                <span>{sharedPinLoading ? 'Memverifikasi...' : 'Buka Dokumen'}</span>
+              </button>
+              <p className="text-center text-xs text-[var(--text-muted)] mt-3">PIN bersifat sekali pakai dan tidak dapat digunakan kembali.</p>
+            </div>
+          </motion.div>
+
         ) : (
+          /* DOCUMENT PREVIEW */
           <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="w-full max-w-5xl h-[85vh] bg-[var(--bg-panel)] rounded-2xl border border-[var(--border-line)] flex flex-col overflow-hidden shadow-2xl relative z-10">
             <div className="p-5 border-b border-[var(--border-line)] flex items-center justify-between bg-[var(--bg-panel-trans)] backdrop-blur-xl z-30">
               <div className="flex items-center gap-4">
@@ -960,12 +1043,15 @@ export default function Dashboard() {
                 </div>
                 <div className="flex items-center gap-2">
                   <button onClick={() => {
-                    const token = btoa(JSON.stringify({ id: selectedFile.id, exp: Date.now() + 86400000 }));
-                    const shareUrl = `${window.location.origin}?share=${token}`;
-                    navigator.clipboard.writeText(shareUrl);
-                    alert("Tautan rahasia (berlaku 24 jam) berhasil disalin ke clipboard!");
-                    addOnlineLog("SHARE", selectedFile.name);
-                  }} className="p-2.5 bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 rounded-xl transition-all" title="Bagikan Tautan Sementara"><Share2 size={18}/></button>
+                    setShareModalFileId(selectedFile.id);
+                    setShareModalFileName(selectedFile.name);
+                    setGeneratedPin(null);
+                    setGeneratedShareUrl(null);
+                    setShareGenerating(false);
+                    setShareCopied(false);
+                    setPinCopied(false);
+                    setIsShareModalOpen(true);
+                  }} className="p-2.5 bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 rounded-xl transition-all" title="Bagikan dengan PIN"><Share2 size={18}/></button>
                   <button onClick={() => { addOnlineLog("DOWNLOAD", selectedFile.name); window.open(`https://drive.google.com/uc?export=download&id=${selectedFile.id}`, '_blank'); }} className="p-2.5 bg-[var(--accent)] rounded-xl text-slate-950 hover:bg-amber-400 transition-colors"><Download size={18}/></button>
                   <button onClick={() => { setSelectedFile(null); setPreviewLoading(true); }} className="p-2.5 bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-[var(--text-main)] rounded-xl transition-all"><X size={18}/></button>
                 </div>
@@ -1230,6 +1316,120 @@ export default function Dashboard() {
                       </div>
                     </div>
                   </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        {/* SHARE WITH PIN MODAL */}
+        <AnimatePresence>
+          {isShareModalOpen && (
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+              onClick={() => setIsShareModalOpen(false)}
+            >
+              <motion.div 
+                initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 10 }}
+                className="bg-[var(--bg-panel)] border border-[var(--border-line)] w-full max-w-md rounded-3xl shadow-2xl overflow-hidden" 
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="p-6 border-b border-[var(--border-line)] flex justify-between items-center">
+                  <div>
+                    <h3 className="text-lg font-bold text-[var(--text-main)] flex items-center gap-2">
+                      <KeyRound size={20} className="text-[var(--accent)]" /> Bagikan dengan PIN
+                    </h3>
+                    <p className="text-xs text-[var(--text-muted)] mt-1 truncate max-w-[280px]">{shareModalFileName}</p>
+                  </div>
+                  <button onClick={() => setIsShareModalOpen(false)} className="p-2 bg-[var(--hover-fill)] hover:bg-[var(--border-line)] text-[var(--text-muted)] rounded-full transition-colors">
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div className="p-6 space-y-6">
+                  {!generatedPin ? (
+                    /* Step 1: Generate */
+                    <div className="text-center space-y-4">
+                      <div className="w-20 h-20 mx-auto rounded-2xl bg-blue-500/10 flex items-center justify-center">
+                        <Shield size={36} className="text-blue-500" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-[var(--text-main)] font-medium">Buat tautan aman dengan PIN sekali pakai</p>
+                        <p className="text-xs text-[var(--text-muted)] mt-2">PIN hanya bisa digunakan satu kali oleh penerima pertama yang memasukkannya. Setelah digunakan, PIN otomatis hangus.</p>
+                      </div>
+                      <button 
+                        onClick={async () => {
+                          setShareGenerating(true);
+                          try {
+                            const res = await fetch('/api/share', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ fileId: shareModalFileId })
+                            });
+                            const data = await res.json();
+                            if (data.pin) {
+                              setGeneratedPin(data.pin);
+                              setGeneratedShareUrl(`${window.location.origin}?pinshare=${shareModalFileId}`);
+                              addOnlineLog("SHARE", shareModalFileName);
+                            }
+                          } catch (e) { console.error(e); }
+                          setShareGenerating(false);
+                        }}
+                        disabled={shareGenerating}
+                        className="w-full bg-[var(--accent)] hover:opacity-90 text-[var(--accent-fg)] py-3.5 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                      >
+                        {shareGenerating ? <Loader2 size={16} className="animate-spin" /> : <KeyRound size={16} />}
+                        {shareGenerating ? 'Membuat PIN...' : 'Buat Link + PIN Sekali Pakai'}
+                      </button>
+                    </div>
+                  ) : (
+                    /* Step 2: Show PIN & Link */
+                    <div className="space-y-5">
+                      <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 flex items-center gap-3">
+                        <CheckCircle2 size={20} className="text-emerald-500 flex-shrink-0" />
+                        <p className="text-sm text-emerald-400 font-medium">PIN berhasil dibuat!</p>
+                      </div>
+
+                      {/* PIN Display */}
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium text-[var(--text-muted)]">PIN Keamanan (Sekali Pakai)</label>
+                        <div className="flex gap-2">
+                          <div className="flex-1 bg-[var(--hover-fill)] border border-[var(--border-line)] rounded-xl py-4 text-center text-3xl font-bold text-[var(--accent)] tracking-[0.4em]">
+                            {generatedPin}
+                          </div>
+                          <button 
+                            onClick={() => { navigator.clipboard.writeText(generatedPin!); setPinCopied(true); setTimeout(() => setPinCopied(false), 2000); }}
+                            className={`px-4 rounded-xl border transition-all flex items-center ${pinCopied ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' : 'bg-[var(--hover-fill)] border-[var(--border-line)] text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}
+                          >
+                            {pinCopied ? <Check size={18} /> : <Copy size={18} />}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Link Display */}
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium text-[var(--text-muted)]">Tautan Dokumen</label>
+                        <div className="flex gap-2">
+                          <div className="flex-1 bg-[var(--hover-fill)] border border-[var(--border-line)] rounded-xl py-3 px-4 text-xs text-[var(--text-muted)] truncate">
+                            {generatedShareUrl}
+                          </div>
+                          <button 
+                            onClick={() => { navigator.clipboard.writeText(generatedShareUrl!); setShareCopied(true); setTimeout(() => setShareCopied(false), 2000); }}
+                            className={`px-4 rounded-xl border transition-all flex items-center ${shareCopied ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' : 'bg-[var(--hover-fill)] border-[var(--border-line)] text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}
+                          >
+                            {shareCopied ? <Check size={18} /> : <Copy size={18} />}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="bg-[var(--hover-fill)] border border-[var(--border-line)] rounded-xl p-4 space-y-1">
+                        <p className="text-xs font-semibold text-[var(--text-main)]">Cara Penggunaan:</p>
+                        <p className="text-xs text-[var(--text-muted)]">1. Salin dan kirimkan <b>Tautan</b> ke penerima.</p>
+                        <p className="text-xs text-[var(--text-muted)]">2. Kirimkan <b>PIN</b> secara terpisah (lewat chat/telepon).</p>
+                        <p className="text-xs text-red-400">⚠️ PIN hanya bisa digunakan 1 kali. Setelah dipakai, otomatis hangus.</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </motion.div>
             </motion.div>
