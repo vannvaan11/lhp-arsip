@@ -571,7 +571,7 @@ export default function Dashboard() {
                             </div>
                           </div>
 
-                          <h4 className="text-sm font-medium text-white truncate group-hover:text-amber-400 transition-colors">{file.name}</h4>
+                          <h4 title={file.name} className="text-sm font-medium text-white truncate group-hover:text-amber-400 transition-colors">{file.name}</h4>
                           <p className="text-[11px] text-slate-500 mt-1.5">
                             {file.mimeType.includes('folder') ? 'Folder' : 'Dokumen'}
                           </p>
@@ -596,7 +596,7 @@ export default function Dashboard() {
                             <div className={`p-1.5 rounded-lg ${file.mimeType.includes('folder') ? 'text-amber-500 bg-amber-500/10' : 'text-slate-400 bg-white/[0.05]'}`}>
                               {file.mimeType.includes('folder') ? <Folder size={16}/> : <FileText size={16}/>}
                             </div>
-                            <span className="text-sm text-slate-200 group-hover:text-amber-400 truncate transition-colors">{file.name}</span>
+                            <span title={file.name} className="text-sm text-slate-200 group-hover:text-amber-400 truncate transition-colors">{file.name}</span>
                           </div>
                           <div className="col-span-3 text-xs text-slate-500">{file.mimeType.includes('folder') ? 'Folder' : 'Dokumen'}</div>
                           <div className="col-span-2 flex justify-end gap-1">
