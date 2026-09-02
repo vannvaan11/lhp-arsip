@@ -580,14 +580,14 @@ export default function Dashboard() {
                           initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
                           key={folder.id} 
                           onClick={() => navigateToFolder(folder.id, folder.name)}
-                          className="group bg-white/[0.03] hover:bg-amber-500/[0.06] p-4 rounded-xl border border-white/[0.06] hover:border-amber-500/20 cursor-pointer transition-all flex items-center gap-3.5"
+                          className="group bg-white/[0.03] hover:bg-amber-500/[0.06] p-3 sm:p-4 rounded-xl border border-white/[0.06] hover:border-amber-500/20 cursor-pointer transition-all flex items-center gap-3 sm:gap-3.5"
                         >
                           <div className="p-2.5 bg-amber-500/10 rounded-xl text-amber-500 group-hover:bg-amber-500/20 transition-colors flex-shrink-0">
                             <Folder size={20} />
                           </div>
                           <div className="min-w-0">
-                            <h4 className="text-sm font-medium text-white truncate group-hover:text-amber-400 transition-colors">{folder.name}</h4>
-                            <p className="text-[11px] text-slate-500 mt-0.5">Folder</p>
+                            <h4 title={folder.name} className="text-xs sm:text-sm font-medium text-white line-clamp-2 sm:truncate group-hover:text-amber-400 transition-colors">{folder.name}</h4>
+                            <p className="text-[10px] sm:text-[11px] text-slate-500 mt-0.5">Folder</p>
                           </div>
                         </motion.div>
                       ))}
@@ -619,13 +619,13 @@ export default function Dashboard() {
                           initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
                           key={file.id}
                           onClick={() => file.mimeType.includes('folder') ? navigateToFolder(file.id, file.name) : handleFileSelect(file)}
-                          className={`group relative bg-white/[0.03] p-5 rounded-2xl border cursor-pointer transition-all ${
+                          className={`group relative bg-white/[0.03] p-4 sm:p-5 rounded-2xl border cursor-pointer transition-all ${
                             selectedFile?.id === file.id 
                               ? 'border-amber-500/40 bg-amber-500/[0.05]' 
                               : 'border-white/[0.06] hover:border-white/[0.12] hover:bg-white/[0.05]'
                           }`}
                         >
-                          <div className="flex items-start justify-between mb-6">
+                          <div className="flex items-start justify-between mb-3 sm:mb-6">
                             <div className={`p-3 rounded-xl ${
                               file.mimeType.includes('folder') 
                                 ? 'bg-amber-500/10 text-amber-500' 
@@ -650,8 +650,8 @@ export default function Dashboard() {
                             </div>
                           </div>
 
-                          <h4 title={file.name} className="text-sm font-medium text-white truncate group-hover:text-amber-400 transition-colors">{file.name}</h4>
-                          <p className="text-[11px] text-slate-500 mt-1.5">
+                          <h4 title={file.name} className="text-xs sm:text-sm leading-tight sm:leading-normal font-medium text-white line-clamp-3 sm:truncate group-hover:text-amber-400 transition-colors">{file.name}</h4>
+                          <p className="text-[10px] sm:text-[11px] text-slate-500 mt-1 sm:mt-1.5">
                             {file.mimeType.includes('folder') ? 'Folder' : 'Dokumen'}
                           </p>
                         </motion.div>
@@ -660,25 +660,25 @@ export default function Dashboard() {
                   ) : (
                     /* LIST VIEW */
                     <div className="bg-white/[0.02] rounded-xl border border-white/[0.06] overflow-hidden">
-                      <div className="grid grid-cols-12 px-5 py-3 border-b border-white/[0.06] text-xs font-medium text-slate-500 bg-white/[0.02]">
-                        <div className="col-span-7">Nama</div>
-                        <div className="col-span-3">Tipe</div>
-                        <div className="col-span-2 text-right">Aksi</div>
+                      <div className="grid grid-cols-12 px-4 sm:px-5 py-3 border-b border-white/[0.06] text-xs font-medium text-slate-500 bg-white/[0.02]">
+                        <div className="col-span-9 sm:col-span-7">Nama</div>
+                        <div className="hidden sm:block sm:col-span-3">Tipe</div>
+                        <div className="col-span-3 sm:col-span-2 text-right">Aksi</div>
                       </div>
                       {filteredFilesMain.map(file => (
                         <div 
                           key={file.id} 
                           onClick={() => file.mimeType.includes('folder') ? navigateToFolder(file.id, file.name) : handleFileSelect(file)} 
-                          className="grid grid-cols-12 px-5 py-3.5 items-center hover:bg-white/[0.03] transition-colors cursor-pointer group border-b border-white/[0.04] last:border-0"
+                          className="grid grid-cols-12 px-4 sm:px-5 py-3 sm:py-3.5 items-center hover:bg-white/[0.03] transition-colors cursor-pointer group border-b border-white/[0.04] last:border-0"
                         >
-                          <div className="col-span-7 flex items-center gap-3">
-                            <div className={`p-1.5 rounded-lg ${file.mimeType.includes('folder') ? 'text-amber-500 bg-amber-500/10' : 'text-slate-400 bg-white/[0.05]'}`}>
+                          <div className="col-span-9 sm:col-span-7 flex items-center gap-2 sm:gap-3 pr-2">
+                            <div className={`p-1.5 rounded-lg flex-shrink-0 ${file.mimeType.includes('folder') ? 'text-amber-500 bg-amber-500/10' : 'text-slate-400 bg-white/[0.05]'}`}>
                               {file.mimeType.includes('folder') ? <Folder size={16}/> : <FileText size={16}/>}
                             </div>
-                            <span title={file.name} className="text-sm text-slate-200 group-hover:text-amber-400 truncate transition-colors">{file.name}</span>
+                            <span title={file.name} className="text-xs sm:text-sm text-slate-200 group-hover:text-amber-400 line-clamp-2 sm:truncate transition-colors leading-tight sm:leading-normal">{file.name}</span>
                           </div>
-                          <div className="col-span-3 text-xs text-slate-500">{file.mimeType.includes('folder') ? 'Folder' : 'Dokumen'}</div>
-                          <div className="col-span-2 flex justify-end gap-1">
+                          <div className="hidden sm:block sm:col-span-3 text-xs text-slate-500">{file.mimeType.includes('folder') ? 'Folder' : 'Dokumen'}</div>
+                          <div className="col-span-3 sm:col-span-2 flex items-center justify-end gap-0.5 sm:gap-2">
                             {!file.mimeType.includes('folder') && (
                               <button onClick={(e) => { e.stopPropagation(); addOnlineLog("DOWNLOAD", file.name); window.open(`https://drive.google.com/uc?export=download&id=${file.id}`, '_blank'); }} className="p-1.5 rounded-md text-slate-500 hover:text-white hover:bg-white/[0.08] transition-all"><Download size={14}/></button>
                             )}
