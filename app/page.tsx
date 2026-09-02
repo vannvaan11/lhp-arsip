@@ -801,7 +801,15 @@ export default function Dashboard() {
                     <p className="text-xs text-slate-500">Memuat preview...</p>
                   </div>
                 )}
-                <iframe src={`https://drive.google.com/file/d/${selectedFile.id}/preview`} className="w-full h-full border-0" title="Preview" onLoad={() => setPreviewLoading(false)} />
+                {/* WATERMARK OVERLAY */}
+                <div 
+                  className="absolute inset-0 z-20 pointer-events-none"
+                  style={{
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg width='400' height='400' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='50%25' y='50%25' font-size='28' font-family='Arial' font-weight='bold' fill='%23ef4444' opacity='0.15' transform='translate(200, 200) rotate(-45) translate(-200, -200)' text-anchor='middle'%3EDOKUMEN INSPEKTORAT%3C/text%3E%3C/svg%3E")`,
+                    backgroundRepeat: 'repeat'
+                  }}
+                />
+                <iframe src={`https://drive.google.com/file/d/${selectedFile.id}/preview`} className="w-full h-full border-0 relative z-0" title="Preview" onLoad={() => setPreviewLoading(false)} />
               </div>
 
               {/* Preview Footer */}
