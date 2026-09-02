@@ -20,6 +20,8 @@ interface DriveFile {
   createdTime?: string;
   size?: string;
   owner?: string;
+  hasThumbnail?: boolean;
+  thumbnailLink?: string;
 }
 
 interface FolderHistory {
@@ -199,6 +201,15 @@ export default function Dashboard() {
       const prevFolder = newHistory[newHistory.length - 1]; setCurrentFolder(prevFolder ? prevFolder.id : ''); setSelectedFile(null);
       if (prevFolder) addOnlineLog("OPEN_FOLDER", prevFolder.name);
     }
+  };
+
+  const jumpToHistory = (index: number) => {
+    const newHistory = folderHistory.slice(0, index + 1);
+    setFolderHistory(newHistory);
+    const targetFolder = newHistory[newHistory.length - 1];
+    setCurrentFolder(targetFolder.id);
+    setSelectedFile(null);
+    addOnlineLog("OPEN_FOLDER", targetFolder.name);
   };
 
   const goHome = () => { setCurrentFolder(''); setFolderHistory([]); setSelectedFile(null); setSearchTerm(''); setFilterType('all'); };
@@ -508,12 +519,15 @@ export default function Dashboard() {
               </AnimatePresence>
               
               {/* Breadcrumb */}
-              <div className="hidden sm:flex items-center gap-1.5 text-sm min-w-0">
-                <span className="text-[var(--text-muted)] hover:text-[var(--accent)] cursor-pointer transition-colors font-medium" onClick={goHome}>Arsip</span>
+              <div className="flex items-center gap-1.5 text-sm min-w-0 overflow-x-auto pb-1 custom-scrollbar">
+                <span className="text-[var(--text-muted)] hover:text-[var(--accent)] cursor-pointer transition-colors font-medium flex-shrink-0" onClick={goHome}>Beranda</span>
                 {folderHistory.map((h, i) => (
                   <React.Fragment key={h.id}>
                     <ChevronRight size={14} className="text-slate-600 flex-shrink-0" />
-                    <span className={`truncate ${i === folderHistory.length - 1 ? "text-[var(--text-main)] font-medium" : "text-[var(--text-muted)]"}`}>
+                    <span 
+                      onClick={() => i !== folderHistory.length - 1 && jumpToHistory(i)}
+                      className={`truncate flex-shrink-0 ${i === folderHistory.length - 1 ? "text-[var(--text-main)] font-medium" : "text-[var(--text-muted)] hover:text-[var(--accent)] cursor-pointer transition-colors"}`}
+                    >
                       {h.name}
                     </span>
                   </React.Fragment>
@@ -663,12 +677,20 @@ export default function Dashboard() {
                           }`}
                         >
                           <div className="flex items-start justify-between mb-3 sm:mb-6">
-                            <div className={`p-3 rounded-xl ${
-                              file.mimeType.includes('folder') 
-                                ? 'bg-[var(--accent)]/10 text-[var(--accent)]' 
-                                : 'bg-[var(--hover-fill)] text-[var(--text-muted)]'
+                            <div className={`p-3 rounded-xl overflow-hidden ${
+                              file.hasThumbnail && file.thumbnailLink 
+                                ? 'p-0 w-16 h-16 bg-transparent' // Remove padding if it's an image thumbnail
+                                : file.mimeType.includes('folder') 
+                                  ? 'bg-[var(--accent)]/10 text-[var(--accent)]' 
+                                  : 'bg-[var(--hover-fill)] text-[var(--text-muted)]'
                             }`}>
-                              {file.mimeType.includes('folder') ? <Folder size={22} /> : <FileText size={22} />}
+                              {file.hasThumbnail && file.thumbnailLink ? (
+                                <img src={file.thumbnailLink} alt="Thumbnail" className="w-full h-full object-cover rounded-xl border border-[var(--border-line)]" />
+                              ) : file.mimeType.includes('folder') ? (
+                                <Folder size={22} />
+                              ) : (
+                                <FileText size={22} />
+                              )}
                             </div>
                             
                             {/* Actions - visible on hover */}
