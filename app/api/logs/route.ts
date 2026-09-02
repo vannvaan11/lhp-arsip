@@ -12,26 +12,41 @@ const getDriveClient = () => {
   return google.drive({ version: 'v3', auth });
 };
 
+async function findLogFile(drive: any) {
+  const list = await drive.files.list({
+    q: `name = '${LOG_FILE_NAME}' and trashed = false`,
+    fields: 'files(id)',
+    spaces: 'drive',
+  });
+  return list.data.files && list.data.files.length > 0 ? list.data.files[0].id! : null;
+}
+
 // GET: Ambil isi Log dari Drive
 export async function GET() {
   try {
     const drive = getDriveClient();
-    
-    // Cari file log
-    const list = await drive.files.list({
-      q: `name = '${LOG_FILE_NAME}' and trashed = false`,
-      fields: 'files(id)',
-    });
+    const fileId = await findLogFile(drive);
 
-    if (!list.data.files || list.data.files.length === 0) {
-      return NextResponse.json([]); // Belum ada log
+    if (!fileId) {
+      return NextResponse.json([]);
     }
 
-    const fileId = list.data.files[0].id!;
-    const res = await drive.files.get({ fileId, alt: 'media' });
+    const res = await drive.files.get(
+      { fileId, alt: 'media' },
+      { responseType: 'text' }
+    );
     
-    return NextResponse.json(res.data);
+    // Parse the response - it may come as string or object
+    let logs;
+    if (typeof res.data === 'string') {
+      logs = JSON.parse(res.data);
+    } else {
+      logs = res.data;
+    }
+    
+    return NextResponse.json(Array.isArray(logs) ? logs : []);
   } catch (error: any) {
+    console.error('GET /api/logs error:', error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -41,20 +56,22 @@ export async function POST(req: NextRequest) {
   try {
     const drive = getDriveClient();
     const body = await req.json();
-
-    // Cari file log
-    const list = await drive.files.list({
-      q: `name = '${LOG_FILE_NAME}' and trashed = false`,
-      fields: 'files(id)',
-    });
+    const fileId = await findLogFile(drive);
 
     let logs: any[] = [];
-    let fileId: string | null = null;
 
-    if (list.data.files && list.data.files.length > 0) {
-      fileId = list.data.files[0].id!;
-      const res = await drive.files.get({ fileId, alt: 'media' });
-      logs = res.data as any[];
+    if (fileId) {
+      try {
+        const res = await drive.files.get(
+          { fileId, alt: 'media' },
+          { responseType: 'text' }
+        );
+        const parsed = typeof res.data === 'string' ? JSON.parse(res.data) : res.data;
+        if (Array.isArray(parsed)) logs = parsed;
+      } catch (e) {
+        console.error('Error reading existing logs:', e);
+        logs = [];
+      }
     }
 
     // Tambah log baru di posisi paling atas
@@ -63,23 +80,22 @@ export async function POST(req: NextRequest) {
       id: Math.random().toString(36).substr(2, 9),
       ...body,
       ip,
-      timestamp: new Date().toLocaleString('id-ID'),
+      timestamp: new Date().toISOString(),
     };
     
-    logs = [newEntry, ...logs].slice(0, 500); // Batasi 500 log terakhir
+    logs = [newEntry, ...logs].slice(0, 500);
 
+    const jsonString = JSON.stringify(logs);
     const stream = new Readable();
-    stream.push(JSON.stringify(logs));
+    stream.push(jsonString);
     stream.push(null);
 
     if (fileId) {
-      // Update file yang sudah ada
       await drive.files.update({
         fileId,
         media: { mimeType: 'application/json', body: stream },
       });
     } else {
-      // Buat file baru jika belum ada
       await drive.files.create({
         requestBody: {
           name: LOG_FILE_NAME,
@@ -91,6 +107,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
+    console.error('POST /api/logs error:', error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

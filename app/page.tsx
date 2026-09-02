@@ -758,11 +758,22 @@ export default function Dashboard() {
                       </tr>
                     </thead>
                     <tbody className="text-sm text-slate-400">
-                      {activityLogs.map((log) => (
+                      {logsLoading ? (
+                        <tr><td colSpan={4} className="p-8 text-center">
+                          <Loader2 className="animate-spin text-amber-500 mx-auto mb-2" size={24} />
+                          <p className="text-xs text-slate-500">Memuat riwayat...</p>
+                        </td></tr>
+                      ) : activityLogs.length === 0 ? (
+                        <tr><td colSpan={4} className="p-8 text-center">
+                          <History size={32} className="text-slate-700 mx-auto mb-2" />
+                          <p className="text-slate-500 text-sm">Belum ada riwayat aktivitas</p>
+                          <p className="text-slate-600 text-xs mt-1">Coba download atau upload dokumen terlebih dahulu</p>
+                        </td></tr>
+                      ) : activityLogs.map((log) => (
                         <tr key={log.id} className="border-t border-white/[0.04] hover:bg-white/[0.02] transition-colors">
                           <td className="p-4">
                             <div className="flex items-center gap-2.5">
-                              <div className="w-7 h-7 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-500 text-[10px] font-bold flex-shrink-0">{log.user.charAt(0)}</div>
+                              <div className="w-7 h-7 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-500 text-[10px] font-bold flex-shrink-0">{log.user?.charAt(0) || '?'}</div>
                               <div>
                                 <span className="text-white text-sm">{log.user}</span>
                                 <span className="block text-[10px] text-slate-600 mt-0.5">{log.device}</span>
@@ -770,10 +781,19 @@ export default function Dashboard() {
                             </div>
                           </td>
                           <td className="p-4">
-                            <span className="px-2.5 py-1 rounded-md text-[10px] font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/20">{log.action}</span>
+                            <span className={`px-2.5 py-1 rounded-md text-[10px] font-semibold border ${
+                              log.action === 'DELETE' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+                              log.action === 'SHARE' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
+                              log.action === 'UPLOAD' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                              'bg-amber-500/10 text-amber-500 border-amber-500/20'
+                            }`}>{log.action}</span>
                           </td>
-                          <td className="p-4 max-w-xs truncate text-slate-500">{log.fileName}</td>
-                          <td className="p-4 text-right text-xs text-slate-600 font-mono">{log.timestamp}</td>
+                          <td className="p-4 max-w-xs truncate text-slate-500" title={log.fileName}>{log.fileName}</td>
+                          <td className="p-4 text-right text-xs text-slate-600 font-mono">{
+                            log.timestamp.includes('T') 
+                              ? new Date(log.timestamp).toLocaleString('id-ID') 
+                              : log.timestamp
+                          }</td>
                         </tr>
                       ))}
                     </tbody>
