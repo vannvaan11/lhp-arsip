@@ -214,6 +214,24 @@ export default function Dashboard() {
     } catch (e) { console.error(e); }
   };
 
+  const handleDownloadLogs = () => {
+    const headers = ["Pengguna", "Aksi", "Nama File", "Waktu"];
+    const csvContent = [
+      headers.join(","),
+      ...activityLogs.map(log => 
+        `"${log.userName}","${log.action}","${log.fileName}","${new Date(log.timestamp).toLocaleString('id-ID')}"`
+      )
+    ].join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `audit_trail_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   if (!mounted) return null;
 
   const baseFiles = (searchTerm.length >= 2 ? searchResults : files).filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -661,7 +679,12 @@ export default function Dashboard() {
                       <p className="text-xs text-slate-500 mt-0.5">Log akses & perubahan dokumen</p>
                     </div>
                   </div>
-                  <button onClick={() => setIsLogModalOpen(false)} className="p-2 hover:bg-white/[0.06] text-slate-500 hover:text-white rounded-lg transition-all"><X size={20}/></button>
+                  <div className="flex items-center gap-2">
+                    <button onClick={handleDownloadLogs} className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 rounded-lg transition-all">
+                      <Download size={14} /> Export CSV
+                    </button>
+                    <button onClick={() => setIsLogModalOpen(false)} className="p-2 hover:bg-white/[0.06] text-slate-500 hover:text-white rounded-lg transition-all"><X size={20}/></button>
+                  </div>
                 </div>
                 <div className="max-h-[60vh] overflow-y-auto custom-scrollbar">
                   <table className="w-full border-collapse">
