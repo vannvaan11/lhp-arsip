@@ -605,7 +605,6 @@ export default function Dashboard() {
               <div className="flex gap-8">
                 <span className="flex items-center gap-2">
                   <div className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-ping"></div> 
-                  Kendrick Node 0x{stats.total}
                 </span>
                 <span className="flex items-center gap-2"><Command size={12} /> Press ctrl+k for Global Scan</span>
               </div>
