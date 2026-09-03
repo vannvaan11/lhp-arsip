@@ -338,6 +338,11 @@ export default function Dashboard() {
     const savedName = sessionStorage.getItem('userName');
     if (savedLogin === 'true' && savedRole && savedName) {
       setIsLoggedIn(true); setUserRole(savedRole as any); setUserName(savedName); fetchOnlineLogs();
+    } else {
+      const rememberedName = localStorage.getItem('savedLoginName');
+      const rememberedPwd = localStorage.getItem('savedLoginPwd');
+      if (rememberedName) setTempName(rememberedName);
+      if (rememberedPwd) setPassword(rememberedPwd);
     }
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
@@ -434,6 +439,7 @@ export default function Dashboard() {
     const processLogin = (role: 'admin' | 'user') => {
       setIsLoggedIn(true); setUserRole(role); setUserName(tempName);
       sessionStorage.setItem('isLoggedIn', 'true'); sessionStorage.setItem('userRole', role); sessionStorage.setItem('userName', tempName);
+      localStorage.setItem('savedLoginName', tempName); localStorage.setItem('savedLoginPwd', password);
       addOnlineLog("LOGIN", "Masuk ke sistem");
     };
     if (password === 'adminLhp3') processLogin('admin');
