@@ -51,6 +51,7 @@ export default function Dashboard() {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [themeColor, setThemeColor] = useState('amber');
   const [showPassword, setShowPassword] = useState(false);
+  const [loginErrorModal, setLoginErrorModal] = useState<string | null>(null);
   const [sharedFileId, setSharedFileId] = useState<string | null>(null);
   const [sharedFileError, setSharedFileError] = useState<string | null>(null);
   const [isSharedView, setIsSharedView] = useState(false);
@@ -450,10 +451,10 @@ export default function Dashboard() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!tempName.trim()) { alert("Masukkan Nama!"); return; }
+    if (!tempName.trim()) { setLoginErrorModal("Silakan masukkan Nama Anda terlebih dahulu."); return; }
     // Block user login during maintenance
     if (isMaintenanceMode && password !== 'adminLhp3') {
-      alert("Sistem sedang dalam pemeliharaan. Hanya Admin yang dapat masuk saat ini.");
+      setLoginErrorModal("Sistem sedang dalam pemeliharaan. Hanya Admin yang dapat masuk saat ini.");
       return;
     }
     const processLogin = (role: 'admin' | 'user') => {
@@ -464,7 +465,7 @@ export default function Dashboard() {
     };
     if (password === 'adminLhp3') processLogin('admin');
     else if (password === 'userLhp3') processLogin('user');
-    else alert('Kunci Akses Salah!');
+    else setLoginErrorModal('Kunci Akses yang Anda masukkan salah!');
   };
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -729,6 +730,41 @@ export default function Dashboard() {
             © 2026 Royal Vault v2.0
           </p>
         </motion.div>
+
+        {/* LOGIN ERROR MODAL */}
+        <AnimatePresence>
+          {loginErrorModal && (
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            >
+              <motion.div 
+                initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+                className="bg-[var(--bg-panel)] p-6 rounded-2xl border border-red-500/30 w-full max-w-sm shadow-2xl relative overflow-hidden"
+              >
+                <div className="absolute top-0 left-0 w-full h-1 bg-red-500"></div>
+                <div className="flex items-start gap-4">
+                  <div className="p-3 bg-red-500/10 text-red-500 rounded-xl flex-shrink-0">
+                    <AlertCircle size={24} />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-[var(--text-main)] mb-1">Akses Ditolak</h3>
+                    <p className="text-sm text-[var(--text-muted)] leading-relaxed">
+                      {loginErrorModal}
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setLoginErrorModal(null)}
+                  className="w-full mt-6 bg-[var(--hover-fill)] hover:bg-[var(--accent)] text-[var(--text-main)] hover:text-[var(--accent-fg)] py-2.5 rounded-xl text-sm font-medium transition-colors"
+                >
+                  Mengerti
+                </button>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         </div>
       </div>
     );
