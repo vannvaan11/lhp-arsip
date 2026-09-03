@@ -9,7 +9,8 @@ import {
   ShieldCheck, Trash2,
   LayoutGrid, List, Clock, Eye, EyeOff,
   Command, Share2, Palette, BarChart2, KeyRound, Copy, Check,
-  Minimize2, Maximize2, Smartphone, GripHorizontal, Sparkles
+  Minimize2, Maximize2, Smartphone, GripHorizontal, Sparkles,
+  Monitor, Wrench, Focus, Rows3
 } from 'lucide-react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -77,6 +78,12 @@ export default function Dashboard() {
 
   // --- Smart Search ---
   const [fuzzyHint, setFuzzyHint] = useState<string | null>(null);
+
+  // --- App Modes ---
+  const [isPresentationMode, setIsPresentationMode] = useState(false);
+  const [isCompactMode, setIsCompactMode] = useState(false);
+  const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
+  const [isFocusMode, setIsFocusMode] = useState(false);
 
   const [files, setFiles] = useState<DriveFile[]>([]);
   const [searchResults, setSearchResults] = useState<DriveFile[]>([]); 
@@ -291,6 +298,14 @@ export default function Dashboard() {
     const savedDarkMode = localStorage.getItem('isDarkMode');
     if (savedDarkMode !== null) setIsDarkMode(savedDarkMode === 'true');
 
+    // Load maintenance mode
+    const savedMaintenance = localStorage.getItem('isMaintenanceMode');
+    if (savedMaintenance === 'true') setIsMaintenanceMode(true);
+    
+    // Load compact mode
+    const savedCompact = localStorage.getItem('isCompactMode');
+    if (savedCompact === 'true') setIsCompactMode(true);
+
     const params = new URLSearchParams(window.location.search);
     const shareToken = params.get('share');
     if (shareToken) {
@@ -436,6 +451,11 @@ export default function Dashboard() {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (!tempName.trim()) { alert("Masukkan Nama!"); return; }
+    // Block user login during maintenance
+    if (isMaintenanceMode && password !== 'adminLhp3') {
+      alert("Sistem sedang dalam pemeliharaan. Hanya Admin yang dapat masuk saat ini.");
+      return;
+    }
     const processLogin = (role: 'admin' | 'user') => {
       setIsLoggedIn(true); setUserRole(role); setUserName(tempName);
       sessionStorage.setItem('isLoggedIn', 'true'); sessionStorage.setItem('userRole', role); sessionStorage.setItem('userName', tempName);
@@ -692,6 +712,17 @@ export default function Dashboard() {
                 <ChevronRight size={16} />
               </button>
             </form>
+
+            {/* Maintenance Mode Banner */}
+            {isMaintenanceMode && (
+              <div className="mt-5 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center gap-3">
+                <Wrench size={18} className="text-amber-500 flex-shrink-0" />
+                <div>
+                  <p className="text-xs font-semibold text-amber-500">Mode Pemeliharaan Aktif</p>
+                  <p className="text-[10px] text-[var(--text-muted)] mt-0.5">Hanya Admin yang dapat masuk saat ini.</p>
+                </div>
+              </div>
+            )}
           </div>
 
           <p className="text-center mt-6 text-xs text-slate-600">
@@ -709,7 +740,7 @@ export default function Dashboard() {
       <div className="h-screen bg-[var(--bg-main)] text-[var(--text-main)] flex overflow-hidden transition-colors">
         
         {/* SIDEBAR */}
-        <aside className="w-[72px] lg:w-64 bg-[var(--bg-panel-trans)] border-r border-[var(--border-line)] flex flex-col py-6">
+        <aside className={`${isFocusMode ? 'hidden' : 'w-[72px] lg:w-64'} bg-[var(--bg-panel-trans)] border-r border-[var(--border-line)] flex flex-col py-6 transition-all`}>
           {/* Logo */}
           <div className="px-4 lg:px-6 mb-6">
             <div 
@@ -751,11 +782,41 @@ export default function Dashboard() {
             ))}
           </nav>
 
-          <div className="px-3 lg:px-4 mb-2 space-y-2">
-            <button onClick={() => setIsThemeModalOpen(true)} className="w-full flex items-center gap-3 p-3 lg:px-4 lg:py-3.5 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--hover-fill)] transition-all">
-              <Palette size={20} />
+          <div className="px-3 lg:px-4 mb-2 space-y-1">
+            <button onClick={() => setIsThemeModalOpen(true)} className="w-full flex items-center gap-3 p-3 lg:px-4 lg:py-3 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--hover-fill)] transition-all">
+              <Palette size={18} />
               <span className="hidden lg:block text-sm font-medium">Tema & Tampilan</span>
             </button>
+
+            {/* MODE TOGGLES */}
+            <button 
+              onClick={() => setIsPresentationMode(!isPresentationMode)} 
+              className={`w-full flex items-center gap-3 p-3 lg:px-4 lg:py-3 rounded-xl transition-all ${isPresentationMode ? 'bg-blue-500/10 text-blue-400 font-semibold' : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--hover-fill)]'}`}
+              title="Mode Rapat / Presentasi"
+            >
+              <Monitor size={18} />
+              <span className="hidden lg:block text-sm font-medium">Mode Rapat</span>
+            </button>
+
+            <button 
+              onClick={() => { const newVal = !isCompactMode; setIsCompactMode(newVal); localStorage.setItem('isCompactMode', String(newVal)); }} 
+              className={`w-full flex items-center gap-3 p-3 lg:px-4 lg:py-3 rounded-xl transition-all ${isCompactMode ? 'bg-purple-500/10 text-purple-400 font-semibold' : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--hover-fill)]'}`}
+              title="Mode Compact / Padat"
+            >
+              <Rows3 size={18} />
+              <span className="hidden lg:block text-sm font-medium">Mode Padat</span>
+            </button>
+
+            {userRole === 'admin' && (
+              <button 
+                onClick={() => { const newVal = !isMaintenanceMode; setIsMaintenanceMode(newVal); localStorage.setItem('isMaintenanceMode', String(newVal)); }} 
+                className={`w-full flex items-center gap-3 p-3 lg:px-4 lg:py-3 rounded-xl transition-all ${isMaintenanceMode ? 'bg-amber-500/10 text-amber-400 font-semibold' : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--hover-fill)]'}`}
+                title="Mode Pemeliharaan (Kunci Sistem)"
+              >
+                <Wrench size={18} />
+                <span className="hidden lg:block text-sm font-medium">Pemeliharaan</span>
+              </button>
+            )}
             {installPrompt && !isAppInstalled && (
               <button 
                 onClick={() => {
@@ -777,6 +838,7 @@ export default function Dashboard() {
 
           {/* User & Logout */}
           <div className="px-3 lg:px-4 mt-auto">
+            {!isPresentationMode && (
             <div className="hidden lg:flex items-center gap-3 px-3 py-2.5 rounded-xl bg-[var(--hover-fill)] border border-[var(--border-line)] mb-2">
               <div className="w-8 h-8 rounded-lg bg-[var(--accent)]/10 flex items-center justify-center text-[var(--accent)] text-xs font-bold flex-shrink-0">
                 {userName.charAt(0).toUpperCase()}
@@ -786,6 +848,7 @@ export default function Dashboard() {
                 <p className="text-[10px] text-[var(--text-muted)] capitalize">{userRole}</p>
               </div>
             </div>
+            )}
 
             <button 
               onClick={() => {
@@ -804,7 +867,7 @@ export default function Dashboard() {
         <main className="flex-1 flex flex-col min-w-0 relative">
           
           {/* HEADER */}
-          <header className="px-6 lg:px-8 py-4 border-b border-[var(--border-line)] flex items-center justify-between gap-4 bg-[var(--bg-panel)]/30 backdrop-blur-sm">
+          <header className={`${isFocusMode ? 'hidden' : ''} px-6 lg:px-8 py-4 border-b border-[var(--border-line)] flex items-center justify-between gap-4 bg-[var(--bg-panel)]/30 backdrop-blur-sm`}>
             <div className="flex items-center gap-3 min-w-0">
               <AnimatePresence>
                 {folderHistory.length > 0 && (
@@ -854,14 +917,16 @@ export default function Dashboard() {
 
             {/* Header Actions */}
             <div className="flex items-center gap-2">
-              <div className="hidden md:flex bg-[var(--hover-fill)] p-1 rounded-lg border border-[var(--border-line)]">
-                <button onClick={() => setViewMode('grid')} className={`p-2 rounded-md transition-all ${viewMode === 'grid' ? 'bg-[var(--accent)]/15 text-[var(--accent)]' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}><LayoutGrid size={16}/></button>
-                <button onClick={() => setViewMode('list')} className={`p-2 rounded-md transition-all ${viewMode === 'list' ? 'bg-[var(--accent)]/15 text-[var(--accent)]' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}><List size={16}/></button>
-              </div>
+              {!isPresentationMode && (
+                <div className="hidden md:flex bg-[var(--hover-fill)] p-1 rounded-lg border border-[var(--border-line)]">
+                  <button onClick={() => setViewMode('grid')} className={`p-2 rounded-md transition-all ${viewMode === 'grid' ? 'bg-[var(--accent)]/15 text-[var(--accent)]' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}><LayoutGrid size={16}/></button>
+                  <button onClick={() => setViewMode('list')} className={`p-2 rounded-md transition-all ${viewMode === 'list' ? 'bg-[var(--accent)]/15 text-[var(--accent)]' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}><List size={16}/></button>
+                </div>
+              )}
               <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--hover-fill)] transition-all">
                 {isDarkMode ? <Sun size={16}/> : <Moon size={16}/>}
               </button>
-              {userRole === 'admin' && (
+              {userRole === 'admin' && !isPresentationMode && (
                 <button 
                   onClick={() => {setUploadDestinationId(currentFolder); setIsUploadModalOpen(true);}}
                   className="bg-[var(--accent)] hover:opacity-90 text-[var(--accent-fg)] px-4 py-2.5 rounded-xl font-semibold text-sm transition-all flex items-center gap-2"
@@ -874,7 +939,25 @@ export default function Dashboard() {
           </header>
 
           {/* MAIN CONTENT */}
-          <div className="flex-1 overflow-y-auto px-6 lg:px-8 py-6 custom-scrollbar">
+          <div className={`flex-1 overflow-y-auto ${isCompactMode ? 'px-4 lg:px-6 py-3' : 'px-6 lg:px-8 py-6'} custom-scrollbar`}>
+
+            {/* Active Mode Indicators */}
+            {(isPresentationMode || isMaintenanceMode || isFocusMode) && (
+              <div className="flex flex-wrap gap-2 mb-4">
+                {isPresentationMode && (
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-medium">
+                    <Monitor size={12} /> Mode Rapat Aktif
+                    <button onClick={() => setIsPresentationMode(false)} className="ml-1 hover:text-blue-200"><X size={12}/></button>
+                  </div>
+                )}
+                {isMaintenanceMode && (
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-medium">
+                    <Wrench size={12} /> Pemeliharaan Aktif — Staf tidak bisa login
+                    <button onClick={() => { setIsMaintenanceMode(false); localStorage.setItem('isMaintenanceMode', 'false'); }} className="ml-1 hover:text-amber-200"><X size={12}/></button>
+                  </div>
+                )}
+              </div>
+            )}
             
             {loading ? (
               <div className="h-full flex flex-col items-center justify-center">
@@ -882,9 +965,10 @@ export default function Dashboard() {
                 <p className="text-sm text-[var(--text-muted)]">Memuat data...</p>
               </div>
             ) : (
-              <div className="max-w-[1400px] mx-auto space-y-8">
+              <div className={`max-w-[1400px] mx-auto ${isCompactMode ? 'space-y-4' : 'space-y-8'}`}>
                 
                 {/* STATS ROW */}
+                {!isPresentationMode && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {[
                     { label: 'Total Dokumen', value: stats.total, icon: Database, color: 'text-[var(--accent)] bg-[var(--accent)]/10' },
@@ -900,10 +984,11 @@ export default function Dashboard() {
                         <stat.icon size={17} />
                       </div>
                       <p className="text-xs text-[var(--text-muted)] mb-0.5">{stat.label}</p>
-                      <p className="text-xl font-bold text-[var(--text-main)]">{stat.value}</p>
+                      <p className={`${isCompactMode ? 'text-lg' : 'text-xl'} font-bold text-[var(--text-main)]`}>{stat.value}</p>
                     </motion.div>
                   ))}
                 </div>
+                )}
 
                 {/* ANALYTICS BUTTON */}
                 {userRole === 'admin' && !currentFolder && filterType === 'all' && analyticsData && (
@@ -925,13 +1010,13 @@ export default function Dashboard() {
                       <h3 className="text-sm font-semibold text-[var(--text-main)]">Folder</h3>
                       <span className="text-xs text-[var(--text-muted)]">{folders.length}</span>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div className={`grid grid-cols-1 sm:grid-cols-2 ${isCompactMode ? 'lg:grid-cols-5 gap-2' : 'lg:grid-cols-4 gap-3'}`}>
                       {folders.map((folder, i) => (
                         <motion.div 
                           initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
                           key={folder.id} 
                           onClick={() => navigateToFolder(folder.id, folder.name)}
-                          className="group bg-[var(--hover-fill)] hover:bg-[var(--accent)]/[0.06] p-3 sm:p-4 rounded-xl border border-[var(--border-line)] hover:border-[var(--accent-light)] cursor-pointer transition-all flex items-center gap-3 sm:gap-3.5"
+                          className={`group bg-[var(--hover-fill)] hover:bg-[var(--accent)]/[0.06] ${isCompactMode ? 'p-2.5' : 'p-3 sm:p-4'} rounded-xl border border-[var(--border-line)] hover:border-[var(--accent-light)] cursor-pointer transition-all flex items-center gap-3 sm:gap-3.5`}
                         >
                           <div className="p-2.5 bg-[var(--accent)]/10 rounded-xl text-[var(--accent)] group-hover:bg-[var(--accent)]/20 transition-colors flex-shrink-0">
                             <Folder size={20} />
@@ -964,19 +1049,19 @@ export default function Dashboard() {
                       <p className="text-[var(--text-muted)] text-sm">Tidak ada data ditemukan</p>
                     </div>
                   ) : viewMode === 'grid' ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                    <div className={`grid grid-cols-1 sm:grid-cols-2 ${isCompactMode ? 'xl:grid-cols-5 gap-2' : 'xl:grid-cols-4 gap-4'}`}>
                       {filteredFilesMain.map((file, i) => (
                         <motion.div 
                           initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
                           key={file.id}
                           onClick={() => file.mimeType.includes('folder') ? navigateToFolder(file.id, file.name) : handleFileSelect(file)}
-                          className={`group relative bg-[var(--hover-fill)] p-4 sm:p-5 rounded-2xl border cursor-pointer transition-all ${
+                          className={`group relative bg-[var(--hover-fill)] ${isCompactMode ? 'p-3' : 'p-4 sm:p-5'} rounded-2xl border cursor-pointer transition-all ${
                             selectedFile?.id === file.id 
                               ? 'border-[var(--accent)] bg-[var(--accent)]/[0.05]' 
                               : 'border-[var(--border-line)] hover:border-[var(--border-strong)] hover:bg-[var(--hover-fill)]'
                           }`}
                         >
-                          <div className="flex items-start justify-between mb-3 sm:mb-6">
+                          <div className={`flex items-start justify-between ${isCompactMode ? 'mb-2' : 'mb-3 sm:mb-6'}`}>
                             <div className={`p-3 rounded-xl overflow-hidden ${
                               file.hasThumbnail && file.thumbnailLink 
                                 ? 'p-0 w-16 h-16 bg-transparent' // Remove padding if it's an image thumbnail
@@ -994,6 +1079,7 @@ export default function Dashboard() {
                             </div>
                             
                             {/* Actions - visible on hover */}
+                            {!isPresentationMode && (
                             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                               {!file.mimeType.includes('folder') && (
                                 <button onClick={(e) => { e.stopPropagation(); addOnlineLog("DOWNLOAD", file.name); window.open(`https://drive.google.com/uc?export=download&id=${file.id}`, '_blank'); }} className="p-2 rounded-lg hover:bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-[var(--text-main)] transition-all">
@@ -1007,6 +1093,7 @@ export default function Dashboard() {
                                 </>
                               )}
                             </div>
+                            )}
                           </div>
 
                           <h4 title={file.name} className="text-xs sm:text-sm leading-tight sm:leading-normal font-medium text-[var(--text-main)] line-clamp-3 sm:truncate group-hover:text-[var(--accent)] transition-colors">{file.name}</h4>
@@ -1245,7 +1332,7 @@ export default function Dashboard() {
             <motion.div 
               initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} 
               transition={{ type: 'spring', damping: 30, stiffness: 250 }} 
-              className="fixed inset-y-0 right-0 w-full lg:w-[720px] bg-[var(--bg-panel)]/98 backdrop-blur-xl shadow-[-20px_0_60px_rgba(0,0,0,0.5)] border-l border-[var(--border-line)] z-[150] flex flex-col"
+              className={`fixed inset-y-0 right-0 ${isFocusMode ? 'w-full' : 'w-full lg:w-[720px]'} bg-[var(--bg-panel)]/98 backdrop-blur-xl shadow-[-20px_0_60px_rgba(0,0,0,0.5)] border-l border-[var(--border-line)] z-[150] flex flex-col`}
             >
               {/* Preview Header */}
               <div className="p-6 border-b border-[var(--border-line)] flex items-center justify-between">
@@ -1281,9 +1368,11 @@ export default function Dashboard() {
                       </div>
                     </div>
                   )}
+                  <button onClick={() => setIsFocusMode(!isFocusMode)} className={`p-2.5 rounded-xl transition-all ${isFocusMode ? 'bg-green-500/10 text-green-500 hover:bg-green-500/20' : 'bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-[var(--text-main)]'}`} title={isFocusMode ? 'Keluar Mode Fokus' : 'Mode Fokus (Layar Penuh)'}><Focus size={18}/></button>
                   <button onClick={() => {
                     setPipFile(selectedFile);
                     setSelectedFile(null);
+                    setIsFocusMode(false);
                     setPipPosition({ x: window.innerWidth - 420, y: window.innerHeight - 320 });
                   }} className="p-2.5 bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-[var(--text-main)] rounded-xl transition-all" title="Minimize (Picture-in-Picture)"><Minimize2 size={18}/></button>
                   <button onClick={() => {
@@ -1297,7 +1386,7 @@ export default function Dashboard() {
                     setIsShareModalOpen(true);
                   }} className="p-2.5 bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 rounded-xl transition-all" title="Bagikan dengan PIN"><Share2 size={18}/></button>
                   <button onClick={() => { addOnlineLog("DOWNLOAD", selectedFile.name); window.open(`https://drive.google.com/uc?export=download&id=${selectedFile.id}`, '_blank'); }} className="p-2.5 bg-[var(--accent)] rounded-xl text-slate-950 hover:bg-amber-400 transition-colors"><Download size={18}/></button>
-                  <button onClick={() => { setSelectedFile(null); setPreviewLoading(true); }} className="p-2.5 bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-[var(--text-main)] rounded-xl transition-all"><X size={18}/></button>
+                  <button onClick={() => { setSelectedFile(null); setPreviewLoading(true); setIsFocusMode(false); }} className="p-2.5 bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-[var(--text-main)] rounded-xl transition-all"><X size={18}/></button>
                 </div>
               </div>
               
