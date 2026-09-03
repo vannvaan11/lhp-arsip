@@ -87,6 +87,9 @@ export default function Dashboard() {
   const [stats, setStats] = useState({ total: 0 });
   const [analyticsData, setAnalyticsData] = useState<any>(null);
 
+  // --- Presensi Dokumen ---
+  const [activeViewers, setActiveViewers] = useState<{name: string, timeText: string}[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [searchLoading, setSearchLoading] = useState(false); 
   const [searchTerm, setSearchTerm] = useState('');
@@ -230,6 +233,56 @@ export default function Dashboard() {
     }
     setSearchLoading(false);
   };
+
+  // --- Hitung Active Viewers ---
+  useEffect(() => {
+    if (!selectedFile || activityLogs.length === 0) {
+      setActiveViewers([]);
+      return;
+    }
+    
+    const THIRTY_MINUTES = 30 * 60 * 1000;
+    const now = Date.now();
+    const viewersMap = new Map<string, string>();
+    
+    activityLogs.forEach(log => {
+      // 1. Harus log "VIEW_DOCUMENT" dan nama file cocok
+      if (log.action === "VIEW_DOCUMENT" && log.fileName === selectedFile.name) {
+        // 2. Bukan saya (user sendiri)
+        const currentUName = userName || sessionStorage.getItem('userName');
+        if (log.user !== currentUName) {
+          const logTime = new Date(log.timestamp).getTime();
+          const diffMs = now - logTime;
+          // 3. Masih dalam 30 menit terakhir
+          if (diffMs <= THIRTY_MINUTES) {
+            const diffMins = Math.floor(diffMs / 60000);
+            const timeText = diffMins < 1 ? 'Baru saja' : `${diffMins} menit lalu`;
+            
+            // Simpan log paling baru per user
+            if (!viewersMap.has(log.user)) {
+              viewersMap.set(log.user, timeText);
+            }
+          }
+        }
+      }
+    });
+
+    const activeList = Array.from(viewersMap.entries()).map(([name, timeText]) => ({ name, timeText }));
+    setActiveViewers(activeList);
+  }, [selectedFile, activityLogs, userName]);
+
+  // Polling Logs secara berkala saat sedang preview dokumen
+  useEffect(() => {
+    let interval: any;
+    if (selectedFile) {
+      interval = setInterval(() => {
+        fetchOnlineLogs();
+      }, 15000); // 15 detik
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    }
+  }, [selectedFile, fetchOnlineLogs]);
 
   useEffect(() => {
     // Load theme preferences
@@ -1200,6 +1253,28 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {/* Viewers Avatars */}
+                  {activeViewers.length > 0 && (
+                    <div className="flex items-center mr-2 lg:mr-4">
+                      <div className="flex -space-x-2 mr-2">
+                        {activeViewers.map((viewer, idx) => (
+                          <div 
+                            key={idx} 
+                            className="w-7 h-7 lg:w-8 lg:h-8 rounded-full bg-[var(--accent)] text-[var(--bg-panel)] flex items-center justify-center text-xs font-bold border-2 border-[var(--bg-panel)] relative group cursor-help transition-transform hover:scale-110"
+                            style={{ zIndex: 10 - idx }}
+                          >
+                            {viewer.name.charAt(0).toUpperCase()}
+                            <div className="absolute top-10 whitespace-nowrap bg-[var(--bg-panel)] border border-[var(--border-line)] text-[var(--text-main)] text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity shadow-lg pointer-events-none z-50">
+                              {viewer.name} ({viewer.timeText})
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="text-[10px] text-[var(--text-muted)] hidden sm:block">
+                        juga melihat ini
+                      </div>
+                    </div>
+                  )}
                   <button onClick={() => {
                     setPipFile(selectedFile);
                     setSelectedFile(null);
