@@ -644,7 +644,7 @@ export default function Dashboard() {
                 />
               </div>
               <h1 className="text-2xl font-bold text-[var(--text-main)] tracking-tight text-center">
-                Arsip Digital
+                Arsip Digital Irban III
               </h1>
               <p className="text-sm text-[var(--text-muted)] mt-1.5 text-center">
                 Inspektorat Provinsi Sulawesi Tenggara
@@ -720,7 +720,7 @@ export default function Dashboard() {
                 <img src="https://i.ibb.co.com/L22pdJQ/Coat-of-arms-of-Southeast-Sulawesi-svg.png" alt="Logo" className="w-full h-full object-contain" />
               </div>
               <div className="hidden lg:block min-w-0">
-                <h1 className="font-bold text-[var(--text-main)] text-sm truncate">Arsip Digital</h1>
+                <h1 className="font-bold text-[var(--text-main)] text-sm truncate">Arsip Digital Irban III</h1>
                 <p className="text-[10px] text-[var(--text-muted)] truncate">Inspektorat Sultra</p>
               </div>
             </div>

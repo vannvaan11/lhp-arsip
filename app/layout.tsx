@@ -9,7 +9,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Arsip Digital — Inspektorat Provinsi Sulawesi Tenggara",
+  title: "Arsip Digital Irban III — Inspektorat Provinsi Sulawesi Tenggara",
   description: "Sistem Arsip Digital Laporan Hasil Pemeriksaan (LHP) Inspektorat Provinsi Sulawesi Tenggara",
   manifest: "/manifest.json",
   themeColor: "#f59e0b",
