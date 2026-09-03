@@ -719,7 +719,7 @@ export default function Dashboard() {
               <div className="mt-5 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center gap-3">
                 <Wrench size={18} className="text-amber-500 flex-shrink-0" />
                 <div>
-                  <p className="text-xs font-semibold text-amber-500">Mode Pemeliharaan Aktif</p>
+                  <p className="text-xs font-semibold text-amber-500">Sedang dalam Pemeliharaan sistem</p>
                   <p className="text-[10px] text-[var(--text-muted)] mt-0.5">Hanya Admin yang dapat masuk saat ini.</p>
                 </div>
               </div>
