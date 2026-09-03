@@ -8,7 +8,8 @@ import {
   CheckCircle2, AlertCircle, Filter, History, User,
   ShieldCheck, Trash2,
   LayoutGrid, List, Clock, Eye, EyeOff,
-  Command, Share2, Palette, BarChart2, KeyRound, Copy, Check
+  Command, Share2, Palette, BarChart2, KeyRound, Copy, Check,
+  Minimize2, Maximize2, Smartphone, GripHorizontal, Sparkles
 } from 'lucide-react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -64,6 +65,19 @@ export default function Dashboard() {
   const [shareCopied, setShareCopied] = useState(false);
   const [pinCopied, setPinCopied] = useState(false);
 
+  // --- PiP (Floating Preview) ---
+  const [pipFile, setPipFile] = useState<DriveFile | null>(null);
+  const [pipPosition, setPipPosition] = useState({ x: 0, y: 0 });
+  const [isDraggingPip, setIsDraggingPip] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+
+  // --- PWA Install ---
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
+  const [isAppInstalled, setIsAppInstalled] = useState(false);
+
+  // --- Smart Search ---
+  const [fuzzyHint, setFuzzyHint] = useState<string | null>(null);
+
   const [files, setFiles] = useState<DriveFile[]>([]);
   const [searchResults, setSearchResults] = useState<DriveFile[]>([]); 
   const [currentFolder, setCurrentFolder] = useState<string>('');
@@ -93,6 +107,84 @@ export default function Dashboard() {
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
 
+  // --- FUZZY SEARCH (Levenshtein Distance) ---
+  const levenshtein = (a: string, b: string): number => {
+    const la = a.length, lb = b.length;
+    if (la === 0) return lb;
+    if (lb === 0) return la;
+    const matrix: number[][] = [];
+    for (let i = 0; i <= la; i++) { matrix[i] = [i]; }
+    for (let j = 0; j <= lb; j++) { matrix[0][j] = j; }
+    for (let i = 1; i <= la; i++) {
+      for (let j = 1; j <= lb; j++) {
+        const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j - 1] + cost
+        );
+      }
+    }
+    return matrix[la][lb];
+  };
+
+  const fuzzyMatch = (query: string, items: DriveFile[]): { results: DriveFile[]; correctedTerm: string | null } => {
+    const q = query.toLowerCase().trim();
+    const words = q.split(/\s+/);
+    
+    const scored = items.map(item => {
+      const name = item.name.toLowerCase();
+      const nameWords = name.split(/[\s_\-\.]+/);
+      
+      let totalScore = 0;
+      let matchedWords: string[] = [];
+      
+      for (const queryWord of words) {
+        // Exact substring match = best score
+        if (name.includes(queryWord)) {
+          totalScore += 100;
+          matchedWords.push(queryWord);
+          continue;
+        }
+        
+        // Fuzzy match against each word in file name
+        let bestWordScore = 0;
+        let bestMatch = '';
+        for (const nameWord of nameWords) {
+          const dist = levenshtein(queryWord, nameWord);
+          const maxLen = Math.max(queryWord.length, nameWord.length);
+          const similarity = 1 - (dist / maxLen);
+          if (similarity > bestWordScore) {
+            bestWordScore = similarity;
+            bestMatch = nameWord;
+          }
+        }
+        
+        // Accept if similarity >= 60%
+        if (bestWordScore >= 0.6) {
+          totalScore += bestWordScore * 80;
+          if (bestWordScore < 1) matchedWords.push(bestMatch);
+        }
+      }
+      
+      return { item, score: totalScore, matchedWords };
+    });
+    
+    const filtered = scored.filter(s => s.score > 40).sort((a, b) => b.score - a.score);
+    
+    // Find correction hint
+    let correctedTerm: string | null = null;
+    if (filtered.length > 0) {
+      const topResult = filtered[0];
+      const hasTypo = topResult.matchedWords.length > 0 && topResult.score < 100 * words.length;
+      if (hasTypo && topResult.matchedWords.length > 0) {
+        correctedTerm = topResult.item.name;
+      }
+    }
+    
+    return { results: filtered.map(f => f.item), correctedTerm };
+  };
+
   // --- HANDLERS ---
   const fetchOnlineLogs = useCallback(async () => {
     setLogsLoading(true);
@@ -116,14 +208,26 @@ export default function Dashboard() {
 
   const handleGlobalSearch = async (term: string) => {
     setSearchTerm(term);
+    setFuzzyHint(null);
     if (!term.trim() || term.length < 2) { setSearchResults([]); return; }
     setSearchLoading(true);
     try {
       const res = await fetch(`/api/drive?search=${encodeURIComponent(term)}`);
       const data = await res.json();
-      if (data.files) setSearchResults(data.files);
-      else setSearchResults([]);
-    } catch (e) { setSearchResults([]); }
+      if (data.files && data.files.length > 0) {
+        setSearchResults(data.files);
+      } else {
+        // Fallback: Fuzzy search against cached files
+        const { results, correctedTerm } = fuzzyMatch(term, files);
+        setSearchResults(results);
+        setFuzzyHint(correctedTerm);
+      }
+    } catch (e) {
+      // Even on error, try local fuzzy search
+      const { results, correctedTerm } = fuzzyMatch(term, files);
+      setSearchResults(results);
+      setFuzzyHint(correctedTerm);
+    }
     setSearchLoading(false);
   };
 
@@ -167,14 +271,51 @@ export default function Dashboard() {
       if (e.key === 'Escape') { setSelectedFile(null); setIsSearchModalOpen(false); setSearchResults([]); setSearchTerm(''); }
     };
     window.addEventListener('keydown', handleKeyDown);
+
+    // PWA Install Prompt
+    const handleBeforeInstall = (e: Event) => { e.preventDefault(); setInstallPrompt(e); };
+    const handleAppInstalled = () => { setIsAppInstalled(true); setInstallPrompt(null); };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+    window.addEventListener('appinstalled', handleAppInstalled);
+    // Check if already installed
+    if (window.matchMedia('(display-mode: standalone)').matches) setIsAppInstalled(true);
+
     const savedLogin = sessionStorage.getItem('isLoggedIn');
     const savedRole = sessionStorage.getItem('userRole');
     const savedName = sessionStorage.getItem('userName');
     if (savedLogin === 'true' && savedRole && savedName) {
       setIsLoggedIn(true); setUserRole(savedRole as any); setUserName(savedName); fetchOnlineLogs();
     }
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
   }, [fetchOnlineLogs]);
+
+  // --- PiP Drag Handlers ---
+  useEffect(() => {
+    if (!isDraggingPip) return;
+    const handleMouseMove = (e: MouseEvent) => {
+      setPipPosition({ x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y });
+    };
+    const handleMouseUp = () => setIsDraggingPip(false);
+    const handleTouchMove = (e: TouchEvent) => {
+      const touch = e.touches[0];
+      setPipPosition({ x: touch.clientX - dragOffset.x, y: touch.clientY - dragOffset.y });
+    };
+    const handleTouchEnd = () => setIsDraggingPip(false);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('touchmove', handleTouchMove);
+    window.addEventListener('touchend', handleTouchEnd);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [isDraggingPip, dragOffset]);
 
   useEffect(() => { document.documentElement.classList.toggle('dark', isDarkMode); }, [isDarkMode]);
 
@@ -551,11 +692,28 @@ export default function Dashboard() {
             ))}
           </nav>
 
-          <div className="px-3 lg:px-4 mb-2">
-            <button onClick={() => setIsThemeModalOpen(true)} className="w-full flex items-center gap-3 p-3 lg:px-4 lg:py-3.5 rounded-xl text-slate-400 hover:text-[var(--text-main)] hover:bg-[var(--hover-fill)] transition-all">
+          <div className="px-3 lg:px-4 mb-2 space-y-2">
+            <button onClick={() => setIsThemeModalOpen(true)} className="w-full flex items-center gap-3 p-3 lg:px-4 lg:py-3.5 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--hover-fill)] transition-all">
               <Palette size={20} />
               <span className="hidden lg:block text-sm font-medium">Tema & Tampilan</span>
             </button>
+            {installPrompt && !isAppInstalled && (
+              <button 
+                onClick={() => {
+                  installPrompt.prompt();
+                  installPrompt.userChoice.then((choiceResult: any) => {
+                    if (choiceResult.outcome === 'accepted') {
+                      setIsAppInstalled(true);
+                      setInstallPrompt(null);
+                    }
+                  });
+                }} 
+                className="w-full flex items-center gap-3 p-3 lg:px-4 lg:py-3.5 rounded-xl text-[var(--accent)] hover:bg-[var(--accent)]/10 transition-all border border-dashed border-[var(--accent)]"
+              >
+                <Smartphone size={20} />
+                <span className="hidden lg:block text-sm font-medium">Install Aplikasi</span>
+              </button>
+            )}
           </div>
 
           {/* User & Logout */}
@@ -1043,6 +1201,11 @@ export default function Dashboard() {
                 </div>
                 <div className="flex items-center gap-2">
                   <button onClick={() => {
+                    setPipFile(selectedFile);
+                    setSelectedFile(null);
+                    setPipPosition({ x: window.innerWidth - 420, y: window.innerHeight - 320 });
+                  }} className="p-2.5 bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-[var(--text-main)] rounded-xl transition-all" title="Minimize (Picture-in-Picture)"><Minimize2 size={18}/></button>
+                  <button onClick={() => {
                     setShareModalFileId(selectedFile.id);
                     setShareModalFileName(selectedFile.name);
                     setGeneratedPin(null);
@@ -1124,6 +1287,14 @@ export default function Dashboard() {
                   {searchLoading && <Loader2 className="animate-spin text-[var(--accent)] flex-shrink-0" size={16} />}
                   <div className="px-2 py-0.5 bg-[var(--hover-fill)] border border-[var(--border-line)] rounded-md text-[10px] font-medium text-[var(--text-muted)]">ESC</div>
                 </div>
+                {fuzzyHint && (
+                  <div className="px-5 py-2 bg-[var(--accent)]/10 border-b border-[var(--border-line)] flex items-center gap-2">
+                    <Sparkles size={14} className="text-[var(--accent)]" />
+                    <span className="text-xs text-[var(--text-main)]">
+                      Mungkin yang Anda maksud: <button onClick={() => handleGlobalSearch(fuzzyHint)} className="font-bold text-[var(--accent)] hover:underline">{fuzzyHint}</button>?
+                    </span>
+                  </div>
+                )}
                 <div className="max-h-[360px] overflow-y-auto p-2 custom-scrollbar">
                   {searchTerm.length >= 2 ? (
                     searchResults.length > 0 ? (
@@ -1432,6 +1603,46 @@ export default function Dashboard() {
                   )}
                 </div>
               </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* PiP (Picture-in-Picture) WIDGET */}
+        <AnimatePresence>
+          {pipFile && (
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.8, opacity: 0 }}
+              style={{ left: pipPosition.x, top: pipPosition.y }}
+              className="fixed z-[300] w-[400px] h-[300px] bg-[var(--bg-panel)] rounded-2xl shadow-2xl border border-[var(--border-strong)] overflow-hidden flex flex-col"
+            >
+              {/* PiP Header (Draggable) */}
+              <div 
+                className="p-3 bg-[var(--bg-panel-trans)] border-b border-[var(--border-line)] flex items-center justify-between cursor-move"
+                onMouseDown={(e) => {
+                  setIsDraggingPip(true);
+                  setDragOffset({ x: e.clientX - pipPosition.x, y: e.clientY - pipPosition.y });
+                }}
+                onTouchStart={(e) => {
+                  const touch = e.touches[0];
+                  setIsDraggingPip(true);
+                  setDragOffset({ x: touch.clientX - pipPosition.x, y: touch.clientY - pipPosition.y });
+                }}
+              >
+                <div className="flex items-center gap-2 min-w-0 pointer-events-none">
+                  <GripHorizontal size={14} className="text-[var(--text-muted)]" />
+                  <span className="text-xs font-semibold text-[var(--text-main)] truncate">{pipFile.name}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => { setSelectedFile(pipFile); setPipFile(null); setPreviewLoading(true); }} className="p-1.5 hover:bg-[var(--hover-fill)] rounded-lg text-[var(--text-muted)] hover:text-[var(--text-main)]"><Maximize2 size={14}/></button>
+                  <button onClick={() => setPipFile(null)} className="p-1.5 hover:bg-[var(--hover-fill)] rounded-lg text-[var(--text-muted)] hover:text-red-400"><X size={14}/></button>
+                </div>
+              </div>
+              {/* PiP Content */}
+              <div className="flex-1 bg-black/50 relative pointer-events-none">
+                <iframe src={`https://drive.google.com/file/d/${pipFile.id}/preview`} className="w-full h-full border-0 absolute inset-0" title="PiP Preview" />
+                {/* Invisible overlay to prevent iframe capturing mouse events while dragging */}
+                {isDraggingPip && <div className="absolute inset-0 z-10 bg-transparent" />}
+              </div>
             </motion.div>
           )}
         </AnimatePresence>

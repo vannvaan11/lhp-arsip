@@ -1,0 +1,27 @@
+{
+  "name": "Arsip Digital — Inspektorat Sultra",
+  "short_name": "Arsip Digital",
+  "description": "Sistem Arsip Digital Laporan Hasil Pemeriksaan (LHP) Inspektorat Provinsi Sulawesi Tenggara",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0c1220",
+  "theme_color": "#f59e0b",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "utilities"],
+  "lang": "id",
+  "dir": "ltr"
+}
