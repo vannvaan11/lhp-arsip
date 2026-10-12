@@ -10,7 +10,7 @@ import {
   LayoutGrid, List, Clock, Eye, EyeOff,
   Command, Share2, Palette, BarChart2, KeyRound, Copy, Check,
   Minimize2, Maximize2, Smartphone, GripHorizontal, Sparkles,
-  Monitor, Wrench, Focus, Rows3
+  Monitor, Wrench, Focus, Rows3, FileSpreadsheet
 } from 'lucide-react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -66,6 +66,12 @@ export default function Dashboard() {
   const [shareGenerating, setShareGenerating] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
   const [pinCopied, setPinCopied] = useState(false);
+
+  // --- Export Excel ---
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [exportScope, setExportScope] = useState<'current' | 'all'>('current');
+  const [exportLoading, setExportLoading] = useState(false);
+  const [exportSuccess, setExportSuccess] = useState(false);
 
   // --- PiP (Floating Preview) ---
   const [pipFile, setPipFile] = useState<DriveFile | null>(null);
@@ -521,6 +527,179 @@ export default function Dashboard() {
     document.body.removeChild(link);
   };
 
+  // --- HELPER EKSPOR EXCEL ---
+  const getReadableType = (mimeType: string, name: string): string => {
+    if (mimeType.includes('folder')) return 'Folder';
+    if (mimeType.includes('pdf') || name.toLowerCase().endsWith('.pdf')) return 'PDF';
+    if (mimeType.includes('word') || name.toLowerCase().endsWith('.docx') || name.toLowerCase().endsWith('.doc')) return 'Word (DOCX)';
+    if (mimeType.includes('spreadsheet') || mimeType.includes('excel') || name.toLowerCase().endsWith('.xlsx') || name.toLowerCase().endsWith('.xls')) return 'Excel (XLSX)';
+    if (mimeType.includes('image')) return 'Gambar';
+    if (mimeType.includes('presentation') || name.toLowerCase().endsWith('.pptx')) return 'PowerPoint';
+    return 'Berkas Lainnya';
+  };
+
+  const formatFileSize = (sizeBytes?: string | number): string => {
+    if (!sizeBytes) return '-';
+    const bytes = Number(sizeBytes);
+    if (isNaN(bytes) || bytes === 0) return '-';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  };
+
+  const handleExportExcel = async (scope: 'current' | 'all' = exportScope) => {
+    setExportLoading(true);
+    setExportSuccess(false);
+
+    try {
+      let itemsToExport: Array<{
+        id: string;
+        name: string;
+        mimeType: string;
+        size?: string;
+        createdTime?: string;
+        folderName?: string;
+      }> = [];
+
+      let currentFolderName = 'Beranda Utama';
+      if (currentFolder) {
+        currentFolderName = folderHistory[folderHistory.length - 1]?.name || 'Folder Aktif';
+      } else if (filterType === 'file') {
+        currentFolderName = 'Semua Dokumen';
+      } else if (filterType === 'folder') {
+        currentFolderName = 'Semua Folder';
+      }
+
+      if (scope === 'current') {
+        itemsToExport = filteredFilesMain.map(item => ({
+          id: item.id,
+          name: item.name,
+          mimeType: item.mimeType,
+          size: item.size,
+          createdTime: item.createdTime,
+          folderName: currentFolderName,
+        }));
+      } else {
+        // Ambil seluruh arsip dari endpoint export
+        const res = await fetch('/api/drive/export');
+        const data = await res.json();
+        if (data.success && Array.isArray(data.files)) {
+          itemsToExport = data.files;
+        } else {
+          // Fallback ke data files lokal jika server ada kendala
+          itemsToExport = files.map(item => ({
+            id: item.id,
+            name: item.name,
+            mimeType: item.mimeType,
+            size: item.size,
+            createdTime: item.createdTime,
+            folderName: currentFolderName,
+          }));
+        }
+      }
+
+      if (itemsToExport.length === 0) {
+        alert('Tidak ada data arsip untuk diekspor.');
+        setExportLoading(false);
+        return;
+      }
+
+      // Waktu ekspor sekarang
+      const now = new Date();
+      const exportTimeStr = now.toLocaleString('id-ID', {
+        dateStyle: 'long',
+        timeStyle: 'medium',
+      });
+      const dateFileStr = now.toISOString().split('T')[0];
+
+      // Format CSV dengan UTF-8 BOM (\uFEFF)
+      const cleanCsvVal = (val: any) => `"${String(val ?? '').replace(/"/g, '""')}"`;
+
+      const rows: string[] = [];
+
+      // Kop Informasi Dokumen
+      rows.push(`"REKAPITULASI ARSIP DIGITAL LAPORAN HASIL PEMERIKSAAN (LHP)"`);
+      rows.push(`"INSPEKTORAT PROVINSI SULAWESI TENGGARA — IRBAN WILAYAH III"`);
+      rows.push(`"Waktu Unduh",${cleanCsvVal(`${exportTimeStr} WITA`)}`);
+      rows.push(`"Diekspor Oleh",${cleanCsvVal(`${userName || 'Petugas'} (${userRole || 'User'})`)}`);
+      rows.push(`"Cakupan Data",${cleanCsvVal(scope === 'all' ? 'Seluruh Arsip Sistem (Google Drive)' : `Tampilan Saat Ini (${currentFolderName})`)}`);
+      rows.push(`"Total Arsip",${cleanCsvVal(`${itemsToExport.length} Berkas`)}`);
+      rows.push(''); // Baris pemisah
+
+      // Header Kolom Tabel
+      rows.push([
+        '"No"',
+        '"Nama Dokumen / Arsip"',
+        '"Format Dokumen"',
+        '"Ukuran"',
+        '"Tanggal Dibuat / Unggah"',
+        '"Lokasi Folder / OPD"',
+        '"ID Arsip Drive"',
+        '"Tautan Akses Google Drive"',
+      ].join(','));
+
+      // Data Baris
+      itemsToExport.forEach((item, idx) => {
+        const itemType = getReadableType(item.mimeType, item.name);
+        const itemSize = formatFileSize(item.size);
+        const itemDate = item.createdTime
+          ? new Date(item.createdTime).toLocaleString('id-ID', {
+              dateStyle: 'medium',
+              timeStyle: 'short',
+            })
+          : '-';
+        const driveLink = item.id ? `https://drive.google.com/file/d/${item.id}/view` : '-';
+
+        rows.push([
+          cleanCsvVal(idx + 1),
+          cleanCsvVal(item.name),
+          cleanCsvVal(itemType),
+          cleanCsvVal(itemSize),
+          cleanCsvVal(itemDate),
+          cleanCsvVal(item.folderName || currentFolderName),
+          cleanCsvVal(item.id),
+          cleanCsvVal(driveLink),
+        ].join(','));
+      });
+
+      // Baris Total Penutup
+      rows.push('');
+      rows.push([
+        '"TOTAL"',
+        cleanCsvVal(`${itemsToExport.length} Berkas`),
+        '""',
+        '""',
+        '""',
+        '""',
+        '""',
+        '""',
+      ].join(','));
+
+      const csvString = '\uFEFF' + rows.join('\r\n');
+      const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const safeScopeName = scope === 'all' ? 'Semua_Arsip' : (currentFolderName.replace(/[^a-zA-Z0-9_-]/g, '_'));
+      link.download = `Rekap_Arsip_LHP_Irban_III_${safeScopeName}_${dateFileStr}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      addOnlineLog('EXPORT_EXCEL', `Rekap Excel (${scope}): ${itemsToExport.length} dokumen`);
+      setExportSuccess(true);
+      setTimeout(() => {
+        setExportSuccess(false);
+      }, 3000);
+    } catch (err: any) {
+      console.error('EXPORT_ERROR:', err);
+      alert('Terjadi kesalahan saat mengekspor: ' + (err.message || 'Error'));
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
   if (!mounted) return null;
 
   const baseFiles = (searchTerm.length >= 2 ? searchResults : files).filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -802,6 +981,7 @@ export default function Dashboard() {
               { icon: Folder, label: 'Folder', active: filterType === 'folder', onClick: () => setFilterType('folder') },
               { icon: FileText, label: 'Dokumen', active: filterType === 'file', onClick: () => setFilterType('file') },
               { icon: History, label: 'Riwayat', active: false, onClick: () => { setIsLogModalOpen(true); fetchOnlineLogs(); } },
+              { icon: FileSpreadsheet, label: 'Ekspor Excel', active: false, onClick: () => setIsExportModalOpen(true) },
             ].map((item, idx) => (
               <button
                 key={idx}
@@ -962,6 +1142,16 @@ export default function Dashboard() {
               <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--hover-fill)] transition-all">
                 {isDarkMode ? <Sun size={16}/> : <Moon size={16}/>}
               </button>
+              {!isPresentationMode && (
+                <button 
+                  onClick={() => setIsExportModalOpen(true)}
+                  className="bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-400 border border-emerald-500/30 px-3.5 py-2.5 rounded-xl font-semibold text-xs sm:text-sm transition-all flex items-center gap-2 shadow-sm"
+                  title="Ekspor Rekap Arsip ke Excel"
+                >
+                  <FileSpreadsheet size={16} className="text-emerald-400" />
+                  <span className="hidden sm:inline">Ekspor Excel</span>
+                </button>
+              )}
               {userRole === 'admin' && !isPresentationMode && (
                 <button 
                   onClick={() => {setUploadDestinationId(currentFolder); setIsUploadModalOpen(true);}}
@@ -1028,7 +1218,13 @@ export default function Dashboard() {
 
                 {/* ANALYTICS BUTTON */}
                 {userRole === 'admin' && !currentFolder && filterType === 'all' && analyticsData && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-end">
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-end gap-3 flex-wrap">
+                    <button 
+                      onClick={() => setIsExportModalOpen(true)}
+                      className="flex items-center gap-2 px-5 py-3 bg-emerald-600/15 border border-emerald-500/30 rounded-xl text-sm font-semibold text-emerald-400 hover:bg-emerald-600/25 transition-all shadow-sm"
+                    >
+                      <FileSpreadsheet size={16} /> Ekspor Rekap Excel
+                    </button>
                     <button 
                       onClick={() => setIsAnalyticsModalOpen(true)}
                       className="flex items-center gap-2 px-5 py-3 bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded-xl text-sm font-semibold text-[var(--text-main)] hover:bg-[var(--accent)] hover:border-[var(--accent)] hover:text-[var(--accent-fg)] transition-all shadow-sm"
@@ -1077,6 +1273,19 @@ export default function Dashboard() {
                       </h3>
                       <span className="text-xs text-[var(--text-muted)]">{filteredFilesMain.length}</span>
                     </div>
+
+                    {/* Tombol Ekspor Excel */}
+                    {!isPresentationMode && (
+                      <button
+                        onClick={() => setIsExportModalOpen(true)}
+                        className="flex items-center gap-2 px-3 py-1.5 sm:px-3.5 sm:py-2 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-500 hover:text-emerald-400 border border-emerald-500/25 rounded-xl text-xs font-semibold transition-all shadow-sm group"
+                        title="Ekspor Rekapitulasi ke Excel"
+                      >
+                        <FileSpreadsheet size={15} className="group-hover:scale-110 transition-transform" />
+                        <span className="hidden sm:inline">Ekspor Excel</span>
+                        <span className="sm:hidden">Excel</span>
+                      </button>
+                    )}
                   </div>
 
                   {filteredFilesMain.length === 0 ? (
@@ -1810,6 +2019,143 @@ export default function Dashboard() {
                 </div>
               </motion.div>
             </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* EXPORT EXCEL MODAL */}
+        <AnimatePresence>
+          {isExportModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <motion.div 
+                initial={{ opacity: 0 }} 
+                animate={{ opacity: 1 }} 
+                exit={{ opacity: 0 }} 
+                onClick={() => !exportLoading && setIsExportModalOpen(false)} 
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm" 
+              />
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95, y: 15 }} 
+                animate={{ opacity: 1, scale: 1, y: 0 }} 
+                exit={{ opacity: 0, scale: 0.95, y: 15 }} 
+                className="relative w-full max-w-lg bg-[var(--bg-panel)] border border-[var(--border-line)] rounded-2xl shadow-2xl overflow-hidden p-6 z-10"
+              >
+                {/* Header */}
+                <div className="flex items-start justify-between mb-5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 flex-shrink-0">
+                      <FileSpreadsheet size={20} />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-[var(--text-main)] text-base">Ekspor Rekap Arsip ke Excel</h3>
+                      <p className="text-xs text-[var(--text-muted)]">Unduh lembar kerja data arsip LHP berformat Excel (.csv UTF-8)</p>
+                    </div>
+                  </div>
+                  <button 
+                    disabled={exportLoading}
+                    onClick={() => setIsExportModalOpen(false)} 
+                    className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--hover-fill)] transition-colors"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {/* Body Options */}
+                <div className="space-y-3 mb-6">
+                  <label className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider block">Pilih Cakupan Rekapitulasi</label>
+
+                  {/* Option 1: Tampilan Saat Ini */}
+                  <div 
+                    onClick={() => !exportLoading && setExportScope('current')}
+                    className={`p-3.5 rounded-xl border cursor-pointer transition-all flex items-start gap-3 ${
+                      exportScope === 'current'
+                        ? 'bg-emerald-500/10 border-emerald-500/40 text-[var(--text-main)]'
+                        : 'bg-[var(--hover-fill)] border-[var(--border-line)] text-[var(--text-muted)] hover:border-[var(--border-strong)]'
+                    }`}
+                  >
+                    <input 
+                      type="radio" 
+                      name="exportScope" 
+                      checked={exportScope === 'current'} 
+                      onChange={() => setExportScope('current')}
+                      className="mt-1 text-emerald-500 focus:ring-emerald-500" 
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-[var(--text-main)]">Tampilan Saat Ini ({filteredFilesMain.length} item)</p>
+                      <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                        Merekap berkas pada {currentFolder ? (folderHistory[folderHistory.length - 1]?.name || 'folder ini') : 'layar beranda / filter aktif'}.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Option 2: Seluruh Dokumen Sistem */}
+                  <div 
+                    onClick={() => !exportLoading && setExportScope('all')}
+                    className={`p-3.5 rounded-xl border cursor-pointer transition-all flex items-start gap-3 ${
+                      exportScope === 'all'
+                        ? 'bg-emerald-500/10 border-emerald-500/40 text-[var(--text-main)]'
+                        : 'bg-[var(--hover-fill)] border-[var(--border-line)] text-[var(--text-muted)] hover:border-[var(--border-strong)]'
+                    }`}
+                  >
+                    <input 
+                      type="radio" 
+                      name="exportScope" 
+                      checked={exportScope === 'all'} 
+                      onChange={() => setExportScope('all')}
+                      className="mt-1 text-emerald-500 focus:ring-emerald-500" 
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-[var(--text-main)]">Seluruh Arsip Sistem ({stats.total || 'Semua'} Berkas)</p>
+                      <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                        Mengambil seluruh daftar dokumen dari Google Drive beserta pemetaan nama folder induknya.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Format Features Info */}
+                <div className="bg-[var(--hover-fill)] p-3 rounded-xl border border-[var(--border-line)] mb-6 text-xs text-[var(--text-muted)] space-y-1">
+                  <p className="font-medium text-[var(--text-main)] flex items-center gap-1.5">
+                    <Check size={14} className="text-emerald-400" /> Kompatibel Penuh dengan Microsoft Excel & Google Sheets
+                  </p>
+                  <p className="text-[11px] text-slate-400">
+                    File dilengkapi kop resmi Irban III Sultra, rincian ukuran, tanggal unggah, kategori format, serta tautan langsung ke berkas Google Drive.
+                  </p>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center justify-end gap-3">
+                  <button
+                    disabled={exportLoading}
+                    onClick={() => setIsExportModalOpen(false)}
+                    className="px-4 py-2.5 rounded-xl text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--hover-fill)] transition-colors"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    disabled={exportLoading}
+                    onClick={() => handleExportExcel(exportScope)}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition-all shadow-md hover:shadow-emerald-600/20 disabled:opacity-50"
+                  >
+                    {exportLoading ? (
+                      <>
+                        <Loader2 size={15} className="animate-spin" />
+                        <span>Mempersiapkan Data...</span>
+                      </>
+                    ) : exportSuccess ? (
+                      <>
+                        <CheckCircle2 size={15} className="text-white" />
+                        <span>Berhasil Diunduh!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Download size={15} />
+                        <span>Unduh File Excel (.csv)</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </motion.div>
+            </div>
           )}
         </AnimatePresence>
 
