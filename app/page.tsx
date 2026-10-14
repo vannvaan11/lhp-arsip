@@ -82,6 +82,7 @@ export default function Dashboard() {
   const [tagModalFile, setTagModalFile] = useState<DriveFile | null>(null);
   const [customTagInput, setCustomTagInput] = useState('');
   const [tagSaving, setTagSaving] = useState(false);
+  const [customTagHistory, setCustomTagHistory] = useState<string[]>([]);
 
   // --- PiP (Floating Preview) ---
   const [pipFile, setPipFile] = useState<DriveFile | null>(null);
@@ -239,7 +240,7 @@ export default function Dashboard() {
     { label: 'Rahasia', bg: 'bg-purple-500/15', text: 'text-purple-400', border: 'border-purple-500/30', dot: 'bg-purple-500' },
     { label: 'Selesai', bg: 'bg-emerald-500/15', text: 'text-emerald-400', border: 'border-emerald-500/30', dot: 'bg-emerald-500' },
     { label: 'Tindak Lanjut', bg: 'bg-amber-500/15', text: 'text-amber-400', border: 'border-amber-500/30', dot: 'bg-amber-500' },
-    { label: 'Audit 2024', bg: 'bg-blue-500/15', text: 'text-blue-400', border: 'border-blue-500/30', dot: 'bg-blue-500' },
+    { label: 'Ketaatan', bg: 'bg-blue-500/15', text: 'text-blue-400', border: 'border-blue-500/30', dot: 'bg-blue-500' },
     { label: 'Kinerja', bg: 'bg-cyan-500/15', text: 'text-cyan-400', border: 'border-cyan-500/30', dot: 'bg-cyan-500' },
   ];
 
@@ -267,6 +268,31 @@ export default function Dashboard() {
     }
     return [];
   }, [tagMap]);
+
+  const saveCustomTagToHistory = (newTag: string) => {
+    const trimmed = newTag.trim();
+    if (!trimmed) return;
+    if (PRESET_TAGS.some(p => p.label.toLowerCase() === trimmed.toLowerCase())) return;
+
+    setCustomTagHistory(prev => {
+      if (prev.some(t => t.toLowerCase() === trimmed.toLowerCase())) return prev;
+      const updated = [...prev, trimmed];
+      try {
+        localStorage.setItem('archive_custom_tags', JSON.stringify(updated));
+      } catch (e) { console.error(e); }
+      return updated;
+    });
+  };
+
+  const removeCustomTagFromHistory = (tagToRemove: string) => {
+    setCustomTagHistory(prev => {
+      const updated = prev.filter(t => t.toLowerCase() !== tagToRemove.toLowerCase());
+      try {
+        localStorage.setItem('archive_custom_tags', JSON.stringify(updated));
+      } catch (e) { console.error(e); }
+      return updated;
+    });
+  };
 
   const openTagModal = (file: DriveFile) => {
     setTagModalFile(file);
@@ -512,6 +538,9 @@ export default function Dashboard() {
     try {
       const saved = localStorage.getItem('archive_file_tags');
       if (saved) setTagMap(JSON.parse(saved));
+
+      const savedCustom = localStorage.getItem('archive_custom_tags');
+      if (savedCustom) setCustomTagHistory(JSON.parse(savedCustom));
     } catch {}
   }, []);
 
@@ -526,11 +555,20 @@ export default function Dashboard() {
 
         // Sync tags from Google Drive appProperties
         const driveTagsMap: Record<string, string[]> = {};
+        const discoveredCustomTags: string[] = [];
+
         data.files.forEach((f: any) => {
           if (f.appProperties?.tags) {
             try {
               const parsed = JSON.parse(f.appProperties.tags);
-              if (Array.isArray(parsed)) driveTagsMap[f.id] = parsed;
+              if (Array.isArray(parsed)) {
+                driveTagsMap[f.id] = parsed;
+                parsed.forEach((tag: string) => {
+                  if (!PRESET_TAGS.some(p => p.label.toLowerCase() === tag.toLowerCase())) {
+                    discoveredCustomTags.push(tag);
+                  }
+                });
+              }
             } catch {}
           }
         });
@@ -539,6 +577,13 @@ export default function Dashboard() {
             const merged = { ...prev, ...driveTagsMap };
             try { localStorage.setItem('archive_file_tags', JSON.stringify(merged)); } catch {}
             return merged;
+          });
+        }
+        if (discoveredCustomTags.length > 0) {
+          setCustomTagHistory(prev => {
+            const combined = Array.from(new Set([...prev, ...discoveredCustomTags]));
+            try { localStorage.setItem('archive_custom_tags', JSON.stringify(combined)); } catch {}
+            return combined;
           });
         }
       }
@@ -1459,8 +1504,8 @@ export default function Dashboard() {
                         </button>
                       );
                     })}
-                    {/* Custom tags in use that are not in preset */}
-                    {Array.from(new Set(Object.values(tagMap).flat()))
+                    {/* Custom tags in use or in history */}
+                    {Array.from(new Set([...customTagHistory, ...Object.values(tagMap).flat()]))
                       .filter(t => !PRESET_TAGS.some(p => p.label.toLowerCase() === t.toLowerCase()))
                       .map(customTag => {
                         const isSelected = selectedTagFilter.toLowerCase() === customTag.toLowerCase();
@@ -2575,6 +2620,65 @@ export default function Dashboard() {
                   </div>
                 </div>
 
+                {/* Section 2.5: Riwayat Label Kustom */}
+                {customTagHistory.length > 0 && (
+                  <div className="mb-5">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider block">
+                        Riwayat Label Kustom ({customTagHistory.length})
+                      </label>
+                      <span className="text-[10px] text-slate-500">Klik untuk langsung menerapkan</span>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-36 overflow-y-auto custom-scrollbar p-0.5">
+                      {customTagHistory.map(tag => {
+                        const active = getFileTags(tagModalFile).some(t => t.toLowerCase() === tag.toLowerCase());
+                        const style = getTagStyle(tag);
+                        return (
+                          <div
+                            key={tag}
+                            className={`flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium border transition-all ${
+                              active
+                                ? `${style.bg} ${style.text} ${style.border} ring-2 ring-[var(--accent)]/40 font-semibold shadow-sm`
+                                : 'bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-[var(--text-main)] border-[var(--border-line)] hover:border-[var(--border-strong)]'
+                            }`}
+                          >
+                            <button
+                              type="button"
+                              disabled={tagSaving}
+                              onClick={() => {
+                                const current = getFileTags(tagModalFile);
+                                let updated: string[];
+                                if (active) {
+                                  updated = current.filter(t => t.toLowerCase() !== tag.toLowerCase());
+                                } else {
+                                  updated = [...current, tag];
+                                }
+                                handleSaveFileTags(tagModalFile.id, tagModalFile.name, updated);
+                              }}
+                              className="flex items-center gap-1.5 truncate flex-1 text-left py-0.5"
+                            >
+                              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${style.dot}`}></span>
+                              <span className="truncate">{tag}</span>
+                              {active && <Check size={12} className="flex-shrink-0 ml-1 text-emerald-400" />}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeCustomTagFromHistory(tag);
+                              }}
+                              title="Hapus dari daftar riwayat label"
+                              className="p-1 hover:text-red-400 text-slate-500 rounded-lg hover:bg-[var(--hover-fill)] transition-colors ml-1"
+                            >
+                              <Trash2 size={11} />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {/* Section 3: Tambah Label Kustom */}
                 <div className="mb-6">
                   <label className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider block mb-2">
@@ -2589,6 +2693,7 @@ export default function Dashboard() {
                       if (!current.some(t => t.toLowerCase() === trimmed.toLowerCase())) {
                         handleSaveFileTags(tagModalFile.id, tagModalFile.name, [...current, trimmed]);
                       }
+                      saveCustomTagToHistory(trimmed);
                       setCustomTagInput('');
                     }}
                     className="flex gap-2"
