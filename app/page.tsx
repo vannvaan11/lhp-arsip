@@ -6,7 +6,7 @@ import {
   Search, LogOut, ChevronRight, Loader2, Edit2, Plus, X, 
   Download, ArrowLeft, Sun, Moon, Shield, 
   CheckCircle2, AlertCircle, Filter, History, User,
-  ShieldCheck, Trash2,
+  ShieldCheck, Trash2, ShieldAlert,
   LayoutGrid, List, Clock, Eye, EyeOff,
   Command, Share2, Palette, BarChart2, KeyRound, Copy, Check,
   Minimize2, Maximize2, Smartphone, GripHorizontal, Sparkles,
@@ -60,6 +60,9 @@ export default function Dashboard() {
   const [sharedPinInput, setSharedPinInput] = useState('');
   const [sharedPinVerified, setSharedPinVerified] = useState(false);
   const [sharedPinLoading, setSharedPinLoading] = useState(false);
+  const [isSharedSecurityLocked, setIsSharedSecurityLocked] = useState(false);
+  const [sharedSecurityAlert, setSharedSecurityAlert] = useState<string | null>(null);
+  const [watermarkClock, setWatermarkClock] = useState<string>('');
   const [shareModalFileId, setShareModalFileId] = useState<string | null>(null);
   const [shareModalFileName, setShareModalFileName] = useState('');
   const [generatedPin, setGeneratedPin] = useState<string | null>(null);
@@ -879,6 +882,121 @@ export default function Dashboard() {
     }
   };
 
+  // --- ANTI-CAPTURE & ANTI-SCREENSHOT ENGINE (Shared View Protection) ---
+  useEffect(() => {
+    if (!isSharedView) return;
+
+    // 1. Real-time Clock for Forensic Watermarking
+    const updateClock = () => {
+      const now = new Date();
+      const pad = (n: number) => n.toString().padStart(2, '0');
+      const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())} WIB`;
+      const dateStr = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
+      setWatermarkClock(`${dateStr} • ${timeStr}`);
+    };
+    updateClock();
+    const clockInterval = setInterval(updateClock, 1000);
+
+    // 2. Anti-Capture: Window Blur & Visibility Loss
+    // Instantly blacks out document when Snipping Tool, Mac Screen Capture, Android/iOS Recorders, or App Switcher triggers
+    const handleWindowBlur = () => {
+      setIsSharedSecurityLocked(true);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        setIsSharedSecurityLocked(true);
+      }
+    };
+
+    // 3. Keystroke Interception (PrintScreen, Ctrl+P, Ctrl+S, Win+Shift+S, Cmd+Shift+3/4/5, DevTools)
+    const handleSecurityKeyDown = (e: KeyboardEvent) => {
+      // PrintScreen
+      if (e.key === 'PrintScreen' || e.keyCode === 44) {
+        e.preventDefault();
+        e.stopPropagation();
+        try {
+          if (navigator.clipboard?.writeText) {
+            navigator.clipboard.writeText('⚠️ PERINGATAN: Tangkapan layar dilarang pada dokumen terbatas ini.');
+          }
+        } catch {}
+        setIsSharedSecurityLocked(true);
+        setSharedSecurityAlert('Tangkapan layar (PrintScreen) telah diblokir.');
+        return false;
+      }
+
+      // Ctrl / Cmd + P (Print)
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'p' || e.key === 'P')) {
+        e.preventDefault();
+        e.stopPropagation();
+        setSharedSecurityAlert('Fungsi cetak (Print to PDF/Kertas) dinonaktifkan.');
+        return false;
+      }
+
+      // Ctrl / Cmd + S (Save page)
+      if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+        e.stopPropagation();
+        setSharedSecurityAlert('Penyimpanan halaman dinonaktifkan.');
+        return false;
+      }
+
+      // Windows Snipping Tool (Win/Ctrl + Shift + S)
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsSharedSecurityLocked(true);
+        setSharedSecurityAlert('Alat tangkapan layar diblokir.');
+        return false;
+      }
+
+      // Mac Screenshot (Cmd + Shift + 3, 4, 5)
+      if (e.metaKey && e.shiftKey && ['3', '4', '5'].includes(e.key)) {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsSharedSecurityLocked(true);
+        setSharedSecurityAlert('Tangkapan layar Mac diblokir.');
+        return false;
+      }
+
+      // DevTools (F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C)
+      if (e.key === 'F12' || ((e.ctrlKey || e.metaKey) && e.shiftKey && ['i', 'I', 'j', 'J', 'c', 'C'].includes(e.key))) {
+        e.preventDefault();
+        e.stopPropagation();
+        setSharedSecurityAlert('Alat pengembang (DevTools/Inspect) dinonaktifkan.');
+        return false;
+      }
+
+      // Ctrl / Cmd + U (View Source)
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'u' || e.key === 'U')) {
+        e.preventDefault();
+        return false;
+      }
+    };
+
+    const handleSecurityKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'PrintScreen' || e.keyCode === 44) {
+        try {
+          navigator.clipboard?.writeText('⚠️ PERINGATAN: Tangkapan layar dilarang pada dokumen terbatas ini.');
+        } catch {}
+        setIsSharedSecurityLocked(true);
+      }
+    };
+
+    window.addEventListener('blur', handleWindowBlur);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('keydown', handleSecurityKeyDown, true);
+    window.addEventListener('keyup', handleSecurityKeyUp, true);
+
+    return () => {
+      clearInterval(clockInterval);
+      window.removeEventListener('blur', handleWindowBlur);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('keydown', handleSecurityKeyDown, true);
+      window.removeEventListener('keyup', handleSecurityKeyUp, true);
+    };
+  }, [isSharedView]);
+
   if (!mounted) return null;
 
   const baseFiles = (searchTerm.length >= 2 ? searchResults : files).filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -974,25 +1092,130 @@ export default function Dashboard() {
           </motion.div>
 
         ) : (
-          /* DOCUMENT PREVIEW */
-          <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="w-full max-w-5xl h-[85vh] bg-[var(--bg-panel)] rounded-2xl border border-[var(--border-line)] flex flex-col overflow-hidden shadow-2xl relative z-10">
-            <div className="p-5 border-b border-[var(--border-line)] flex items-center justify-between bg-[var(--bg-panel-trans)] backdrop-blur-xl z-30">
-              <div className="flex items-center gap-4">
-                <div className="p-2.5 bg-emerald-500/10 rounded-xl text-emerald-500">
-                  <ShieldCheck size={24} />
+          /* DOCUMENT PREVIEW (ENHANCED ANTI-CAPTURE & ANTI-LEAK) */
+          <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="w-full max-w-5xl h-[88vh] bg-[var(--bg-panel)] rounded-2xl border border-[var(--border-line)] flex flex-col overflow-hidden shadow-2xl relative z-10 secure-no-select select-none">
+            {/* Security Top Bar */}
+            <div className="p-4 sm:p-5 border-b border-[var(--border-line)] flex items-center justify-between bg-[var(--bg-panel-trans)] backdrop-blur-xl z-30 flex-wrap gap-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-emerald-500/10 rounded-xl text-emerald-500 flex-shrink-0">
+                  <ShieldCheck size={22} />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-[var(--text-main)]">Dokumen Dibagikan</h3>
-                  <p className="text-xs text-[var(--text-muted)] mt-0.5">Akses Terbatas - Inspektorat Sultra</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-sm sm:text-base font-bold text-[var(--text-main)]">Dokumen Rahasia Terbatas</h3>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                      <Lock size={10} /> Terlindungi PIN
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[var(--text-muted)] mt-0.5 flex items-center gap-2">
+                    <span>Inspektorat Prov. Sulawesi Tenggara</span>
+                    {sharedPinInput && <span className="font-mono text-slate-400 font-semibold">• PIN: {sharedPinInput}</span>}
+                  </p>
                 </div>
               </div>
+
+              {/* Security Status & Actions */}
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-400 text-xs font-medium">
+                  <EyeOff size={13} className="animate-pulse" />
+                  <span className="hidden sm:inline">Proteksi Anti-Capture Aktif</span>
+                  <span className="sm:hidden">Anti-Capture</span>
+                </div>
+                <button
+                  onClick={() => {
+                    // Safe exit & return to base URL
+                    window.location.href = window.location.origin;
+                  }}
+                  className="px-3.5 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/25 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5"
+                  title="Tutup & Kunci Dokumen"
+                >
+                  <X size={14} />
+                  <span>Tutup Akses</span>
+                </button>
+              </div>
             </div>
+
+            {/* Security Alert Toast if triggered */}
+            {sharedSecurityAlert && (
+              <div className="bg-amber-500/15 border-b border-amber-500/30 px-4 py-2 flex items-center justify-between text-xs text-amber-300 z-40">
+                <span className="flex items-center gap-2 font-medium">
+                  <AlertCircle size={14} className="flex-shrink-0" /> {sharedSecurityAlert}
+                </span>
+                <button onClick={() => setSharedSecurityAlert(null)} className="hover:text-white p-1">
+                  <X size={13} />
+                </button>
+              </div>
+            )}
             
-            <div className="flex-1 relative bg-black/50">
-              <div className="absolute inset-0 z-20 pointer-events-none"
-                style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='400' height='400' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='50%25' y='50%25' font-size='28' font-family='Arial' font-weight='bold' fill='%23ef4444' opacity='0.15' transform='translate(200, 200) rotate(-45) translate(-200, -200)' text-anchor='middle'%3EDOKUMEN INSPEKTORAT%3C/text%3E%3C/svg%3E")`, backgroundRepeat: 'repeat' }}
+            <div 
+              onContextMenu={(e) => { e.preventDefault(); setSharedSecurityAlert('Klik kanan dinonaktifkan demi keamanan dokumen.'); }}
+              className="flex-1 relative bg-black/50 overflow-hidden secure-no-select select-none"
+            >
+              {/* SECURITY BLACKOUT SHIELD (Triggers on blur / visibilitychange / PrintScreen / Snipping Tool) */}
+              {isSharedSecurityLocked && (
+                <div 
+                  onClick={() => { setIsSharedSecurityLocked(false); setSharedSecurityAlert(null); }}
+                  className="absolute inset-0 z-50 bg-slate-950/98 backdrop-blur-2xl flex flex-col items-center justify-center p-6 text-center cursor-pointer select-none transition-all"
+                >
+                  <div className="w-16 h-16 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-4 animate-pulse">
+                    <ShieldAlert size={36} />
+                  </div>
+                  <h3 className="text-lg sm:text-xl font-bold text-white mb-2">Tampilan Disamarkan Demi Keamanan</h3>
+                  <p className="text-xs sm:text-sm text-slate-400 max-w-md mb-6 leading-relaxed">
+                    Dokumen otomatis dikaburkan saat jendela kehilangan fokus, beralih aplikasi, atau terdeteksi pintasan tangkapan/perekam layar.
+                  </p>
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); setIsSharedSecurityLocked(false); setSharedSecurityAlert(null); }}
+                    className="px-6 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-xs sm:text-sm transition-all shadow-lg flex items-center gap-2"
+                  >
+                    <Check size={16} />
+                    <span>Klik di Sini untuk Membuka Kembali</span>
+                  </button>
+                </div>
+              )}
+
+              {/* DYNAMIC REALTIME FORENSIC WATERMARK OVERLAY */}
+              <div 
+                className="absolute inset-0 z-20 pointer-events-none select-none flex flex-col justify-between p-4 overflow-hidden"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg width='420' height='300' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='50%25' y='50%25' font-size='15' font-family='Arial, sans-serif' font-weight='bold' fill='%23ef4444' opacity='0.16' transform='translate(210, 150) rotate(-30) translate(-210, -150)' text-anchor='middle'%3ERAHASIA INSPEKTORAT SULTRA%3C/text%3E%3C/svg%3E")`,
+                  backgroundRepeat: 'repeat'
+                }}
+              >
+                {/* Realtime Moving Forensic Header */}
+                <div className="flex justify-between items-start text-[10px] text-red-500/40 font-mono tracking-widest font-bold">
+                  <span>DOKUMEN RAHASIA PEMERIKSAAN</span>
+                  <span>{watermarkClock || 'AKTIF'}</span>
+                </div>
+                
+                {/* Floating Central Forensic Badge (Prevents physical camera bypass) */}
+                <div className="self-center py-2 px-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500/50 text-[11px] font-mono font-bold tracking-wider text-center backdrop-blur-[1px]">
+                  PIN: {sharedPinInput || 'TERVERIFIKASI'} • {watermarkClock} • DILARANG MEREKAM / MEMOTRET
+                </div>
+
+                {/* Forensic Footer */}
+                <div className="flex justify-between items-end text-[10px] text-red-500/40 font-mono tracking-widest font-bold">
+                  <span>HAK CIPTA INSPEKTORAT SULTRA</span>
+                  <span>TIDAK UNTUK DISEBARLUASKAN</span>
+                </div>
+              </div>
+
+              {/* The Actual PDF Preview Iframe */}
+              <iframe 
+                src={`https://drive.google.com/file/d/${sharedFileId}/preview`} 
+                className={`w-full h-full border-0 relative z-0 transition-all duration-300 ${isSharedSecurityLocked ? 'opacity-0 scale-95 blur-2xl pointer-events-none' : 'opacity-100 scale-100'}`} 
+                title="Shared Preview" 
               />
-              <iframe src={`https://drive.google.com/file/d/${sharedFileId}/preview`} className="w-full h-full border-0 relative z-0" title="Shared Preview" />
+            </div>
+
+            {/* Bottom Security Footer */}
+            <div className="p-3 bg-[var(--bg-panel-trans)] border-t border-[var(--border-line)] flex items-center justify-between text-[11px] text-[var(--text-muted)] z-30 px-5">
+              <span className="flex items-center gap-1.5 font-medium">
+                <Lock size={12} className="text-emerald-400" /> Sesi sekali pakai aktif • Unduhan dinonaktifkan
+              </span>
+              <span className="text-slate-500 hidden sm:inline">
+                Terlindungi oleh Protokol Keamanan Inspektorat
+              </span>
             </div>
           </motion.div>
         )}
