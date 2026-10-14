@@ -10,7 +10,7 @@ import {
   LayoutGrid, List, Clock, Eye, EyeOff,
   Command, Share2, Palette, BarChart2, KeyRound, Copy, Check,
   Minimize2, Maximize2, Smartphone, GripHorizontal, Sparkles,
-  Monitor, Wrench, Focus, Rows3, FileSpreadsheet, Tag
+  Monitor, Wrench, Focus, Rows3, FileSpreadsheet, Tag, Star
 } from 'lucide-react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -86,6 +86,12 @@ export default function Dashboard() {
   const [customTagInput, setCustomTagInput] = useState('');
   const [tagSaving, setTagSaving] = useState(false);
   const [customTagHistory, setCustomTagHistory] = useState<string[]>([]);
+
+  // --- Favorit & Riwayat Terakhir ---
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [recentlyViewed, setRecentlyViewed] = useState<{ id: string; name: string; mimeType: string; viewedAt: number }[]>([]);
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [isRecentModalOpen, setIsRecentModalOpen] = useState(false);
 
   // --- PiP (Floating Preview) ---
   const [pipFile, setPipFile] = useState<DriveFile | null>(null);
@@ -361,6 +367,70 @@ export default function Dashboard() {
     setTagSaving(false);
   };
 
+  // --- FAVORIT & RIWAYAT TERAKHIR DIBUKA ---
+  const toggleFavorite = (fileId: string, fileName?: string) => {
+    setFavorites(prev => {
+      const next = new Set(prev);
+      const isFav = next.has(fileId);
+      if (isFav) {
+        next.delete(fileId);
+      } else {
+        next.add(fileId);
+      }
+      try {
+        localStorage.setItem('archive_favorites', JSON.stringify(Array.from(next)));
+      } catch (err) {
+        console.error(err);
+      }
+      if (fileName) {
+        addOnlineLog(isFav ? "UNFAVORITE" : "FAVORITE", fileName);
+      }
+      return next;
+    });
+  };
+
+  const addToRecentlyViewed = (file: DriveFile) => {
+    if (!file || !file.id || file.mimeType?.includes('folder')) return;
+    setRecentlyViewed(prev => {
+      const filtered = prev.filter(item => item.id !== file.id);
+      const updated = [
+        {
+          id: file.id,
+          name: file.name,
+          mimeType: file.mimeType,
+          viewedAt: Date.now()
+        },
+        ...filtered
+      ].slice(0, 25);
+
+      try {
+        localStorage.setItem('archive_recent_history', JSON.stringify(updated));
+      } catch (err) {
+        console.error(err);
+      }
+      return updated;
+    });
+  };
+
+  const clearRecentlyViewed = () => {
+    setRecentlyViewed([]);
+    try {
+      localStorage.removeItem('archive_recent_history');
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const formatRelativeTime = (timestamp: number) => {
+    const diff = Math.floor((Date.now() - timestamp) / 1000);
+    if (diff < 60) return 'Baru saja';
+    if (diff < 3600) return `${Math.floor(diff / 60)} mnt lalu`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)} jam lalu`;
+    if (diff < 604800) return `${Math.floor(diff / 86400)} hari lalu`;
+    const d = new Date(timestamp);
+    return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
+  };
+
   const handleGlobalSearch = async (term: string) => {
     setSearchTerm(term);
     setFuzzyHint(null);
@@ -544,6 +614,18 @@ export default function Dashboard() {
 
       const savedCustom = localStorage.getItem('archive_custom_tags');
       if (savedCustom) setCustomTagHistory(JSON.parse(savedCustom));
+
+      const savedFavs = localStorage.getItem('archive_favorites');
+      if (savedFavs) {
+        const parsed = JSON.parse(savedFavs);
+        if (Array.isArray(parsed)) setFavorites(new Set(parsed));
+      }
+
+      const savedRecent = localStorage.getItem('archive_recent_history');
+      if (savedRecent) {
+        const parsed = JSON.parse(savedRecent);
+        if (Array.isArray(parsed)) setRecentlyViewed(parsed);
+      }
     } catch {}
   }, []);
 
@@ -615,6 +697,7 @@ export default function Dashboard() {
 
   const handleFileSelect = (file: DriveFile) => {
     setSelectedFile(file);
+    addToRecentlyViewed(file);
     addOnlineLog("VIEW_DOCUMENT", file.name);
   };
 
@@ -1011,6 +1094,10 @@ export default function Dashboard() {
       if (selectedTagFilter === 'all') return true;
       const fileTags = getFileTags(f);
       return fileTags.some(t => t.toLowerCase() === selectedTagFilter.toLowerCase());
+    })
+    .filter(f => {
+      if (!showFavoritesOnly) return true;
+      return favorites.has(f.id);
     });
 
   const folders = filteredFilesMain.filter(f => f.mimeType.includes('folder'));
@@ -1676,22 +1763,59 @@ export default function Dashboard() {
                     <div className="flex items-center gap-3">
                       <FileText size={16} className="text-[var(--text-muted)]" />
                       <h3 className="text-sm font-semibold text-[var(--text-main)]">
-                        {currentFolder ? 'Isi Folder' : filterType === 'file' ? 'Semua Dokumen' : 'Semua Item'}
+                        {showFavoritesOnly ? 'Dokumen Favorit' : currentFolder ? 'Isi Folder' : filterType === 'file' ? 'Semua Dokumen' : 'Semua Item'}
                       </h3>
                       <span className="text-xs text-[var(--text-muted)]">{filteredFilesMain.length}</span>
                     </div>
 
-                    {/* Tombol Ekspor Excel */}
+                    {/* Action Bar (Favorit, Riwayat, Ekspor) */}
                     {!isPresentationMode && (
-                      <button
-                        onClick={() => setIsExportModalOpen(true)}
-                        className="flex items-center gap-2 px-3 py-1.5 sm:px-3.5 sm:py-2 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-500 hover:text-emerald-400 border border-emerald-500/25 rounded-xl text-xs font-semibold transition-all shadow-sm group"
-                        title="Ekspor Rekapitulasi ke Excel"
-                      >
-                        <FileSpreadsheet size={15} className="group-hover:scale-110 transition-transform" />
-                        <span className="hidden sm:inline">Ekspor Excel</span>
-                        <span className="sm:hidden">Excel</span>
-                      </button>
+                      <div className="flex items-center gap-1.5 sm:gap-2">
+                        {/* Tombol Filter Favorit */}
+                        <button
+                          onClick={() => setShowFavoritesOnly(prev => !prev)}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-semibold transition-all border ${
+                            showFavoritesOnly
+                              ? 'bg-amber-500/20 text-amber-500 border-amber-500/40 shadow-sm ring-2 ring-amber-500/20'
+                              : 'bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-amber-500 border-[var(--border-line)]'
+                          }`}
+                          title={showFavoritesOnly ? 'Tampilkan Semua Dokumen' : 'Tampilkan Dokumen Favorit Saja'}
+                        >
+                          <Star size={14} className={showFavoritesOnly ? 'fill-amber-500 text-amber-500' : 'text-amber-500'} />
+                          <span className="hidden sm:inline">Favorit</span>
+                          {favorites.size > 0 && (
+                            <span className="text-[10px] px-1.5 py-0.2 bg-amber-500/20 text-amber-500 rounded-full font-bold">
+                              {favorites.size}
+                            </span>
+                          )}
+                        </button>
+
+                        {/* Tombol Riwayat Terakhir */}
+                        <button
+                          onClick={() => setIsRecentModalOpen(true)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 bg-[var(--hover-fill)] hover:bg-sky-500/10 text-[var(--text-muted)] hover:text-sky-500 border border-[var(--border-line)] hover:border-sky-500/30 rounded-xl text-xs font-semibold transition-all group"
+                          title="Lihat Riwayat Dokumen Terakhir Dibuka"
+                        >
+                          <Clock size={14} className="group-hover:rotate-45 transition-transform text-sky-500" />
+                          <span className="hidden sm:inline">Terakhir Dilihat</span>
+                          {recentlyViewed.length > 0 && (
+                            <span className="text-[10px] px-1.5 py-0.2 bg-sky-500/20 text-sky-500 rounded-full font-bold">
+                              {recentlyViewed.length}
+                            </span>
+                          )}
+                        </button>
+
+                        {/* Tombol Ekspor Excel */}
+                        <button
+                          onClick={() => setIsExportModalOpen(true)}
+                          className="flex items-center gap-2 px-3 py-1.5 sm:px-3.5 sm:py-2 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-500 hover:text-emerald-400 border border-emerald-500/25 rounded-xl text-xs font-semibold transition-all shadow-sm group"
+                          title="Ekspor Rekapitulasi ke Excel"
+                        >
+                          <FileSpreadsheet size={15} className="group-hover:scale-110 transition-transform" />
+                          <span className="hidden sm:inline">Ekspor Excel</span>
+                          <span className="sm:hidden">Excel</span>
+                        </button>
+                      </div>
                     )}
                   </div>
 
@@ -1760,8 +1884,28 @@ export default function Dashboard() {
 
                   {filteredFilesMain.length === 0 ? (
                     <div className="text-center py-20">
-                      <Database size={40} className="text-slate-700 mx-auto mb-4" />
-                      <p className="text-[var(--text-muted)] text-sm">Tidak ada data ditemukan</p>
+                      {showFavoritesOnly ? (
+                        <div className="max-w-xs mx-auto">
+                          <div className="w-16 h-16 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500 mx-auto mb-4 border border-amber-500/20">
+                            <Star size={32} className="fill-amber-500/30" />
+                          </div>
+                          <h4 className="text-sm font-bold text-[var(--text-main)] mb-1">Belum Ada Dokumen Favorit</h4>
+                          <p className="text-xs text-[var(--text-muted)] leading-relaxed mb-4">
+                            Tandai dokumen penting dengan menekan ikon bintang pada berkas agar mudah ditemukan di sini.
+                          </p>
+                          <button
+                            onClick={() => setShowFavoritesOnly(false)}
+                            className="px-4 py-2 bg-[var(--hover-fill)] hover:bg-[var(--accent)] hover:text-slate-950 text-xs font-semibold rounded-xl border border-[var(--border-line)] transition-all"
+                          >
+                            Tampilkan Semua Berkas
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <Database size={40} className="text-slate-700 mx-auto mb-4" />
+                          <p className="text-[var(--text-muted)] text-sm">Tidak ada data ditemukan</p>
+                        </>
+                      )}
                     </div>
                   ) : viewMode === 'grid' ? (
                     <div className={`grid grid-cols-1 sm:grid-cols-2 ${isCompactMode ? 'xl:grid-cols-5 gap-2' : 'xl:grid-cols-4 gap-4'}`}>
@@ -1793,23 +1937,36 @@ export default function Dashboard() {
                               )}
                             </div>
                             
-                            {/* Actions - visible on hover */}
+                            {/* Actions - visible on hover or if favorited */}
                             {!isPresentationMode && (
-                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button onClick={(e) => { e.stopPropagation(); openTagModal(file); }} title="Kelola Label" className="p-2 rounded-lg hover:bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-[var(--accent)] transition-all">
-                                <Tag size={14}/>
+                            <div className="flex gap-1 items-center">
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); toggleFavorite(file.id, file.name); }} 
+                                title={favorites.has(file.id) ? "Hapus dari Favorit" : "Tambah ke Favorit"} 
+                                className={`p-2 rounded-lg transition-all ${
+                                  favorites.has(file.id)
+                                    ? 'opacity-100 text-amber-500 hover:text-amber-400 bg-amber-500/10'
+                                    : 'opacity-0 group-hover:opacity-100 text-[var(--text-muted)] hover:text-amber-500 hover:bg-[var(--hover-fill)]'
+                                }`}
+                              >
+                                <Star size={14} className={favorites.has(file.id) ? 'fill-amber-500 text-amber-500' : ''} />
                               </button>
-                              {!file.mimeType.includes('folder') && (
-                                <button onClick={(e) => { e.stopPropagation(); addOnlineLog("DOWNLOAD", file.name); window.open(`https://drive.google.com/uc?export=download&id=${file.id}`, '_blank'); }} className="p-2 rounded-lg hover:bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-[var(--text-main)] transition-all">
-                                  <Download size={14}/>
+                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onClick={(e) => { e.stopPropagation(); openTagModal(file); }} title="Kelola Label" className="p-2 rounded-lg hover:bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-[var(--accent)] transition-all">
+                                  <Tag size={14}/>
                                 </button>
-                              )}
-                              {userRole === 'admin' && (
-                                <>
-                                  <button onClick={(e) => { e.stopPropagation(); handleRename(file.id, file.name); }} className="p-2 rounded-lg hover:bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-blue-400 transition-all"><Edit2 size={14}/></button>
-                                  <button onClick={(e) => { e.stopPropagation(); handleDelete(file.id, file.name); }} className="p-2 rounded-lg hover:bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-red-400 transition-all"><Trash2 size={14}/></button>
-                                </>
-                              )}
+                                {!file.mimeType.includes('folder') && (
+                                  <button onClick={(e) => { e.stopPropagation(); addOnlineLog("DOWNLOAD", file.name); window.open(`https://drive.google.com/uc?export=download&id=${file.id}`, '_blank'); }} className="p-2 rounded-lg hover:bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-[var(--text-main)] transition-all">
+                                    <Download size={14}/>
+                                  </button>
+                                )}
+                                {userRole === 'admin' && (
+                                  <>
+                                    <button onClick={(e) => { e.stopPropagation(); handleRename(file.id, file.name); }} className="p-2 rounded-lg hover:bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-blue-400 transition-all"><Edit2 size={14}/></button>
+                                    <button onClick={(e) => { e.stopPropagation(); handleDelete(file.id, file.name); }} className="p-2 rounded-lg hover:bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-red-400 transition-all"><Trash2 size={14}/></button>
+                                  </>
+                                )}
+                              </div>
                             </div>
                             )}
                           </div>
@@ -1899,6 +2056,17 @@ export default function Dashboard() {
                           </div>
                           <div className="hidden sm:block sm:col-span-3 text-xs text-[var(--text-muted)]">{file.mimeType.includes('folder') ? 'Folder' : 'Dokumen'}</div>
                           <div className="col-span-3 sm:col-span-2 flex items-center justify-end gap-0.5 sm:gap-2">
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); toggleFavorite(file.id, file.name); }} 
+                              title={favorites.has(file.id) ? "Hapus dari Favorit" : "Tambah ke Favorit"} 
+                              className={`p-1.5 rounded-md transition-all ${
+                                favorites.has(file.id)
+                                  ? 'text-amber-500 hover:text-amber-400 bg-amber-500/10'
+                                  : 'text-[var(--text-muted)] hover:text-amber-500 hover:bg-[var(--hover-fill)]'
+                              }`}
+                            >
+                              <Star size={14} className={favorites.has(file.id) ? 'fill-amber-500 text-amber-500' : ''}/>
+                            </button>
                             <button onClick={(e) => { e.stopPropagation(); openTagModal(file); }} title="Kelola Label" className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--hover-fill)] transition-all">
                               <Tag size={14}/>
                             </button>
@@ -2145,6 +2313,17 @@ export default function Dashboard() {
                       </div>
                     </div>
                   )}
+                  <button 
+                    onClick={() => toggleFavorite(selectedFile.id, selectedFile.name)} 
+                    className={`p-2.5 rounded-xl transition-all ${
+                      favorites.has(selectedFile.id) 
+                        ? 'bg-amber-500/20 text-amber-500 hover:bg-amber-500/30' 
+                        : 'bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-amber-500'
+                    }`} 
+                    title={favorites.has(selectedFile.id) ? 'Hapus dari Favorit' : 'Tambah ke Favorit'}
+                  >
+                    <Star size={18} className={favorites.has(selectedFile.id) ? 'fill-amber-500 text-amber-500' : ''}/>
+                  </button>
                   <button onClick={() => setIsFocusMode(!isFocusMode)} className={`p-2.5 rounded-xl transition-all ${isFocusMode ? 'bg-green-500/10 text-green-500 hover:bg-green-500/20' : 'bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-[var(--text-main)]'}`} title={isFocusMode ? 'Keluar Mode Fokus' : 'Mode Fokus (Layar Penuh)'}><Focus size={18}/></button>
                   <button onClick={() => {
                     setPipFile(selectedFile);
@@ -3026,6 +3205,133 @@ export default function Dashboard() {
                     Selesai
                   </button>
                 </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* RECENTLY VIEWED MODAL */}
+        <AnimatePresence>
+          {isRecentModalOpen && (
+            <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+              <motion.div 
+                initial={{ scale: 0.95, opacity: 0, y: 15 }} 
+                animate={{ scale: 1, opacity: 1, y: 0 }} 
+                exit={{ scale: 0.95, opacity: 0, y: 15 }}
+                className="bg-[var(--bg-panel)] rounded-2xl p-6 sm:p-7 w-full max-w-lg border border-[var(--border-line)] shadow-2xl relative max-h-[85vh] flex flex-col"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Header */}
+                <div className="flex items-start justify-between pb-4 border-b border-[var(--border-line)]">
+                  <div className="flex items-center gap-3 min-w-0 pr-3">
+                    <div className="w-10 h-10 rounded-xl bg-sky-500/10 flex items-center justify-center text-sky-500 flex-shrink-0">
+                      <Clock size={20} />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="text-base font-bold text-[var(--text-main)]">Riwayat Terakhir Dibuka</h3>
+                      <p className="text-xs text-[var(--text-muted)]">
+                        {recentlyViewed.length} dokumen yang baru-baru ini Anda akses
+                      </p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setIsRecentModalOpen(false)} 
+                    className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--hover-fill)] transition-colors"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {/* List Container */}
+                <div className="flex-1 overflow-y-auto py-3 space-y-2 pr-1 my-1">
+                  {recentlyViewed.length === 0 ? (
+                    <div className="text-center py-12">
+                      <Clock size={36} className="text-slate-600 mx-auto mb-3 opacity-40" />
+                      <p className="text-sm font-semibold text-[var(--text-muted)]">Belum Ada Riwayat</p>
+                      <p className="text-xs text-[var(--text-muted)] mt-1">Dokumen yang Anda buka dan pratinjau akan otomatis tercatat di sini.</p>
+                    </div>
+                  ) : (
+                    recentlyViewed.map((item) => {
+                      const isFav = favorites.has(item.id);
+                      return (
+                        <div
+                          key={item.id}
+                          className="flex items-center justify-between p-3 rounded-xl bg-[var(--hover-fill)]/70 hover:bg-[var(--hover-fill)] border border-[var(--border-line)] transition-all group cursor-pointer"
+                          onClick={() => {
+                            const fullFile = files.find(f => f.id === item.id) 
+                              || searchResults.find(f => f.id === item.id) 
+                              || { id: item.id, name: item.name, mimeType: item.mimeType };
+                            handleFileSelect(fullFile);
+                            setIsRecentModalOpen(false);
+                          }}
+                        >
+                          <div className="flex items-center gap-3 min-w-0 pr-3">
+                            <div className="p-2 rounded-lg bg-[var(--bg-panel)] text-[var(--text-muted)] group-hover:text-sky-500 transition-colors flex-shrink-0">
+                              <FileText size={18} />
+                            </div>
+                            <div className="min-w-0">
+                              <h4 className="text-xs sm:text-sm font-medium text-[var(--text-main)] truncate group-hover:text-sky-500 transition-colors" title={item.name}>
+                                {item.name}
+                              </h4>
+                              <p className="text-[10px] text-[var(--text-muted)] flex items-center gap-1.5 mt-0.5">
+                                <span className="inline-block w-1.5 h-1.5 rounded-full bg-sky-500/70"></span>
+                                {formatRelativeTime(item.viewedAt)}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            {/* Star button */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleFavorite(item.id, item.name);
+                              }}
+                              title={isFav ? "Hapus dari Favorit" : "Tambah ke Favorit"}
+                              className={`p-2 rounded-lg transition-all ${
+                                isFav
+                                  ? 'text-amber-500 bg-amber-500/10'
+                                  : 'text-[var(--text-muted)] hover:text-amber-500 hover:bg-[var(--hover-fill)]'
+                              }`}
+                            >
+                              <Star size={14} className={isFav ? 'fill-amber-500 text-amber-500' : ''} />
+                            </button>
+                            {/* Open button */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const fullFile = files.find(f => f.id === item.id) 
+                                  || searchResults.find(f => f.id === item.id) 
+                                  || { id: item.id, name: item.name, mimeType: item.mimeType };
+                                handleFileSelect(fullFile);
+                                setIsRecentModalOpen(false);
+                              }}
+                              className="px-2.5 py-1.5 bg-sky-500/10 hover:bg-sky-500/20 text-sky-500 rounded-lg text-xs font-semibold transition-all"
+                            >
+                              Buka
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                {/* Footer */}
+                {recentlyViewed.length > 0 && (
+                  <div className="pt-3 border-t border-[var(--border-line)] flex items-center justify-between">
+                    <span className="text-[11px] text-[var(--text-muted)]">
+                      Tersimpan otomatis di peramban
+                    </span>
+                    <button
+                      onClick={clearRecentlyViewed}
+                      className="text-xs text-rose-500 hover:text-rose-400 hover:underline flex items-center gap-1 transition-colors font-medium px-2 py-1"
+                    >
+                      <Trash2 size={13} />
+                      Bersihkan Riwayat
+                    </button>
+                  </div>
+                )}
               </motion.div>
             </div>
           )}
