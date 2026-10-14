@@ -24,7 +24,7 @@ export async function GET(request: Request) {
 
     const list = await drive.files.list({
       q: query,
-      fields: 'files(id, name, mimeType, size, createdTime, hasThumbnail, thumbnailLink)',
+      fields: 'files(id, name, mimeType, size, createdTime, hasThumbnail, thumbnailLink, appProperties)',
       orderBy: 'folder, name',
     });
 

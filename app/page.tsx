@@ -10,7 +10,7 @@ import {
   LayoutGrid, List, Clock, Eye, EyeOff,
   Command, Share2, Palette, BarChart2, KeyRound, Copy, Check,
   Minimize2, Maximize2, Smartphone, GripHorizontal, Sparkles,
-  Monitor, Wrench, Focus, Rows3, FileSpreadsheet
+  Monitor, Wrench, Focus, Rows3, FileSpreadsheet, Tag
 } from 'lucide-react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -24,6 +24,8 @@ interface DriveFile {
   owner?: string;
   hasThumbnail?: boolean;
   thumbnailLink?: string;
+  appProperties?: Record<string, string>;
+  tags?: string[];
 }
 
 interface FolderHistory {
@@ -72,6 +74,14 @@ export default function Dashboard() {
   const [exportScope, setExportScope] = useState<'current' | 'all'>('current');
   const [exportLoading, setExportLoading] = useState(false);
   const [exportSuccess, setExportSuccess] = useState(false);
+
+  // --- Label / Tagging ---
+  const [tagMap, setTagMap] = useState<Record<string, string[]>>({});
+  const [selectedTagFilter, setSelectedTagFilter] = useState<string>('all');
+  const [isTagModalOpen, setIsTagModalOpen] = useState(false);
+  const [tagModalFile, setTagModalFile] = useState<DriveFile | null>(null);
+  const [customTagInput, setCustomTagInput] = useState('');
+  const [tagSaving, setTagSaving] = useState(false);
 
   // --- PiP (Floating Preview) ---
   const [pipFile, setPipFile] = useState<DriveFile | null>(null);
@@ -221,6 +231,105 @@ export default function Dashboard() {
       await fetch('/api/logs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newEntry) });
       fetchOnlineLogs();
     } catch (e) { console.error(e); }
+  };
+
+  // --- PRESET TAGS & HELPERS ---
+  const PRESET_TAGS = [
+    { label: 'Penting', bg: 'bg-rose-500/15', text: 'text-rose-400', border: 'border-rose-500/30', dot: 'bg-rose-500' },
+    { label: 'Rahasia', bg: 'bg-purple-500/15', text: 'text-purple-400', border: 'border-purple-500/30', dot: 'bg-purple-500' },
+    { label: 'Selesai', bg: 'bg-emerald-500/15', text: 'text-emerald-400', border: 'border-emerald-500/30', dot: 'bg-emerald-500' },
+    { label: 'Tindak Lanjut', bg: 'bg-amber-500/15', text: 'text-amber-400', border: 'border-amber-500/30', dot: 'bg-amber-500' },
+    { label: 'Audit 2024', bg: 'bg-blue-500/15', text: 'text-blue-400', border: 'border-blue-500/30', dot: 'bg-blue-500' },
+    { label: 'Kinerja', bg: 'bg-cyan-500/15', text: 'text-cyan-400', border: 'border-cyan-500/30', dot: 'bg-cyan-500' },
+  ];
+
+  const getTagStyle = (tag: string) => {
+    const found = PRESET_TAGS.find(p => p.label.toLowerCase() === tag.toLowerCase());
+    if (found) return found;
+    const colors = [
+      { bg: 'bg-indigo-500/15', text: 'text-indigo-400', border: 'border-indigo-500/30', dot: 'bg-indigo-500' },
+      { bg: 'bg-teal-500/15', text: 'text-teal-400', border: 'border-teal-500/30', dot: 'bg-teal-500' },
+      { bg: 'bg-pink-500/15', text: 'text-pink-400', border: 'border-pink-500/30', dot: 'bg-pink-500' },
+      { bg: 'bg-orange-500/15', text: 'text-orange-400', border: 'border-orange-500/30', dot: 'bg-orange-500' },
+    ];
+    const hash = tag.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+    return colors[hash % colors.length];
+  };
+
+  const getFileTags = useCallback((file: DriveFile | null): string[] => {
+    if (!file) return [];
+    if (tagMap[file.id] && Array.isArray(tagMap[file.id])) return tagMap[file.id];
+    if (file.appProperties?.tags) {
+      try {
+        const parsed = JSON.parse(file.appProperties.tags);
+        if (Array.isArray(parsed)) return parsed;
+      } catch {}
+    }
+    return [];
+  }, [tagMap]);
+
+  const openTagModal = (file: DriveFile) => {
+    setTagModalFile(file);
+    setCustomTagInput('');
+    setIsTagModalOpen(true);
+  };
+
+  const handleSaveFileTags = async (fileId: string, fileName: string, newTags: string[]) => {
+    setTagSaving(true);
+    const sanitized = Array.from(new Set(newTags.map(t => t.trim()).filter(Boolean)));
+    const updatedMap = { ...tagMap, [fileId]: sanitized };
+    setTagMap(updatedMap);
+    try {
+      localStorage.setItem('archive_file_tags', JSON.stringify(updatedMap));
+    } catch (e) { console.error(e); }
+
+    // Update in files state
+    setFiles(prev => prev.map(f => {
+      if (f.id === fileId) {
+        return {
+          ...f,
+          appProperties: {
+            ...(f.appProperties || {}),
+            tags: JSON.stringify(sanitized),
+          }
+        };
+      }
+      return f;
+    }));
+
+    if (selectedFile?.id === fileId) {
+      setSelectedFile(prev => prev ? {
+        ...prev,
+        appProperties: {
+          ...(prev.appProperties || {}),
+          tags: JSON.stringify(sanitized),
+        }
+      } : null);
+    }
+
+    if (tagModalFile?.id === fileId) {
+      setTagModalFile(prev => prev ? {
+        ...prev,
+        appProperties: {
+          ...(prev.appProperties || {}),
+          tags: JSON.stringify(sanitized),
+        }
+      } : null);
+    }
+
+    try {
+      const res = await fetch('/api/drive/tags', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileId, tags: sanitized }),
+      });
+      if (res.ok) {
+        addOnlineLog("UPDATE_LABEL", `${fileName} [${sanitized.join(', ') || 'Tanpa label'}]`);
+      }
+    } catch (err) {
+      console.error('Error updating tags in Google Drive:', err);
+    }
+    setTagSaving(false);
   };
 
   const handleGlobalSearch = async (term: string) => {
@@ -399,6 +508,13 @@ export default function Dashboard() {
 
   useEffect(() => { document.documentElement.classList.toggle('dark', isDarkMode); }, [isDarkMode]);
 
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('archive_file_tags');
+      if (saved) setTagMap(JSON.parse(saved));
+    } catch {}
+  }, []);
+
   const fetchData = async (fId: string = '') => {
     setLoading(true);
     try {
@@ -407,6 +523,24 @@ export default function Dashboard() {
       if (data.files) {
         setFiles(data.files);
         setAllFolders(data.files.filter((f: any) => f.mimeType.includes('folder')));
+
+        // Sync tags from Google Drive appProperties
+        const driveTagsMap: Record<string, string[]> = {};
+        data.files.forEach((f: any) => {
+          if (f.appProperties?.tags) {
+            try {
+              const parsed = JSON.parse(f.appProperties.tags);
+              if (Array.isArray(parsed)) driveTagsMap[f.id] = parsed;
+            } catch {}
+          }
+        });
+        if (Object.keys(driveTagsMap).length > 0) {
+          setTagMap(prev => {
+            const merged = { ...prev, ...driveTagsMap };
+            try { localStorage.setItem('archive_file_tags', JSON.stringify(merged)); } catch {}
+            return merged;
+          });
+        }
       }
       if (data.totalDocs !== undefined) setStats({ total: data.totalDocs });
       if (data.analytics) setAnalyticsData(data.analytics);
@@ -709,6 +843,11 @@ export default function Dashboard() {
       if (filterType === 'folder') return f.mimeType.includes('folder');
       if (filterType === 'file') return !f.mimeType.includes('folder');
       return true;
+    })
+    .filter(f => {
+      if (selectedTagFilter === 'all') return true;
+      const fileTags = getFileTags(f);
+      return fileTags.some(t => t.toLowerCase() === selectedTagFilter.toLowerCase());
     });
 
   const folders = filteredFilesMain.filter(f => f.mimeType.includes('folder'));
@@ -1288,6 +1427,69 @@ export default function Dashboard() {
                     )}
                   </div>
 
+                  {/* LABEL FILTER BAR */}
+                  <div className="flex items-center gap-2 overflow-x-auto pb-2.5 mb-4 scrollbar-none">
+                    <span className="text-xs text-[var(--text-muted)] flex items-center gap-1.5 flex-shrink-0 font-medium">
+                      <Tag size={13} className="text-[var(--accent)]" /> Label:
+                    </span>
+                    <button
+                      onClick={() => setSelectedTagFilter('all')}
+                      className={`px-3 py-1 rounded-full text-xs font-medium transition-all whitespace-nowrap border ${
+                        selectedTagFilter === 'all'
+                          ? 'bg-[var(--accent)] text-[var(--accent-fg)] border-[var(--accent)] shadow-sm'
+                          : 'bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-[var(--text-main)] border-[var(--border-line)]'
+                      }`}
+                    >
+                      Semua
+                    </button>
+                    {PRESET_TAGS.map(pt => {
+                      const isSelected = selectedTagFilter.toLowerCase() === pt.label.toLowerCase();
+                      return (
+                        <button
+                          key={pt.label}
+                          onClick={() => setSelectedTagFilter(isSelected ? 'all' : pt.label)}
+                          className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all whitespace-nowrap border ${
+                            isSelected
+                              ? `${pt.bg} ${pt.text} ${pt.border} ring-2 ring-[var(--accent)]/30 font-semibold shadow-sm`
+                              : 'bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-[var(--text-main)] border-[var(--border-line)]'
+                          }`}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${pt.dot}`}></span>
+                          {pt.label}
+                        </button>
+                      );
+                    })}
+                    {/* Custom tags in use that are not in preset */}
+                    {Array.from(new Set(Object.values(tagMap).flat()))
+                      .filter(t => !PRESET_TAGS.some(p => p.label.toLowerCase() === t.toLowerCase()))
+                      .map(customTag => {
+                        const isSelected = selectedTagFilter.toLowerCase() === customTag.toLowerCase();
+                        const style = getTagStyle(customTag);
+                        return (
+                          <button
+                            key={customTag}
+                            onClick={() => setSelectedTagFilter(isSelected ? 'all' : customTag)}
+                            className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all whitespace-nowrap border ${
+                              isSelected
+                                ? `${style.bg} ${style.text} ${style.border} ring-2 ring-[var(--accent)]/30 font-semibold shadow-sm`
+                                : 'bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-[var(--text-main)] border-[var(--border-line)]'
+                            }`}
+                          >
+                            <span className={`w-1.5 h-1.5 rounded-full ${style.dot}`}></span>
+                            {customTag}
+                          </button>
+                        );
+                      })}
+                    {selectedTagFilter !== 'all' && (
+                      <button
+                        onClick={() => setSelectedTagFilter('all')}
+                        className="text-[11px] text-[var(--accent)] hover:underline flex items-center gap-1 px-2 whitespace-nowrap font-medium ml-1"
+                      >
+                        <X size={12} /> Reset
+                      </button>
+                    )}
+                  </div>
+
                   {filteredFilesMain.length === 0 ? (
                     <div className="text-center py-20">
                       <Database size={40} className="text-slate-700 mx-auto mb-4" />
@@ -1326,6 +1528,9 @@ export default function Dashboard() {
                             {/* Actions - visible on hover */}
                             {!isPresentationMode && (
                             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button onClick={(e) => { e.stopPropagation(); openTagModal(file); }} title="Kelola Label" className="p-2 rounded-lg hover:bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-[var(--accent)] transition-all">
+                                <Tag size={14}/>
+                              </button>
                               {!file.mimeType.includes('folder') && (
                                 <button onClick={(e) => { e.stopPropagation(); addOnlineLog("DOWNLOAD", file.name); window.open(`https://drive.google.com/uc?export=download&id=${file.id}`, '_blank'); }} className="p-2 rounded-lg hover:bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-[var(--text-main)] transition-all">
                                   <Download size={14}/>
@@ -1345,6 +1550,34 @@ export default function Dashboard() {
                           <p className="text-[10px] sm:text-[11px] text-[var(--text-muted)] mt-1 sm:mt-1.5">
                             {file.mimeType.includes('folder') ? 'Folder' : 'Dokumen'}
                           </p>
+
+                          {/* Tag Badges */}
+                          {getFileTags(file).length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-2.5">
+                              {getFileTags(file).slice(0, 3).map(tag => {
+                                const style = getTagStyle(tag);
+                                return (
+                                  <span
+                                    key={tag}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedTagFilter(tag);
+                                    }}
+                                    title={`Filter label: ${tag}`}
+                                    className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md font-medium border ${style.bg} ${style.text} ${style.border} hover:opacity-80 transition-opacity`}
+                                  >
+                                    <span className={`w-1 h-1 rounded-full ${style.dot}`}></span>
+                                    {tag}
+                                  </span>
+                                );
+                              })}
+                              {getFileTags(file).length > 3 && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-[var(--hover-fill)] text-[var(--text-muted)] border border-[var(--border-line)]">
+                                  +{getFileTags(file).length - 3}
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </motion.div>
                       ))}
                     </div>
@@ -1362,14 +1595,45 @@ export default function Dashboard() {
                           onClick={() => file.mimeType.includes('folder') ? navigateToFolder(file.id, file.name) : handleFileSelect(file)} 
                           className="grid grid-cols-12 px-4 sm:px-5 py-3 sm:py-3.5 items-center hover:bg-[var(--hover-fill)] transition-colors cursor-pointer group border-b border-[var(--border-line)] last:border-0"
                         >
-                          <div className="col-span-9 sm:col-span-7 flex items-center gap-2 sm:gap-3 pr-2">
-                            <div className={`p-1.5 rounded-lg flex-shrink-0 ${file.mimeType.includes('folder') ? 'text-[var(--accent)] bg-[var(--accent)]/10' : 'text-[var(--text-muted)] bg-[var(--hover-fill)]'}`}>
-                              {file.mimeType.includes('folder') ? <Folder size={16}/> : <FileText size={16}/>}
+                          <div className="col-span-9 sm:col-span-7 flex flex-col justify-center pr-2">
+                            <div className="flex items-center gap-2 sm:gap-3">
+                              <div className={`p-1.5 rounded-lg flex-shrink-0 ${file.mimeType.includes('folder') ? 'text-[var(--accent)] bg-[var(--accent)]/10' : 'text-[var(--text-muted)] bg-[var(--hover-fill)]'}`}>
+                                {file.mimeType.includes('folder') ? <Folder size={16}/> : <FileText size={16}/>}
+                              </div>
+                              <span title={file.name} className="text-xs sm:text-sm text-[var(--text-main)] group-hover:text-[var(--accent)] line-clamp-2 sm:truncate transition-colors leading-tight sm:leading-normal">{file.name}</span>
                             </div>
-                            <span title={file.name} className="text-xs sm:text-sm text-[var(--text-main)] group-hover:text-[var(--accent)] line-clamp-2 sm:truncate transition-colors leading-tight sm:leading-normal">{file.name}</span>
+                            {/* Tags in list row */}
+                            {getFileTags(file).length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1.5 pl-8 sm:pl-9">
+                                {getFileTags(file).slice(0, 3).map(tag => {
+                                  const style = getTagStyle(tag);
+                                  return (
+                                    <span
+                                      key={tag}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedTagFilter(tag);
+                                      }}
+                                      className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md font-medium border ${style.bg} ${style.text} ${style.border}`}
+                                    >
+                                      <span className={`w-1 h-1 rounded-full ${style.dot}`}></span>
+                                      {tag}
+                                    </span>
+                                  );
+                                })}
+                                {getFileTags(file).length > 3 && (
+                                  <span className="text-[10px] px-1 py-0.5 rounded-md bg-[var(--hover-fill)] text-[var(--text-muted)] border border-[var(--border-line)]">
+                                    +{getFileTags(file).length - 3}
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </div>
                           <div className="hidden sm:block sm:col-span-3 text-xs text-[var(--text-muted)]">{file.mimeType.includes('folder') ? 'Folder' : 'Dokumen'}</div>
                           <div className="col-span-3 sm:col-span-2 flex items-center justify-end gap-0.5 sm:gap-2">
+                            <button onClick={(e) => { e.stopPropagation(); openTagModal(file); }} title="Kelola Label" className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--hover-fill)] transition-all">
+                              <Tag size={14}/>
+                            </button>
                             {!file.mimeType.includes('folder') && (
                               <button onClick={(e) => { e.stopPropagation(); addOnlineLog("DOWNLOAD", file.name); window.open(`https://drive.google.com/uc?export=download&id=${file.id}`, '_blank'); }} className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--hover-fill)] transition-all"><Download size={14}/></button>
                             )}
@@ -1635,6 +1899,47 @@ export default function Dashboard() {
                 </div>
               </div>
               
+              {/* PREVIEW TAGS BAR */}
+              <div className="px-6 py-2.5 bg-[var(--hover-fill)]/60 border-b border-[var(--border-line)] flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                  <span className="text-xs text-[var(--text-muted)] flex items-center gap-1 font-medium mr-1">
+                    <Tag size={13} className="text-[var(--accent)]" /> Label:
+                  </span>
+                  {getFileTags(selectedFile).length === 0 ? (
+                    <span className="text-xs text-[var(--text-muted)] italic">Belum ada label</span>
+                  ) : (
+                    getFileTags(selectedFile).map(tag => {
+                      const style = getTagStyle(tag);
+                      return (
+                        <span
+                          key={tag}
+                          className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-0.5 rounded-full font-medium border ${style.bg} ${style.text} ${style.border}`}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${style.dot}`}></span>
+                          {tag}
+                          <button
+                            onClick={() => {
+                              const remaining = getFileTags(selectedFile).filter(t => t.toLowerCase() !== tag.toLowerCase());
+                              handleSaveFileTags(selectedFile.id, selectedFile.name, remaining);
+                            }}
+                            title="Hapus label ini"
+                            className="hover:opacity-70 ml-0.5 p-0.5 rounded-full"
+                          >
+                            <X size={11} />
+                          </button>
+                        </span>
+                      );
+                    })
+                  )}
+                </div>
+                <button
+                  onClick={() => openTagModal(selectedFile)}
+                  className="text-xs text-[var(--accent)] hover:underline flex items-center gap-1 font-semibold px-2.5 py-1 rounded-lg hover:bg-[var(--accent)]/10 transition-colors"
+                >
+                  <Plus size={13} /> Kelola Label
+                </button>
+              </div>
+
               {/* Preview Content */}
               <div className="flex-1 relative bg-black/30 overflow-hidden">
                 {previewLoading && (
@@ -2152,6 +2457,177 @@ export default function Dashboard() {
                         <span>Unduh File Excel (.csv)</span>
                       </>
                     )}
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* TAG MODAL */}
+        <AnimatePresence>
+          {isTagModalOpen && tagModalFile && (
+            <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+              <motion.div 
+                initial={{ scale: 0.95, opacity: 0, y: 15 }} 
+                animate={{ scale: 1, opacity: 1, y: 0 }} 
+                exit={{ scale: 0.95, opacity: 0, y: 15 }}
+                className="bg-[var(--bg-panel)] rounded-2xl p-6 sm:p-7 w-full max-w-md border border-[var(--border-line)] shadow-2xl relative"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Header */}
+                <div className="flex items-start justify-between mb-5">
+                  <div className="flex items-center gap-3 min-w-0 pr-3">
+                    <div className="w-10 h-10 rounded-xl bg-[var(--accent)]/10 flex items-center justify-center text-[var(--accent)] flex-shrink-0">
+                      <Tag size={20} />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="text-base font-bold text-[var(--text-main)]">Kelola Label Dokumen</h3>
+                      <p className="text-xs text-[var(--text-muted)] truncate max-w-[260px] sm:max-w-[300px]" title={tagModalFile.name}>
+                        {tagModalFile.name}
+                      </p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setIsTagModalOpen(false)} 
+                    className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--hover-fill)] transition-colors"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {/* Section 1: Label Aktif */}
+                <div className="mb-5">
+                  <label className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider block mb-2">
+                    Label Aktif Saat Ini
+                  </label>
+                  {getFileTags(tagModalFile).length === 0 ? (
+                    <p className="text-xs text-slate-500 italic bg-[var(--hover-fill)] p-3 rounded-xl border border-[var(--border-line)]">
+                      Belum ada label. Pilih dari label rekomendasi di bawah atau ketik label baru.
+                    </p>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5 p-3 rounded-xl bg-[var(--hover-fill)] border border-[var(--border-line)]">
+                      {getFileTags(tagModalFile).map(tag => {
+                        const style = getTagStyle(tag);
+                        return (
+                          <span
+                            key={tag}
+                            className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium border ${style.bg} ${style.text} ${style.border}`}
+                          >
+                            <span className={`w-1.5 h-1.5 rounded-full ${style.dot}`}></span>
+                            {tag}
+                            <button
+                              disabled={tagSaving}
+                              onClick={() => {
+                                const current = getFileTags(tagModalFile);
+                                const updated = current.filter(t => t.toLowerCase() !== tag.toLowerCase());
+                                handleSaveFileTags(tagModalFile.id, tagModalFile.name, updated);
+                              }}
+                              className="hover:opacity-75 p-0.5 rounded-full"
+                              title="Hapus label"
+                            >
+                              <X size={12} />
+                            </button>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Section 2: Rekomendasi Label Cepat */}
+                <div className="mb-5">
+                  <label className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider block mb-2">
+                    Pilihan Label Standar
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {PRESET_TAGS.map(pt => {
+                      const active = getFileTags(tagModalFile).some(t => t.toLowerCase() === pt.label.toLowerCase());
+                      return (
+                        <button
+                          key={pt.label}
+                          type="button"
+                          disabled={tagSaving}
+                          onClick={() => {
+                            const current = getFileTags(tagModalFile);
+                            let updated: string[];
+                            if (active) {
+                              updated = current.filter(t => t.toLowerCase() !== pt.label.toLowerCase());
+                            } else {
+                              updated = [...current, pt.label];
+                            }
+                            handleSaveFileTags(tagModalFile.id, tagModalFile.name, updated);
+                          }}
+                          className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium border transition-all text-left ${
+                            active
+                              ? `${pt.bg} ${pt.text} ${pt.border} ring-2 ring-[var(--accent)]/40 font-semibold shadow-sm`
+                              : 'bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-[var(--text-main)] border-[var(--border-line)] hover:border-[var(--border-strong)]'
+                          }`}
+                        >
+                          <span className="flex items-center gap-1.5 truncate">
+                            <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${pt.dot}`}></span>
+                            {pt.label}
+                          </span>
+                          {active && <Check size={13} className="flex-shrink-0 ml-1" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Section 3: Tambah Label Kustom */}
+                <div className="mb-6">
+                  <label className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider block mb-2">
+                    Buat Label Kustom Baru
+                  </label>
+                  <form 
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const trimmed = customTagInput.trim();
+                      if (!trimmed) return;
+                      const current = getFileTags(tagModalFile);
+                      if (!current.some(t => t.toLowerCase() === trimmed.toLowerCase())) {
+                        handleSaveFileTags(tagModalFile.id, tagModalFile.name, [...current, trimmed]);
+                      }
+                      setCustomTagInput('');
+                    }}
+                    className="flex gap-2"
+                  >
+                    <input 
+                      type="text"
+                      placeholder="Contoh: BPK 2024, Rahasia Khusus..."
+                      value={customTagInput}
+                      onChange={(e) => setCustomTagInput(e.target.value)}
+                      className="flex-1 bg-white/[0.04] border border-[var(--border-line)] rounded-xl py-2 px-3 text-xs text-[var(--text-main)] focus:border-[var(--accent)] outline-none transition-colors placeholder:text-slate-600"
+                    />
+                    <button
+                      type="submit"
+                      disabled={!customTagInput.trim() || tagSaving}
+                      className="px-3.5 py-2 bg-[var(--accent)] text-[var(--accent-fg)] rounded-xl text-xs font-semibold hover:opacity-90 disabled:opacity-40 transition-opacity flex items-center gap-1 flex-shrink-0"
+                    >
+                      <Plus size={14} /> Tambah
+                    </button>
+                  </form>
+                </div>
+
+                {/* Footer */}
+                <div className="flex items-center justify-between pt-3 border-t border-[var(--border-line)]">
+                  <span className="text-[11px] text-[var(--text-muted)] flex items-center gap-1.5">
+                    {tagSaving ? (
+                      <>
+                        <Loader2 size={12} className="animate-spin text-[var(--accent)]" /> Menyimpan label ke Google Drive...
+                      </>
+                    ) : (
+                      <>
+                        <Check size={12} className="text-emerald-400" /> Tersinkron otomatis
+                      </>
+                    )}
+                  </span>
+                  <button
+                    onClick={() => setIsTagModalOpen(false)}
+                    className="px-4 py-2 bg-[var(--hover-fill)] hover:bg-[var(--border-line)] text-xs font-semibold text-[var(--text-main)] rounded-xl transition-colors"
+                  >
+                    Selesai
                   </button>
                 </div>
               </motion.div>
