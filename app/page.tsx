@@ -93,6 +93,7 @@ export default function Dashboard() {
   const [recentlyViewed, setRecentlyViewed] = useState<{ id: string; name: string; mimeType: string; viewedAt: number }[]>([]);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [isRecentModalOpen, setIsRecentModalOpen] = useState(false);
+  const [recentSearchQuery, setRecentSearchQuery] = useState('');
 
   // --- PiP (Floating Preview) ---
   const [pipFile, setPipFile] = useState<DriveFile | null>(null);
@@ -1765,14 +1766,24 @@ export default function Dashboard() {
                 {isDarkMode ? <Sun size={16}/> : <Moon size={16}/>}
               </button>
               {!isPresentationMode && (
-                <button 
-                  onClick={() => setIsExportModalOpen(true)}
-                  className="bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-400 border border-emerald-500/30 px-3.5 py-2.5 rounded-xl font-semibold text-xs sm:text-sm transition-all flex items-center gap-2 shadow-sm"
-                  title="Ekspor Rekap Arsip ke Excel"
-                >
-                  <FileSpreadsheet size={16} className="text-emerald-400" />
-                  <span className="hidden sm:inline">Ekspor Excel</span>
-                </button>
+                <>
+                  <button 
+                    onClick={() => { setIsLogModalOpen(true); fetchOnlineLogs(); }}
+                    className="bg-[var(--accent)]/10 hover:bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent-light)] px-3.5 py-2.5 rounded-xl font-semibold text-xs sm:text-sm transition-all flex items-center gap-2 shadow-sm"
+                    title="Audit Trail & Riwayat Aktivitas Sistem (Pencarian, Alamat IP, Sesi)"
+                  >
+                    <History size={16} />
+                    <span className="hidden sm:inline">Riwayat Aktivitas</span>
+                  </button>
+                  <button 
+                    onClick={() => setIsExportModalOpen(true)}
+                    className="bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-400 border border-emerald-500/30 px-3.5 py-2.5 rounded-xl font-semibold text-xs sm:text-sm transition-all flex items-center gap-2 shadow-sm"
+                    title="Ekspor Rekap Arsip ke Excel"
+                  >
+                    <FileSpreadsheet size={16} className="text-emerald-400" />
+                    <span className="hidden sm:inline">Ekspor Excel</span>
+                  </button>
+                </>
               )}
               {userRole === 'admin' && !isPresentationMode && (
                 <button 
@@ -1918,11 +1929,27 @@ export default function Dashboard() {
                           )}
                         </button>
 
-                        {/* Tombol Riwayat Terakhir */}
+                        {/* Tombol Riwayat Aktivitas & Audit Trail */}
+                        <button
+                          onClick={() => { setIsLogModalOpen(true); fetchOnlineLogs(); }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 bg-[var(--accent)]/10 hover:bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent-light)] rounded-xl text-xs font-semibold transition-all group shadow-sm"
+                          title="Buka Audit Trail & Riwayat Aktivitas (Pencarian, Alamat IP, Sesi, Perangkat)"
+                        >
+                          <History size={14} className="group-hover:rotate-45 transition-transform" />
+                          <span className="hidden sm:inline">Riwayat Aktivitas</span>
+                          <span className="sm:hidden">Log</span>
+                          {activityLogs.length > 0 && (
+                            <span className="text-[10px] px-1.5 py-0.2 bg-[var(--accent)]/20 text-[var(--accent)] rounded-full font-bold">
+                              {activityLogs.length}
+                            </span>
+                          )}
+                        </button>
+
+                        {/* Tombol Dokumen Terakhir Dilihat */}
                         <button
                           onClick={() => setIsRecentModalOpen(true)}
                           className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 bg-[var(--hover-fill)] hover:bg-sky-500/10 text-[var(--text-muted)] hover:text-sky-500 border border-[var(--border-line)] hover:border-sky-500/30 rounded-xl text-xs font-semibold transition-all group"
-                          title="Lihat Riwayat Dokumen Terakhir Dibuka"
+                          title="Lihat Dokumen yang Baru Saja Anda Buka"
                         >
                           <Clock size={14} className="group-hover:rotate-45 transition-transform text-sky-500" />
                           <span className="hidden sm:inline">Terakhir Dilihat</span>
@@ -2366,7 +2393,7 @@ export default function Dashboard() {
                         type="text"
                         value={logSearchQuery}
                         onChange={(e) => setLogSearchQuery(e.target.value)}
-                        placeholder="Cari pengguna, nama berkas, aksi, IP, atau perangkat..."
+                        placeholder="Cari nama riwayat, berkas, pengguna, aksi, IP, atau perangkat..."
                         className="w-full pl-8 pr-7 py-2 bg-white/[0.03] border border-[var(--border-line)] rounded-xl text-xs text-[var(--text-main)] placeholder-[var(--text-muted)] outline-none focus:border-[var(--accent)] transition-all"
                       />
                       {logSearchQuery && (
@@ -2420,10 +2447,12 @@ export default function Dashboard() {
 
                       if (logSearchQuery.trim()) {
                         const q = logSearchQuery.toLowerCase();
+                        const badge = getActionBadge(log.action);
                         return (
                           (log.user && log.user.toLowerCase().includes(q)) ||
                           (log.fileName && log.fileName.toLowerCase().includes(q)) ||
                           (log.action && log.action.toLowerCase().includes(q)) ||
+                          (badge.label && badge.label.toLowerCase().includes(q)) ||
                           (log.device && log.device.toLowerCase().includes(q)) ||
                           (log.ip && log.ip.toLowerCase().includes(q))
                         );
@@ -3576,7 +3605,7 @@ export default function Dashboard() {
                 onClick={(e) => e.stopPropagation()}
               >
                 {/* Header */}
-                <div className="flex items-start justify-between pb-4 border-b border-[var(--border-line)]">
+                <div className="flex items-start justify-between pb-3 border-b border-[var(--border-line)]">
                   <div className="flex items-center gap-3 min-w-0 pr-3">
                     <div className="w-10 h-10 rounded-xl bg-sky-500/10 flex items-center justify-center text-sky-500 flex-shrink-0">
                       <Clock size={20} />
@@ -3584,7 +3613,7 @@ export default function Dashboard() {
                     <div className="min-w-0">
                       <h3 className="text-base font-bold text-[var(--text-main)]">Riwayat Terakhir Dibuka</h3>
                       <p className="text-xs text-[var(--text-muted)]">
-                        {recentlyViewed.length} dokumen yang baru-baru ini Anda akses
+                        {recentlyViewed.length} berkas yang baru saja Anda buka
                       </p>
                     </div>
                   </div>
@@ -3596,16 +3625,65 @@ export default function Dashboard() {
                   </button>
                 </div>
 
+                {/* Banner Alih ke Audit Trail Lengkap */}
+                <div className="mt-3 p-3 bg-[var(--accent)]/10 border border-[var(--accent-light)] rounded-xl flex items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <History size={16} className="text-[var(--accent)] flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="font-semibold text-[var(--text-main)] text-xs truncate">Ingin Audit Trail & Catatan Lengkap?</p>
+                      <p className="text-[11px] text-[var(--text-muted)] truncate">Termasuk pencarian nama riwayat, alamat IP, perangkat, & sesi login</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setIsRecentModalOpen(false);
+                      setIsLogModalOpen(true);
+                      fetchOnlineLogs();
+                    }}
+                    className="px-3 py-1.5 bg-[var(--accent)] text-slate-950 font-bold rounded-lg text-xs hover:bg-amber-400 transition-all shadow-sm flex-shrink-0"
+                  >
+                    Buka Audit Trail &rarr;
+                  </button>
+                </div>
+
+                {/* Pencarian Dokumen Terakhir */}
+                {recentlyViewed.length > 3 && (
+                  <div className="relative mt-3">
+                    <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+                    <input
+                      type="text"
+                      value={recentSearchQuery}
+                      onChange={(e) => setRecentSearchQuery(e.target.value)}
+                      placeholder="Cari nama riwayat berkas..."
+                      className="w-full pl-8 pr-3 py-1.5 bg-white/[0.03] border border-[var(--border-line)] rounded-lg text-xs text-[var(--text-main)] placeholder-[var(--text-muted)] outline-none focus:border-sky-500 transition-all"
+                    />
+                  </div>
+                )}
+
                 {/* List Container */}
                 <div className="flex-1 overflow-y-auto py-3 space-y-2 pr-1 my-1">
-                  {recentlyViewed.length === 0 ? (
-                    <div className="text-center py-12">
-                      <Clock size={36} className="text-slate-600 mx-auto mb-3 opacity-40" />
-                      <p className="text-sm font-semibold text-[var(--text-muted)]">Belum Ada Riwayat</p>
-                      <p className="text-xs text-[var(--text-muted)] mt-1">Dokumen yang Anda buka dan pratinjau akan otomatis tercatat di sini.</p>
-                    </div>
-                  ) : (
-                    recentlyViewed.map((item) => {
+                  {(() => {
+                    const filteredRecent = recentlyViewed.filter(item => 
+                      !recentSearchQuery.trim() || item.name.toLowerCase().includes(recentSearchQuery.toLowerCase())
+                    );
+                    if (recentlyViewed.length === 0) {
+                      return (
+                        <div className="text-center py-12">
+                          <Clock size={36} className="text-slate-600 mx-auto mb-3 opacity-40" />
+                          <p className="text-sm font-semibold text-[var(--text-muted)]">Belum Ada Riwayat</p>
+                          <p className="text-xs text-[var(--text-muted)] mt-1">Dokumen yang Anda buka dan pratinjau akan otomatis tercatat di sini.</p>
+                        </div>
+                      );
+                    }
+                    if (filteredRecent.length === 0) {
+                      return (
+                        <div className="text-center py-8">
+                          <Search size={28} className="text-slate-600 mx-auto mb-2 opacity-40" />
+                          <p className="text-xs font-semibold text-[var(--text-muted)]">Tidak ditemukan riwayat berkas</p>
+                        </div>
+                      );
+                    }
+                    return filteredRecent.map((item) => {
                       const isFav = favorites.has(item.id);
                       return (
                         <div
@@ -3667,8 +3745,8 @@ export default function Dashboard() {
                           </div>
                         </div>
                       );
-                    })
-                  )}
+                    });
+                  })()}
                 </div>
 
                 {/* Footer */}
