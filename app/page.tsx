@@ -337,6 +337,8 @@ export default function Dashboard() {
         return { label: 'Hapus Favorit', color: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20', icon: Star };
       case 'EXPORT_EXCEL':
         return { label: 'Ekspor Rekap', color: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20', icon: FileSpreadsheet };
+      case 'EXPORT_CSV':
+        return { label: 'Ekspor Audit Log', color: 'bg-amber-500/10 text-amber-400 border-amber-500/20', icon: Download };
       default:
         return { label: action, color: 'bg-[var(--accent)]/10 text-[var(--accent)] border-[var(--accent-light)]', icon: History };
     }
@@ -904,6 +906,10 @@ export default function Dashboard() {
   };
 
   const handleDownloadLogs = () => {
+    if (userRole !== 'admin') {
+      alert('Hanya Administrator yang memiliki akses untuk mengekspor data riwayat aktivitas.');
+      return;
+    }
     const headers = ["ID", "Pengguna", "Perangkat", "IP Address", "Aksi", "Nama Dokumen / Keterangan", "Waktu (ISO)", "Waktu Lokal"];
     const csvContent = [
       headers.join(","),
@@ -919,6 +925,7 @@ export default function Dashboard() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    addOnlineLog("EXPORT_CSV", "Admin mengunduh rekaman audit log (CSV)");
   };
 
   // --- HELPER EKSPOR EXCEL ---
@@ -2336,12 +2343,15 @@ export default function Dashboard() {
                     >
                       <RotateCw size={15} className={logsLoading ? 'animate-spin text-[var(--accent)]' : ''} />
                     </button>
-                    <button 
-                      onClick={handleDownloadLogs} 
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-[var(--accent)] text-slate-950 hover:bg-amber-400 rounded-lg transition-all shadow-sm"
-                    >
-                      <Download size={14} /> Export CSV
-                    </button>
+                    {userRole === 'admin' && (
+                      <button 
+                        onClick={handleDownloadLogs} 
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-[var(--accent)] text-slate-950 hover:bg-amber-400 rounded-lg transition-all shadow-sm"
+                        title="Unduh seluruh data riwayat audit (Khusus Admin)"
+                      >
+                        <Download size={14} /> Export CSV
+                      </button>
+                    )}
                     {userRole === 'admin' && (
                       <button 
                         onClick={() => setIsConfirmClearLogsOpen(true)} 
