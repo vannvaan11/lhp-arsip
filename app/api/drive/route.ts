@@ -15,11 +15,11 @@ export async function GET(request: Request) {
     });
     const drive = google.drive({ version: 'v3', auth });
 
-    // 1. Ambil daftar file & folder (Pencarian Standar)
-    let query = `'${folderId}' in parents and trashed = false`;
+    // 1. Ambil daftar file & folder (Pencarian Standar, kecualikan activity_logs.json)
+    let query = `'${folderId}' in parents and trashed = false and name != 'activity_logs.json'`;
     if (search) {
       // Dikembalikan ke pencarian berdasarkan nama saja sesuai permintaan
-      query = `name contains '${search}' and trashed = false`;
+      query = `name contains '${search}' and trashed = false and name != 'activity_logs.json'`;
     }
 
     const list = await drive.files.list({
@@ -30,7 +30,7 @@ export async function GET(request: Request) {
 
     // 2. Hitung Statistik Eksekutif (hanya mengambil metadata, bukan isinya)
     const stats = await drive.files.list({
-      q: "mimeType != 'application/vnd.google-apps.folder' and trashed = false",
+      q: "mimeType != 'application/vnd.google-apps.folder' and trashed = false and name != 'activity_logs.json'",
       fields: 'files(id, mimeType, createdTime)',
     });
 

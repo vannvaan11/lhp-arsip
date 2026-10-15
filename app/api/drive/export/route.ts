@@ -45,9 +45,9 @@ export async function GET() {
       }
     });
 
-    // 2. Ambil seluruh arsip dokumen & file yang tidak di tong sampah
+    // 2. Ambil seluruh arsip dokumen & file yang tidak di tong sampah (kecualikan activity_logs.json)
     const listRes = await drive.files.list({
-      q: 'trashed = false',
+      q: "trashed = false and name != 'activity_logs.json'",
       fields: 'files(id, name, mimeType, size, createdTime, parents)',
       pageSize: 1000,
       orderBy: 'folder, name',

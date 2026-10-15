@@ -10,7 +10,8 @@ import {
   LayoutGrid, List, Clock, Eye, EyeOff,
   Command, Share2, Palette, BarChart2, KeyRound, Copy, Check,
   Minimize2, Maximize2, Smartphone, GripHorizontal, Sparkles,
-  Monitor, Wrench, Focus, Rows3, FileSpreadsheet, Tag, Star
+  Monitor, Wrench, Focus, Rows3, FileSpreadsheet, Tag, Star,
+  RotateCw
 } from 'lucide-react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -143,6 +144,10 @@ export default function Dashboard() {
 
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
+  const [logSearchQuery, setLogSearchQuery] = useState('');
+  const [logCategoryFilter, setLogCategoryFilter] = useState<'ALL' | 'DOCS' | 'AUTH' | 'MANAGE' | 'SHARE'>('ALL');
+  const [isConfirmClearLogsOpen, setIsConfirmClearLogsOpen] = useState(false);
+  const [clearLogsLoading, setClearLogsLoading] = useState(false);
 
   // --- FUZZY SEARCH (Levenshtein Distance) ---
   const levenshtein = (a: string, b: string): number => {
@@ -227,20 +232,133 @@ export default function Dashboard() {
     setLogsLoading(true);
     try {
       const res = await fetch('/api/logs');
-      const data = await res.json();
-      if (Array.isArray(data)) setActivityLogs(data);
-    } catch (e) { console.error("Error logs:", e); }
-    setLogsLoading(false);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setActivityLogs(data);
+          try {
+            localStorage.setItem('archive_activity_logs_cache', JSON.stringify(data));
+          } catch {}
+        }
+      }
+    } catch (e) {
+      console.error("Error logs:", e);
+      try {
+        const cached = localStorage.getItem('archive_activity_logs_cache');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) setActivityLogs(parsed);
+        }
+      } catch {}
+    } finally {
+      setLogsLoading(false);
+    }
   }, []);
 
   const addOnlineLog = async (action: string, fileName: string) => {
     const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : "Unknown";
     const deviceDesc = userAgent.includes("Android") ? "Android" : userAgent.includes("iPhone") ? "iPhone" : "PC / Desktop";
-    const newEntry = { action, fileName, user: userName || sessionStorage.getItem('userName') || "Guest", device: deviceDesc };
+    const currentName = userName || (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('userName') : null) || tempName || "Guest";
+    const newEntry: ActivityLog = {
+      id: 'log_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+      action,
+      fileName,
+      user: currentName,
+      device: deviceDesc,
+      timestamp: new Date().toISOString()
+    };
+
+    // Optimistic local state update
+    setActivityLogs(prev => {
+      const updated = [newEntry, ...prev.filter(p => p.id !== newEntry.id)].slice(0, 1000);
+      try {
+        localStorage.setItem('archive_activity_logs_cache', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
     try {
-      await fetch('/api/logs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newEntry) });
-      fetchOnlineLogs();
-    } catch (e) { console.error(e); }
+      await fetch('/api/logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newEntry)
+      });
+    } catch (e) {
+      console.error("Gagal sinkronisasi log:", e);
+    }
+  };
+
+  const handleClearLogs = async () => {
+    setClearLogsLoading(true);
+    try {
+      const res = await fetch('/api/logs', { method: 'DELETE' });
+      if (res.ok) {
+        setActivityLogs([]);
+        try { localStorage.removeItem('archive_activity_logs_cache'); } catch {}
+        setIsConfirmClearLogsOpen(false);
+        addOnlineLog("LOG_RESET", "Pembersihan seluruh riwayat aktivitas oleh Admin");
+      }
+    } catch (e) {
+      console.error("Gagal membersihkan log:", e);
+    } finally {
+      setClearLogsLoading(false);
+    }
+  };
+
+  const getActionBadge = (action: string) => {
+    switch (action) {
+      case 'LOGIN':
+        return { label: 'Masuk Sesi', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20', icon: ShieldCheck };
+      case 'LOGOUT':
+        return { label: 'Keluar Sesi', color: 'bg-slate-500/10 text-slate-400 border-slate-500/20', icon: LogOut };
+      case 'VIEW_DOCUMENT':
+        return { label: 'Lihat Dokumen', color: 'bg-purple-500/10 text-purple-400 border-purple-500/20', icon: Eye };
+      case 'OPEN_FOLDER':
+        return { label: 'Buka Folder', color: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20', icon: Folder };
+      case 'DOWNLOAD':
+        return { label: 'Unduh File', color: 'bg-blue-500/10 text-blue-400 border-blue-500/20', icon: Download };
+      case 'UPLOAD':
+        return { label: 'Unggah File', color: 'bg-teal-500/10 text-teal-400 border-teal-500/20', icon: Upload };
+      case 'RENAME':
+        return { label: 'Ganti Nama', color: 'bg-amber-500/10 text-amber-400 border-amber-500/20', icon: Edit2 };
+      case 'DELETE':
+        return { label: 'Hapus File', color: 'bg-rose-500/10 text-rose-400 border-rose-500/20', icon: Trash2 };
+      case 'SHARE':
+      case 'PIN_ACCESS':
+        return { label: 'Bagikan PIN', color: 'bg-sky-500/10 text-sky-400 border-sky-500/20', icon: Share2 };
+      case 'WHATSAPP_SHARE':
+        return { label: 'Kirim WhatsApp', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20', icon: Smartphone };
+      case 'UPDATE_LABEL':
+        return { label: 'Ubah Label', color: 'bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/20', icon: Tag };
+      case 'FAVORITE':
+        return { label: 'Tambah Favorit', color: 'bg-amber-500/10 text-amber-400 border-amber-500/20', icon: Star };
+      case 'UNFAVORITE':
+        return { label: 'Hapus Favorit', color: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20', icon: Star };
+      case 'EXPORT_EXCEL':
+        return { label: 'Ekspor Rekap', color: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20', icon: FileSpreadsheet };
+      default:
+        return { label: action, color: 'bg-[var(--accent)]/10 text-[var(--accent)] border-[var(--accent-light)]', icon: History };
+    }
+  };
+
+  const formatLogRelativeTime = (timestamp: string) => {
+    try {
+      const date = new Date(timestamp);
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffSecs = Math.floor(diffMs / 1000);
+      if (diffSecs < 45) return 'Baru saja';
+      const diffMins = Math.floor(diffSecs / 60);
+      if (diffMins < 60) return `${diffMins} mnt lalu`;
+      const diffHours = Math.floor(diffMins / 60);
+      if (diffHours < 24) return `${diffHours} jam lalu`;
+      const diffDays = Math.floor(diffHours / 24);
+      if (diffDays === 1) return 'Kemarin';
+      if (diffDays < 7) return `${diffDays} hari lalu`;
+      return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+    } catch {
+      return timestamp;
+    }
   };
 
   // --- PRESET TAGS & HELPERS ---
@@ -567,13 +685,23 @@ export default function Dashboard() {
     const savedRole = sessionStorage.getItem('userRole');
     const savedName = sessionStorage.getItem('userName');
     if (savedLogin === 'true' && savedRole && savedName) {
-      setIsLoggedIn(true); setUserRole(savedRole as any); setUserName(savedName); fetchOnlineLogs();
+      setIsLoggedIn(true); setUserRole(savedRole as any); setUserName(savedName);
     } else {
       const rememberedName = localStorage.getItem('savedLoginName');
       const rememberedPwd = localStorage.getItem('savedLoginPwd');
       if (rememberedName) setTempName(rememberedName);
       if (rememberedPwd) setPassword(rememberedPwd);
     }
+
+    // Ambil log yang tersimpan di cache dan lakukan sinkronisasi
+    try {
+      const cached = localStorage.getItem('archive_activity_logs_cache');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) setActivityLogs(parsed);
+      }
+    } catch {}
+    fetchOnlineLogs();
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
@@ -775,18 +903,18 @@ export default function Dashboard() {
   };
 
   const handleDownloadLogs = () => {
-    const headers = ["Pengguna", "Aksi", "Nama File", "Waktu"];
+    const headers = ["ID", "Pengguna", "Perangkat", "IP Address", "Aksi", "Nama Dokumen / Keterangan", "Waktu (ISO)", "Waktu Lokal"];
     const csvContent = [
       headers.join(","),
       ...activityLogs.map(log => 
-        `"${log.user}","${log.action}","${log.fileName}","${new Date(log.timestamp).toLocaleString('id-ID')}"`
+        `"${log.id || '-'}","${(log.user || '-').replace(/"/g, '""')}","${log.device || '-'}","${log.ip || '-'}","${log.action}","${(log.fileName || '').replace(/"/g, '""')}","${log.timestamp}","${new Date(log.timestamp).toLocaleString('id-ID')}"`
       )
     ].join("\n");
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `audit_trail_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute("download", `audit_trail_irban3_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -2113,82 +2241,308 @@ export default function Dashboard() {
           {isLogModalOpen && (
             <motion.div 
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm"
+              className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/70 backdrop-blur-md"
               onClick={() => setIsLogModalOpen(false)}
             >
               <motion.div 
-                initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 10 }}
-                className="bg-[var(--bg-panel)] border border-[var(--border-line)] w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden" 
+                initial={{ scale: 0.95, y: 15 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 15 }}
+                className="bg-[var(--bg-panel)] border border-[var(--border-line)] w-full max-w-5xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[88vh] relative" 
                 onClick={e => e.stopPropagation()}
               >
-                <div className="p-6 border-b border-[var(--border-line)] flex justify-between items-center">
+                {/* Confirmation Modal to Clear Logs */}
+                {isConfirmClearLogsOpen && (
+                  <div className="absolute inset-0 z-30 flex items-center justify-center p-6 bg-black/75 backdrop-blur-sm">
+                    <motion.div 
+                      initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                      className="bg-[var(--bg-panel)] border border-rose-500/40 p-6 rounded-2xl max-w-sm w-full shadow-2xl text-center space-y-4"
+                    >
+                      <div className="w-12 h-12 rounded-xl bg-rose-500/10 text-rose-400 flex items-center justify-center mx-auto border border-rose-500/20">
+                        <Trash2 size={24} />
+                      </div>
+                      <div>
+                        <h4 className="text-base font-bold text-[var(--text-main)]">Hapus Seluruh Riwayat?</h4>
+                        <p className="text-xs text-[var(--text-muted)] mt-1.5 leading-relaxed">
+                          Tindakan ini akan mengosongkan seluruh audit log aktivitas yang tercatat di server. Tindakan ini permanen.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2.5 pt-1">
+                        <button 
+                          onClick={() => setIsConfirmClearLogsOpen(false)}
+                          className="flex-1 py-2.5 px-3 text-xs font-medium rounded-xl border border-[var(--border-line)] text-[var(--text-muted)] hover:bg-[var(--hover-fill)] hover:text-[var(--text-main)] transition-all"
+                        >
+                          Batal
+                        </button>
+                        <button 
+                          onClick={handleClearLogs}
+                          disabled={clearLogsLoading}
+                          className="flex-1 py-2.5 px-3 text-xs font-semibold rounded-xl bg-rose-600 text-white hover:bg-rose-700 transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-rose-600/20 disabled:opacity-50"
+                        >
+                          {clearLogsLoading ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />} Ya, Bersihkan
+                        </button>
+                      </div>
+                    </motion.div>
+                  </div>
+                )}
+
+                {/* Modal Header */}
+                <div className="p-5 sm:p-6 border-b border-[var(--border-line)] flex flex-wrap justify-between items-center gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="p-2.5 bg-[var(--accent)]/10 rounded-xl text-[var(--accent)]">
+                    <div className="p-2.5 bg-[var(--accent)]/10 rounded-xl text-[var(--accent)] border border-[var(--accent-light)]">
                       <History size={20} />
                     </div>
                     <div>
-                      <h3 className="text-lg font-bold text-[var(--text-main)]">Riwayat Aktivitas</h3>
-                      <p className="text-xs text-[var(--text-muted)] mt-0.5">Log akses & perubahan dokumen</p>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-lg font-bold text-[var(--text-main)]">Audit Trail & Riwayat Aktivitas</h3>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Aktif
+                        </span>
+                      </div>
+                      <p className="text-xs text-[var(--text-muted)] mt-0.5">Pencatatan real-time seluruh akses, perubahan berkas, dan sesi login</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button onClick={handleDownloadLogs} className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium bg-[var(--accent)]/10 text-[var(--accent)] hover:bg-[var(--accent)]/20 rounded-lg transition-all">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button 
+                      onClick={() => fetchOnlineLogs()} 
+                      disabled={logsLoading} 
+                      title="Segarkan Riwayat" 
+                      className="p-2 bg-white/[0.03] border border-[var(--border-line)] hover:bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-[var(--text-main)] rounded-lg transition-all disabled:opacity-50"
+                    >
+                      <RotateCw size={15} className={logsLoading ? 'animate-spin text-[var(--accent)]' : ''} />
+                    </button>
+                    <button 
+                      onClick={handleDownloadLogs} 
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-[var(--accent)] text-slate-950 hover:bg-amber-400 rounded-lg transition-all shadow-sm"
+                    >
                       <Download size={14} /> Export CSV
                     </button>
-                    <button onClick={() => setIsLogModalOpen(false)} className="p-2 hover:bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-[var(--text-main)] rounded-lg transition-all"><X size={20}/></button>
+                    {userRole === 'admin' && (
+                      <button 
+                        onClick={() => setIsConfirmClearLogsOpen(true)} 
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 rounded-lg transition-all"
+                        title="Kosongkan seluruh log"
+                      >
+                        <Trash2 size={13} /> Reset
+                      </button>
+                    )}
+                    <button 
+                      onClick={() => setIsLogModalOpen(false)} 
+                      className="p-2 hover:bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-[var(--text-main)] rounded-lg transition-all"
+                    >
+                      <X size={18}/>
+                    </button>
                   </div>
                 </div>
-                <div className="max-h-[60vh] overflow-y-auto custom-scrollbar">
-                  <table className="w-full border-collapse">
-                    <thead className="text-xs font-medium text-[var(--text-muted)] sticky top-0 bg-[var(--bg-panel)] z-10">
-                      <tr>
-                        <th className="p-4 text-left">Pengguna</th>
-                        <th className="p-4 text-left">Aksi</th>
-                        <th className="p-4 text-left">Nama File</th>
-                        <th className="p-4 text-right">Waktu</th>
-                      </tr>
-                    </thead>
-                    <tbody className="text-sm text-[var(--text-muted)]">
-                      {logsLoading ? (
-                        <tr><td colSpan={4} className="p-8 text-center">
-                          <Loader2 className="animate-spin text-[var(--accent)] mx-auto mb-2" size={24} />
-                          <p className="text-xs text-[var(--text-muted)]">Memuat riwayat...</p>
-                        </td></tr>
-                      ) : activityLogs.length === 0 ? (
-                        <tr><td colSpan={4} className="p-8 text-center">
-                          <History size={32} className="text-slate-700 mx-auto mb-2" />
-                          <p className="text-[var(--text-muted)] text-sm">Belum ada riwayat aktivitas</p>
-                          <p className="text-slate-600 text-xs mt-1">Coba download atau upload dokumen terlebih dahulu</p>
-                        </td></tr>
-                      ) : activityLogs.map((log) => (
-                        <tr key={log.id} className="border-t border-[var(--border-line)] hover:bg-[var(--hover-fill)] transition-colors">
-                          <td className="p-4">
-                            <div className="flex items-center gap-2.5">
-                              <div className="w-7 h-7 rounded-lg bg-[var(--accent)]/10 flex items-center justify-center text-[var(--accent)] text-[10px] font-bold flex-shrink-0">{log.user?.charAt(0) || '?'}</div>
-                              <div>
-                                <span className="text-[var(--text-main)] text-sm">{log.user}</span>
-                                <span className="block text-[10px] text-slate-600 mt-0.5">{log.device}</span>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="p-4">
-                            <span className={`px-2.5 py-1 rounded-md text-[10px] font-semibold border ${
-                              log.action === 'DELETE' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
-                              log.action === 'SHARE' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
-                              log.action === 'UPLOAD' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-                              'bg-[var(--accent)]/10 text-[var(--accent)] border-[var(--accent-light)]'
-                            }`}>{log.action}</span>
-                          </td>
-                          <td className="p-4 max-w-xs truncate text-[var(--text-muted)]" title={log.fileName}>{log.fileName}</td>
-                          <td className="p-4 text-right text-xs text-slate-600 font-mono">{
-                            log.timestamp.includes('T') 
-                              ? new Date(log.timestamp).toLocaleString('id-ID') 
-                              : log.timestamp
-                          }</td>
-                        </tr>
+
+                {/* Metrics Summary Strip */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 px-5 py-2.5 bg-black/20 border-b border-[var(--border-line)] text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[var(--text-muted)]">Total Log:</span>
+                    <span className="font-bold text-[var(--text-main)] font-mono">{activityLogs.length}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[var(--text-muted)]">Pengguna:</span>
+                    <span className="font-bold text-[var(--text-main)] font-mono">{new Set(activityLogs.map(l => l.user)).size}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[var(--text-muted)]">Akses Dokumen:</span>
+                    <span className="font-bold text-[var(--accent)] font-mono">
+                      {activityLogs.filter(l => ['VIEW_DOCUMENT', 'DOWNLOAD'].includes(l.action)).length}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 justify-start sm:justify-end">
+                    <span className="text-[var(--text-muted)]">Terakhir:</span>
+                    <span className="text-[var(--text-main)] font-medium">
+                      {activityLogs[0] ? formatLogRelativeTime(activityLogs[0].timestamp) : '-'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Search & Filter Toolbar */}
+                <div className="p-4 border-b border-[var(--border-line)] space-y-3 bg-[var(--bg-panel)]">
+                  <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center justify-between">
+                    <div className="relative flex-1">
+                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+                      <input 
+                        type="text"
+                        value={logSearchQuery}
+                        onChange={(e) => setLogSearchQuery(e.target.value)}
+                        placeholder="Cari pengguna, nama berkas, aksi, IP, atau perangkat..."
+                        className="w-full pl-8 pr-7 py-2 bg-white/[0.03] border border-[var(--border-line)] rounded-xl text-xs text-[var(--text-main)] placeholder-[var(--text-muted)] outline-none focus:border-[var(--accent)] transition-all"
+                      />
+                      {logSearchQuery && (
+                        <button onClick={() => setLogSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-main)]">
+                          <X size={13} />
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 sm:pb-0">
+                      {[
+                        { id: 'ALL', label: 'Semua', count: activityLogs.length },
+                        { id: 'DOCS', label: 'Dokumen', count: activityLogs.filter(l => ['VIEW_DOCUMENT', 'DOWNLOAD', 'OPEN_FOLDER'].includes(l.action)).length },
+                        { id: 'MANAGE', label: 'Modifikasi', count: activityLogs.filter(l => ['UPLOAD', 'DELETE', 'RENAME', 'UPDATE_LABEL', 'FAVORITE', 'UNFAVORITE', 'EXPORT_EXCEL'].includes(l.action)).length },
+                        { id: 'AUTH', label: 'Sesi', count: activityLogs.filter(l => ['LOGIN', 'LOGOUT'].includes(l.action)).length },
+                        { id: 'SHARE', label: 'Bagikan', count: activityLogs.filter(l => ['SHARE', 'WHATSAPP_SHARE', 'PIN_ACCESS'].includes(l.action)).length },
+                      ].map(tab => (
+                        <button
+                          key={tab.id}
+                          onClick={() => setLogCategoryFilter(tab.id as any)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all flex items-center gap-1.5 border ${
+                            logCategoryFilter === tab.id
+                              ? 'bg-[var(--accent)] text-slate-950 border-[var(--accent)] font-semibold shadow-sm'
+                              : 'bg-white/[0.02] border-[var(--border-line)] text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--hover-fill)]'
+                          }`}
+                        >
+                          {tab.label}
+                          <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                            logCategoryFilter === tab.id ? 'bg-black/20 text-slate-950 font-bold' : 'bg-white/[0.06] text-[var(--text-muted)]'
+                          }`}>
+                            {tab.count}
+                          </span>
+                        </button>
                       ))}
-                    </tbody>
-                  </table>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Table Content */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar">
+                  {(() => {
+                    const filteredLogs = activityLogs.filter(log => {
+                      if (logCategoryFilter === 'DOCS') {
+                        if (!['VIEW_DOCUMENT', 'DOWNLOAD', 'OPEN_FOLDER'].includes(log.action)) return false;
+                      } else if (logCategoryFilter === 'MANAGE') {
+                        if (!['UPLOAD', 'DELETE', 'RENAME', 'UPDATE_LABEL', 'FAVORITE', 'UNFAVORITE', 'EXPORT_EXCEL'].includes(log.action)) return false;
+                      } else if (logCategoryFilter === 'AUTH') {
+                        if (!['LOGIN', 'LOGOUT'].includes(log.action)) return false;
+                      } else if (logCategoryFilter === 'SHARE') {
+                        if (!['SHARE', 'WHATSAPP_SHARE', 'PIN_ACCESS'].includes(log.action)) return false;
+                      }
+
+                      if (logSearchQuery.trim()) {
+                        const q = logSearchQuery.toLowerCase();
+                        return (
+                          (log.user && log.user.toLowerCase().includes(q)) ||
+                          (log.fileName && log.fileName.toLowerCase().includes(q)) ||
+                          (log.action && log.action.toLowerCase().includes(q)) ||
+                          (log.device && log.device.toLowerCase().includes(q)) ||
+                          (log.ip && log.ip.toLowerCase().includes(q))
+                        );
+                      }
+                      return true;
+                    });
+
+                    if (logsLoading && activityLogs.length === 0) {
+                      return (
+                        <div className="p-12 text-center">
+                          <Loader2 className="animate-spin text-[var(--accent)] mx-auto mb-3" size={28} />
+                          <p className="text-sm font-medium text-[var(--text-main)]">Memuat Riwayat Aktivitas...</p>
+                          <p className="text-xs text-[var(--text-muted)] mt-1">Mengambil data log audit dari sistem</p>
+                        </div>
+                      );
+                    }
+
+                    if (activityLogs.length === 0) {
+                      return (
+                        <div className="p-12 text-center">
+                          <div className="w-14 h-14 rounded-2xl bg-[var(--accent)]/10 text-[var(--accent)] flex items-center justify-center mx-auto mb-3">
+                            <History size={28} />
+                          </div>
+                          <p className="text-base font-bold text-[var(--text-main)]">Belum Ada Riwayat Aktivitas</p>
+                          <p className="text-xs text-[var(--text-muted)] mt-1.5 max-w-sm mx-auto">
+                            Aktivitas seperti login, melihat dokumen, mengunduh, mengganti nama, atau menghapus berkas akan otomatis tercatat di sini.
+                          </p>
+                        </div>
+                      );
+                    }
+
+                    if (filteredLogs.length === 0) {
+                      return (
+                        <div className="p-10 text-center">
+                          <Search size={30} className="text-slate-600 mx-auto mb-2 opacity-50" />
+                          <p className="text-sm font-medium text-[var(--text-main)]">Tidak ada log yang cocok</p>
+                          <p className="text-xs text-[var(--text-muted)] mt-1">Coba sesuaikan kata kunci pencarian atau kategori filter Anda</p>
+                          <button 
+                            onClick={() => { setLogSearchQuery(''); setLogCategoryFilter('ALL'); }}
+                            className="mt-3 px-3 py-1.5 text-xs text-[var(--accent)] bg-[var(--accent)]/10 hover:bg-[var(--accent)]/20 rounded-lg transition-all"
+                          >
+                            Reset Filter
+                          </button>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <table className="w-full border-collapse">
+                        <thead className="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider sticky top-0 bg-[var(--bg-panel)] z-10 border-b border-[var(--border-line)]">
+                          <tr>
+                            <th className="p-3.5 text-left">Pengguna & Perangkat</th>
+                            <th className="p-3.5 text-left">Aksi</th>
+                            <th className="p-3.5 text-left">Nama Berkas / Keterangan</th>
+                            <th className="p-3.5 text-left">Alamat IP</th>
+                            <th className="p-3.5 text-right">Waktu</th>
+                          </tr>
+                        </thead>
+                        <tbody className="text-xs text-[var(--text-muted)] divide-y divide-[var(--border-line)]">
+                          {filteredLogs.map((log) => {
+                            const badge = getActionBadge(log.action);
+                            const BadgeIcon = badge.icon;
+                            const isMobile = (log.device || '').includes('Android') || (log.device || '').includes('iPhone');
+
+                            return (
+                              <tr key={log.id} className="hover:bg-[var(--hover-fill)] transition-colors">
+                                <td className="p-3.5">
+                                  <div className="flex items-center gap-2.5">
+                                    <div className="w-7 h-7 rounded-lg bg-[var(--accent)]/15 border border-[var(--accent-light)] flex items-center justify-center text-[var(--accent)] text-xs font-bold flex-shrink-0">
+                                      {log.user?.charAt(0).toUpperCase() || '?'}
+                                    </div>
+                                    <div>
+                                      <span className="text-[var(--text-main)] font-medium text-xs block">{log.user || 'Guest'}</span>
+                                      <div className="flex items-center gap-1 text-[10px] text-slate-500 mt-0.5">
+                                        {isMobile ? <Smartphone size={10} /> : <Monitor size={10} />}
+                                        <span>{log.device || 'Desktop'}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="p-3.5">
+                                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-semibold border ${badge.color}`}>
+                                    <BadgeIcon size={11} />
+                                    <span>{badge.label}</span>
+                                  </span>
+                                </td>
+                                <td className="p-3.5 max-w-sm truncate text-[var(--text-main)]" title={log.fileName}>
+                                  <span className="font-normal text-xs">{log.fileName || '-'}</span>
+                                </td>
+                                <td className="p-3.5 font-mono text-[11px] text-slate-500">
+                                  {log.ip || '127.0.0.1'}
+                                </td>
+                                <td className="p-3.5 text-right">
+                                  <span className="text-[var(--text-main)] font-medium text-xs block">
+                                    {formatLogRelativeTime(log.timestamp)}
+                                  </span>
+                                  <span className="text-[10px] text-slate-500 font-mono mt-0.5 block">
+                                    {log.timestamp && log.timestamp.includes('T') 
+                                      ? new Date(log.timestamp).toLocaleString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })
+                                      : log.timestamp}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    );
+                  })()}
+                </div>
+
+                {/* Modal Footer */}
+                <div className="p-3.5 px-5 bg-black/20 border-t border-[var(--border-line)] flex items-center justify-between text-xs text-[var(--text-muted)]">
+                  <span>
+                    Menampilkan <strong className="text-[var(--text-main)] font-mono">{activityLogs.length}</strong> aktivitas terbaru
+                  </span>
+                  <span className="text-[11px] text-slate-500">
+                    Sistem Arsip Digital Irban III
+                  </span>
                 </div>
               </motion.div>
             </motion.div>
