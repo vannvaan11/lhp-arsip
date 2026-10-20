@@ -140,6 +140,7 @@ export default function Dashboard() {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [uploadErrorMessage, setUploadErrorMessage] = useState<string>('');
   const [uploadDestinationId, setUploadDestinationId] = useState<string>('');
   const [previewLoading, setPreviewLoading] = useState(true);
 
@@ -872,37 +873,93 @@ export default function Dashboard() {
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = e.target.files; if (!selectedFiles || selectedFiles.length === 0) return;
-    setUploading(true); setUploadStatus('idle'); setUploadProgress(0);
+    setUploading(true); setUploadStatus('idle'); setUploadProgress(0); setUploadErrorMessage('');
     let success = 0;
+    let lastError = '';
+
     for (let i = 0; i < selectedFiles.length; i++) {
-      const formData = new FormData(); formData.append('file', selectedFiles[i]);
+      const formData = new FormData();
+      formData.append('file', selectedFiles[i]);
       formData.append('parentId', uploadDestinationId || currentFolder || '');
       try {
         const res = await fetch('/api/drive/upload', { method: 'POST', body: formData });
-        if (res.ok) { success++; addOnlineLog("UPLOAD", selectedFiles[i].name); }
+        const data = await res.json();
+        if (res.ok && data.success) {
+          success++;
+          addOnlineLog("UPLOAD", selectedFiles[i].name);
+        } else {
+          lastError = data.details || data.error || 'Gagal mengunggah file';
+        }
         setUploadProgress(Math.round(((i + 1) / selectedFiles.length) * 100));
-      } catch (e) { console.error(e); }
+      } catch (e: any) {
+        console.error(e);
+        lastError = e.message || 'Terjadi kesalahan koneksi saat upload';
+      }
     }
-    setUploadStatus(success > 0 ? 'success' : 'error');
-    setTimeout(() => { setIsUploadModalOpen(false); fetchData(currentFolder); }, 2000);
+
+    if (success > 0) {
+      setUploadStatus('success');
+      setTimeout(() => { setIsUploadModalOpen(false); fetchData(currentFolder); }, 2000);
+    } else {
+      setUploadStatus('error');
+      setUploadErrorMessage(lastError || 'Gagal mengunggah berkas. Periksa izin dan koneksi Google Drive.');
+    }
     setUploading(false);
   };
 
   const handleDelete = async (fileId: string, fileName: string) => {
-    if (userRole !== 'admin' || !confirm(`Hapus permanen "${fileName}"?`)) return;
+    if (userRole !== 'admin') {
+      alert('Hanya Administrator yang memiliki akses untuk menghapus dokumen.');
+      return;
+    }
+    if (!confirm(`Hapus berkas "${fileName}" dari arsip?`)) return;
+
     try {
       const res = await fetch(`/api/drive?fileId=${fileId}`, { method: 'DELETE' });
-      if (res.ok) { addOnlineLog("DELETE", fileName); fetchData(currentFolder); setSelectedFile(null); }
-    } catch (e) { console.error(e); }
+      const data = await res.json();
+      if (res.ok && data.success) {
+        addOnlineLog("DELETE", fileName);
+        if (selectedFile?.id === fileId) {
+          setSelectedFile(null);
+        }
+        fetchData(currentFolder);
+      } else {
+        alert(`Gagal menghapus berkas: ${data.error || 'Terjadi kesalahan'}`);
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert(`Gagal menghapus berkas: ${e.message}`);
+    }
   };
 
   const handleRename = async (fileId: string, oldName: string) => {
-    if (userRole !== 'admin') return;
-    const newName = prompt("Nama Baru:", oldName); if (!newName) return;
+    if (userRole !== 'admin') {
+      alert('Hanya Administrator yang memiliki akses untuk mengubah nama berkas.');
+      return;
+    }
+    const newName = prompt("Nama Baru Berkas:", oldName);
+    if (!newName || !newName.trim() || newName.trim() === oldName) return;
+
     try {
-      await fetch('/api/drive', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fileId, newName }) });
-      addOnlineLog("RENAME", `${oldName} -> ${newName}`); fetchData(currentFolder);
-    } catch (e) { console.error(e); }
+      const res = await fetch('/api/drive', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileId, newName: newName.trim() })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        addOnlineLog("RENAME", `${oldName} -> ${newName.trim()}`);
+        if (selectedFile?.id === fileId) {
+          setSelectedFile(prev => prev ? { ...prev, name: newName.trim() } : null);
+        }
+        fetchData(currentFolder);
+      } else {
+        alert(`Gagal mengubah nama berkas: ${data.error || 'Terjadi kesalahan'}`);
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert(`Gagal mengubah nama berkas: ${e.message}`);
+    }
   };
 
   const handleDownloadLogs = () => {
@@ -1794,7 +1851,7 @@ export default function Dashboard() {
               )}
               {userRole === 'admin' && !isPresentationMode && (
                 <button 
-                  onClick={() => {setUploadDestinationId(currentFolder); setIsUploadModalOpen(true);}}
+                  onClick={() => { setUploadStatus('idle'); setUploadErrorMessage(''); setUploadDestinationId(currentFolder); setIsUploadModalOpen(true); }}
                   className="bg-[var(--accent)] hover:opacity-90 text-[var(--accent-fg)] px-4 py-2.5 rounded-xl font-semibold text-sm transition-all flex items-center gap-2"
                 >
                   <Plus size={16} strokeWidth={2.5} />
@@ -2236,7 +2293,10 @@ export default function Dashboard() {
                               <button onClick={(e) => { e.stopPropagation(); addOnlineLog("DOWNLOAD", file.name); window.open(`https://drive.google.com/uc?export=download&id=${file.id}`, '_blank'); }} className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--hover-fill)] transition-all"><Download size={14}/></button>
                             )}
                             {userRole === 'admin' && (
-                              <button onClick={(e) => { e.stopPropagation(); handleDelete(file.id, file.name); }} className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-red-400 hover:bg-[var(--hover-fill)] transition-all"><Trash2 size={14}/></button>
+                              <>
+                                <button onClick={(e) => { e.stopPropagation(); handleRename(file.id, file.name); }} title="Ganti Nama" className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-blue-400 hover:bg-[var(--hover-fill)] transition-all"><Edit2 size={14}/></button>
+                                <button onClick={(e) => { e.stopPropagation(); handleDelete(file.id, file.name); }} title="Hapus Berkas" className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-red-400 hover:bg-[var(--hover-fill)] transition-all"><Trash2 size={14}/></button>
+                              </>
                             )}
                           </div>
                         </div>
@@ -2654,7 +2714,25 @@ export default function Dashboard() {
                       <motion.div initial={{ scale: 0.8 }} animate={{ scale: 1 }}>
                         <AlertCircle size={56} className="text-red-500 mx-auto mb-4" />
                         <h3 className="text-lg font-bold text-[var(--text-main)]">Gagal Mengunggah</h3>
-                        <p className="text-sm text-[var(--text-muted)] mt-1">Terjadi kesalahan, silakan coba lagi</p>
+                        <p className="text-xs text-red-400 mt-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-left leading-relaxed break-words">
+                          {uploadErrorMessage || 'Terjadi kesalahan pada Google Drive saat mengunggah berkas.'}
+                        </p>
+                        <div className="flex gap-2 justify-center mt-5">
+                          <button
+                            type="button"
+                            onClick={() => { setUploadStatus('idle'); setUploadErrorMessage(''); }}
+                            className="px-4 py-2 bg-[var(--accent)] text-slate-950 font-bold rounded-xl text-xs hover:opacity-90 transition-opacity"
+                          >
+                            Coba Lagi
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setIsUploadModalOpen(false)}
+                            className="px-4 py-2 bg-[var(--hover-fill)] text-[var(--text-muted)] font-medium rounded-xl text-xs hover:text-[var(--text-main)] transition-colors"
+                          >
+                            Tutup
+                          </button>
+                        </div>
                       </motion.div>
                     )}
                   </div>
@@ -2734,6 +2812,12 @@ export default function Dashboard() {
                     setPinCopied(false);
                     setIsShareModalOpen(true);
                   }} className="p-2.5 bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 rounded-xl transition-all" title="Bagikan dengan PIN"><Share2 size={18}/></button>
+                  {userRole === 'admin' && (
+                    <>
+                      <button onClick={() => handleRename(selectedFile.id, selectedFile.name)} className="p-2.5 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 rounded-xl transition-all" title="Ganti Nama Berkas"><Edit2 size={18}/></button>
+                      <button onClick={() => handleDelete(selectedFile.id, selectedFile.name)} className="p-2.5 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-xl transition-all" title="Hapus Berkas"><Trash2 size={18}/></button>
+                    </>
+                  )}
                   <button onClick={() => { addOnlineLog("DOWNLOAD", selectedFile.name); window.open(`https://drive.google.com/uc?export=download&id=${selectedFile.id}`, '_blank'); }} className="p-2.5 bg-[var(--accent)] rounded-xl text-slate-950 hover:bg-amber-400 transition-colors"><Download size={18}/></button>
                   <button onClick={() => { setSelectedFile(null); setPreviewLoading(true); setIsFocusMode(false); }} className="p-2.5 bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-[var(--text-main)] rounded-xl transition-all"><X size={18}/></button>
                 </div>
