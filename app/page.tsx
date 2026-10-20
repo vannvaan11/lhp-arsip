@@ -44,6 +44,21 @@ interface ActivityLog {
   ip?: string;
 }
 
+// Cached AudioContext singleton for mobile & PC performance (prevents memory leaks & GC pauses)
+let globalAudioCtx: AudioContext | null = null;
+const getAudioContext = (): AudioContext | null => {
+  if (typeof window === 'undefined') return null;
+  const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+  if (!AudioCtx) return null;
+  if (!globalAudioCtx || globalAudioCtx.state === 'closed') {
+    globalAudioCtx = new AudioCtx();
+  }
+  if (globalAudioCtx.state === 'suspended') {
+    globalAudioCtx.resume().catch(() => {});
+  }
+  return globalAudioCtx;
+};
+
 export default function Dashboard() {
   const [mounted, setMounted] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -59,16 +74,16 @@ export default function Dashboard() {
   const [themeRadius, setThemeRadius] = useState<'sharp' | 'rounded' | 'pebble'>('rounded');
   const [ambientGlow, setAmbientGlow] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [isPerformanceMode, setIsPerformanceMode] = useState(false);
   const [themeCustomTab, setThemeCustomTab] = useState<'palettes' | 'atmospheres' | 'effects'>('palettes');
   const [previewTestClicked, setPreviewTestClicked] = useState(false);
 
-  // Web Audio API Synthesized Haptic Sound Generator
+  // Web Audio API Synthesized Haptic Sound Generator (Memory-efficient singleton)
   const playHaptic = useCallback((type: 'click' | 'toggle' | 'pop' = 'click') => {
     if (!soundEnabled || typeof window === 'undefined') return;
     try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
+      const ctx = getAudioContext();
+      if (!ctx) return;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.connect(gain);
@@ -97,7 +112,7 @@ export default function Dashboard() {
         osc.stop(now + 0.04);
       }
     } catch {
-      // AudioContext could be suspended or unavailable; fail silently
+      // AudioContext could be suspended or restricted; fail gracefully
     }
   }, [soundEnabled]);
   const [showPassword, setShowPassword] = useState(false);
@@ -662,13 +677,15 @@ export default function Dashboard() {
     setActiveViewers(activeList);
   }, [selectedFile, activityLogs, userName]);
 
-  // Polling Logs secara berkala saat sedang preview dokumen
+  // Polling Logs secara berkala saat sedang preview dokumen (hemat daya saat tab tidak aktif)
   useEffect(() => {
     let interval: any;
     if (selectedFile) {
       interval = setInterval(() => {
-        fetchOnlineLogs();
-      }, 15000); // 15 detik
+        if (typeof document !== 'undefined' && !document.hidden) {
+          fetchOnlineLogs();
+        }
+      }, 20000); // 20 detik saat terlihat
     }
     return () => {
       if (interval) clearInterval(interval);
@@ -695,6 +712,8 @@ export default function Dashboard() {
     if (savedGlow !== null) setAmbientGlow(savedGlow === 'true');
     const savedSound = localStorage.getItem('themeSoundEnabled');
     if (savedSound !== null) setSoundEnabled(savedSound === 'true');
+    const savedPerf = localStorage.getItem('themePerformanceMode');
+    if (savedPerf !== null) setIsPerformanceMode(savedPerf === 'true');
 
     // Load maintenance mode
     const savedMaintenance = localStorage.getItem('isMaintenanceMode');
@@ -800,6 +819,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', isDarkMode);
+    document.documentElement.classList.toggle('performance-mode', isPerformanceMode);
     const classesToRemove = Array.from(document.documentElement.classList).filter(c => 
       c.startsWith('atmos-') || c.startsWith('theme-') || c.startsWith('radius-')
     );
@@ -809,7 +829,7 @@ export default function Dashboard() {
     }
     document.documentElement.classList.add(`theme-${themeColor}`);
     document.documentElement.classList.add(`radius-${themeRadius}`);
-  }, [isDarkMode, themeAtmosphere, themeColor, themeRadius]);
+  }, [isDarkMode, themeAtmosphere, themeColor, themeRadius, isPerformanceMode]);
 
   useEffect(() => {
     try {
@@ -1396,9 +1416,9 @@ export default function Dashboard() {
     const isPinSecured = !!params.get('pinshare');
 
     return (
-      <div className={`${isDarkMode ? "dark" : "light"} theme-${themeColor} ${themeAtmosphere !== 'default' ? `atmos-${themeAtmosphere}` : ''} font-scale-${fontSize} ${glassEffect ? 'enable-glass' : 'disable-glass'} radius-${themeRadius} ${ambientGlow ? 'ambient-mesh-glow' : ''}`}>
+      <div className={`${isDarkMode ? "dark" : "light"} theme-${themeColor} ${themeAtmosphere !== 'default' ? `atmos-${themeAtmosphere}` : ''} font-scale-${fontSize} ${glassEffect ? 'enable-glass' : 'disable-glass'} radius-${themeRadius} ${ambientGlow ? 'ambient-mesh-glow' : ''} ${isPerformanceMode ? 'performance-mode' : ''}`}>
         <div className="min-h-screen bg-[var(--bg-main)] flex items-center justify-center p-4 relative overflow-hidden transition-colors">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-[var(--accent)]/[0.05] blur-[120px] rounded-full pointer-events-none"></div>
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-[var(--accent)]/[0.05] blur-[60px] rounded-full pointer-events-none transform-gpu will-change-transform"></div>
         
         {sharedFileError ? (
           <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-[var(--bg-panel)] border border-[var(--border-line)] p-8 rounded-2xl max-w-md w-full text-center shadow-2xl relative z-10">
@@ -1579,11 +1599,11 @@ export default function Dashboard() {
   // --- LOGIN PAGE ---
   if (!isLoggedIn) {
     return (
-      <div className={`${isDarkMode ? "dark" : "light"} theme-${themeColor} ${themeAtmosphere !== 'default' ? `atmos-${themeAtmosphere}` : ''} font-scale-${fontSize} ${glassEffect ? 'enable-glass' : 'disable-glass'} radius-${themeRadius} ${ambientGlow ? 'ambient-mesh-glow' : ''}`}>
+      <div className={`${isDarkMode ? "dark" : "light"} theme-${themeColor} ${themeAtmosphere !== 'default' ? `atmos-${themeAtmosphere}` : ''} font-scale-${fontSize} ${glassEffect ? 'enable-glass' : 'disable-glass'} radius-${themeRadius} ${ambientGlow ? 'ambient-mesh-glow' : ''} ${isPerformanceMode ? 'performance-mode' : ''}`}>
         <div className="relative min-h-screen w-full flex items-center justify-center p-6 bg-[var(--bg-main)] transition-colors">
         {/* Subtle background gradient */}
-        <div className="absolute inset-0">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-[var(--accent)]/[0.07] blur-[150px] rounded-full"></div>
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[480px] h-[480px] bg-[var(--accent)]/[0.06] blur-[60px] rounded-full pointer-events-none transform-gpu will-change-transform"></div>
         </div>
 
         <motion.div 
@@ -1599,6 +1619,8 @@ export default function Dashboard() {
                 <img 
                   src="https://i.ibb.co.com/L22pdJQ/Coat-of-arms-of-Southeast-Sulawesi-svg.png" 
                   alt="Logo Sultra" 
+                  loading="eager"
+                  decoding="async"
                   className="w-full h-full object-contain" 
                 />
               </div>
@@ -1710,7 +1732,7 @@ export default function Dashboard() {
 
   // --- MAIN DASHBOARD ---
   return (
-    <div className={`${isDarkMode ? "dark" : "light"} theme-${themeColor} ${themeAtmosphere !== 'default' ? `atmos-${themeAtmosphere}` : ''} font-scale-${fontSize} ${glassEffect ? 'enable-glass' : 'disable-glass'} radius-${themeRadius} ${ambientGlow ? 'ambient-mesh-glow' : ''}`}>
+    <div className={`${isDarkMode ? "dark" : "light"} theme-${themeColor} ${themeAtmosphere !== 'default' ? `atmos-${themeAtmosphere}` : ''} font-scale-${fontSize} ${glassEffect ? 'enable-glass' : 'disable-glass'} radius-${themeRadius} ${ambientGlow ? 'ambient-mesh-glow' : ''} ${isPerformanceMode ? 'performance-mode' : ''}`}>
       <div className="h-screen bg-[var(--bg-main)] text-[var(--text-main)] flex overflow-hidden transition-colors">
         
         {/* SIDEBAR */}
@@ -1722,7 +1744,7 @@ export default function Dashboard() {
               className="cursor-pointer flex items-center gap-3"
             >
               <div className="w-10 h-10 bg-[var(--accent)]/10 p-2 rounded-xl border border-[var(--accent-light)] flex-shrink-0">
-                <img src="https://i.ibb.co.com/L22pdJQ/Coat-of-arms-of-Southeast-Sulawesi-svg.png" alt="Logo" className="w-full h-full object-contain" />
+                <img src="https://i.ibb.co.com/L22pdJQ/Coat-of-arms-of-Southeast-Sulawesi-svg.png" alt="Logo" loading="eager" decoding="async" className="w-full h-full object-contain" />
               </div>
               <div className="hidden lg:block min-w-0">
                 <h1 className="font-bold text-[var(--text-main)] text-sm truncate">Arsip Digital Irban III</h1>
@@ -2217,7 +2239,9 @@ export default function Dashboard() {
                     <div className={`grid grid-cols-1 sm:grid-cols-2 ${isCompactMode ? 'xl:grid-cols-5 gap-2' : 'xl:grid-cols-4 gap-4'}`}>
                       {filteredFilesMain.map((file, i) => (
                         <motion.div 
-                          initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
+                          initial={{ opacity: 0, y: 8 }} 
+                          animate={{ opacity: 1, y: 0 }} 
+                          transition={{ delay: Math.min(i * 0.015, 0.2), duration: 0.2 }}
                           key={file.id}
                           onClick={() => file.mimeType.includes('folder') ? navigateToFolder(file.id, file.name) : handleFileSelect(file)}
                           className={`group relative bg-[var(--hover-fill)] ${isCompactMode ? 'p-3' : 'p-4 sm:p-5'} rounded-2xl border cursor-pointer transition-all ${
@@ -2235,7 +2259,7 @@ export default function Dashboard() {
                                   : 'bg-[var(--hover-fill)] text-[var(--text-muted)]'
                             }`}>
                               {file.hasThumbnail && file.thumbnailLink ? (
-                                <img src={file.thumbnailLink} alt="Thumbnail" className="w-full h-full object-cover rounded-xl border border-[var(--border-line)]" />
+                                <img src={file.thumbnailLink} alt="Thumbnail" loading="lazy" decoding="async" className="w-full h-full object-cover rounded-xl border border-[var(--border-line)]" />
                               ) : file.mimeType.includes('folder') ? (
                                 <Folder size={22} />
                               ) : (
@@ -3123,6 +3147,7 @@ export default function Dashboard() {
                         setThemeRadius('rounded');
                         setAmbientGlow(true);
                         setSoundEnabled(true);
+                        setIsPerformanceMode(false);
                         setIsCompactMode(false);
                         localStorage.setItem('isDarkMode', 'true');
                         localStorage.setItem('themeColor', 'amber');
@@ -3132,6 +3157,7 @@ export default function Dashboard() {
                         localStorage.setItem('themeRadius', 'rounded');
                         localStorage.setItem('themeAmbientGlow', 'true');
                         localStorage.setItem('themeSoundEnabled', 'true');
+                        localStorage.setItem('themePerformanceMode', 'false');
                         localStorage.setItem('isCompactMode', 'false');
                       }}
                       title="Kembalikan ke Setelan Bawaan"
@@ -3512,6 +3538,29 @@ export default function Dashboard() {
                           <motion.div 
                             layout 
                             className={`w-4 h-4 rounded-full bg-white shadow-sm ${isCompactMode ? 'ml-auto' : 'mr-auto'}`} 
+                          />
+                        </button>
+                      </div>
+                      {/* Mode Performa Ringan / Hemat Daya (HP & PC) */}
+                      <div className="p-4 rounded-2xl border border-[var(--border-line)] bg-[var(--bg-main)] flex items-center justify-between">
+                        <div className="pr-4">
+                          <p className="text-xs font-bold text-[var(--text-main)] flex items-center gap-1.5">
+                            <Zap size={14} className="text-[var(--accent)]" /> Mode Performa Ringan (Hemat Daya HP & PC)
+                          </p>
+                          <p className="text-[10px] text-[var(--text-muted)] mt-0.5">Optimalkan render grafis agar aplikasi berjalan ekstra cepat 60 FPS dan hemat baterai di ponsel</p>
+                        </div>
+                        <button
+                          onClick={() => {
+                            playHaptic('toggle');
+                            const next = !isPerformanceMode;
+                            setIsPerformanceMode(next);
+                            localStorage.setItem('themePerformanceMode', String(next));
+                          }}
+                          className={`w-12 h-6 rounded-full transition-colors relative flex items-center px-1 flex-shrink-0 ${isPerformanceMode ? 'bg-[var(--accent)]' : 'bg-[var(--border-strong)]'}`}
+                        >
+                          <motion.div 
+                            layout 
+                            className={`w-4 h-4 rounded-full bg-white shadow-sm ${isPerformanceMode ? 'ml-auto' : 'mr-auto'}`} 
                           />
                         </button>
                       </div>
