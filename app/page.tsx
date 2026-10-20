@@ -53,6 +53,10 @@ export default function Dashboard() {
   const [tempName, setTempName] = useState('');
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [themeColor, setThemeColor] = useState('amber');
+  const [themeAtmosphere, setThemeAtmosphere] = useState('default');
+  const [fontSize, setFontSize] = useState<'sm' | 'md' | 'lg'>('md');
+  const [glassEffect, setGlassEffect] = useState(true);
+  const [themeCustomTab, setThemeCustomTab] = useState<'colors' | 'display'>('colors');
   const [showPassword, setShowPassword] = useState(false);
   const [loginErrorModal, setLoginErrorModal] = useState<string | null>(null);
   const [sharedFileId, setSharedFileId] = useState<string | null>(null);
@@ -634,6 +638,12 @@ export default function Dashboard() {
     if (savedThemeColor) setThemeColor(savedThemeColor);
     const savedDarkMode = localStorage.getItem('isDarkMode');
     if (savedDarkMode !== null) setIsDarkMode(savedDarkMode === 'true');
+    const savedAtmosphere = localStorage.getItem('themeAtmosphere');
+    if (savedAtmosphere) setThemeAtmosphere(savedAtmosphere);
+    const savedFontSize = localStorage.getItem('themeFontSize') as 'sm' | 'md' | 'lg' | null;
+    if (savedFontSize) setFontSize(savedFontSize);
+    const savedGlass = localStorage.getItem('themeGlassEffect');
+    if (savedGlass !== null) setGlassEffect(savedGlass === 'true');
 
     // Load maintenance mode
     const savedMaintenance = localStorage.getItem('isMaintenanceMode');
@@ -737,7 +747,14 @@ export default function Dashboard() {
     };
   }, [isDraggingPip, dragOffset]);
 
-  useEffect(() => { document.documentElement.classList.toggle('dark', isDarkMode); }, [isDarkMode]);
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', isDarkMode);
+    const currentAtmos = Array.from(document.documentElement.classList).filter(c => c.startsWith('atmos-'));
+    currentAtmos.forEach(c => document.documentElement.classList.remove(c));
+    if (themeAtmosphere && themeAtmosphere !== 'default') {
+      document.documentElement.classList.add(`atmos-${themeAtmosphere}`);
+    }
+  }, [isDarkMode, themeAtmosphere]);
 
   useEffect(() => {
     try {
@@ -1324,7 +1341,7 @@ export default function Dashboard() {
     const isPinSecured = !!params.get('pinshare');
 
     return (
-      <div className={`${isDarkMode ? "dark" : "light"} theme-${themeColor}`}>
+      <div className={`${isDarkMode ? "dark" : "light"} theme-${themeColor} ${themeAtmosphere !== 'default' ? `atmos-${themeAtmosphere}` : ''} font-scale-${fontSize} ${glassEffect ? 'enable-glass' : 'disable-glass'}`}>
         <div className="min-h-screen bg-[var(--bg-main)] flex items-center justify-center p-4 relative overflow-hidden transition-colors">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-[var(--accent)]/[0.05] blur-[120px] rounded-full pointer-events-none"></div>
         
@@ -1507,7 +1524,7 @@ export default function Dashboard() {
   // --- LOGIN PAGE ---
   if (!isLoggedIn) {
     return (
-      <div className={`${isDarkMode ? "dark" : "light"} theme-${themeColor}`}>
+      <div className={`${isDarkMode ? "dark" : "light"} theme-${themeColor} ${themeAtmosphere !== 'default' ? `atmos-${themeAtmosphere}` : ''} font-scale-${fontSize} ${glassEffect ? 'enable-glass' : 'disable-glass'}`}>
         <div className="relative min-h-screen w-full flex items-center justify-center p-6 bg-[var(--bg-main)] transition-colors">
         {/* Subtle background gradient */}
         <div className="absolute inset-0">
@@ -1638,7 +1655,7 @@ export default function Dashboard() {
 
   // --- MAIN DASHBOARD ---
   return (
-    <div className={`${isDarkMode ? "dark" : "light"} theme-${themeColor}`}>
+    <div className={`${isDarkMode ? "dark" : "light"} theme-${themeColor} ${themeAtmosphere !== 'default' ? `atmos-${themeAtmosphere}` : ''} font-scale-${fontSize} ${glassEffect ? 'enable-glass' : 'disable-glass'}`}>
       <div className="h-screen bg-[var(--bg-main)] text-[var(--text-main)] flex overflow-hidden transition-colors">
         
         {/* SIDEBAR */}
@@ -1826,8 +1843,23 @@ export default function Dashboard() {
                   <button onClick={() => setViewMode('list')} className={`p-2 rounded-md transition-all ${viewMode === 'list' ? 'bg-[var(--accent)]/15 text-[var(--accent)]' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}><List size={16}/></button>
                 </div>
               )}
-              <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--hover-fill)] transition-all">
+              <button 
+                onClick={() => {
+                  const next = !isDarkMode;
+                  setIsDarkMode(next);
+                  localStorage.setItem('isDarkMode', String(next));
+                }} 
+                title={isDarkMode ? "Beralih ke Mode Terang" : "Beralih ke Mode Gelap"}
+                className="p-2.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--hover-fill)] transition-all"
+              >
                 {isDarkMode ? <Sun size={16}/> : <Moon size={16}/>}
+              </button>
+              <button 
+                onClick={() => setIsThemeModalOpen(true)} 
+                title="Kustomisasi Tema, Warna & Tampilan" 
+                className="p-2.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--hover-fill)] transition-all"
+              >
+                <Palette size={16}/>
               </button>
               {!isPresentationMode && (
                 <>
@@ -2973,65 +3005,326 @@ export default function Dashboard() {
           {isThemeModalOpen && (
             <motion.div 
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+              className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md"
               onClick={() => setIsThemeModalOpen(false)}
             >
               <motion.div 
-                initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 10 }}
-                className="bg-[var(--bg-panel)] border border-[var(--border-line)] w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden p-6 relative" 
+                initial={{ scale: 0.95, y: 15 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 15 }}
+                className="bg-[var(--bg-panel)] border border-[var(--border-line)] w-full max-w-xl max-h-[90vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col relative" 
                 onClick={e => e.stopPropagation()}
               >
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-lg font-bold text-[var(--text-main)] flex items-center gap-2">
-                    <Palette size={20} className="text-[var(--accent)]" /> Tema & Tampilan
-                  </h3>
-                  <button onClick={() => setIsThemeModalOpen(false)} className="p-2 bg-[var(--hover-fill)] hover:bg-[var(--border-line)] text-[var(--text-muted)] rounded-full transition-colors">
-                    <X size={16} />
+                {/* Modal Header */}
+                <div className="p-6 border-b border-[var(--border-line)] flex items-center justify-between bg-[var(--bg-panel-trans)]">
+                  <div>
+                    <h3 className="text-lg font-bold text-[var(--text-main)] flex items-center gap-2">
+                      <Palette size={20} className="text-[var(--accent)]" /> Kustomisasi Tema & Tampilan
+                    </h3>
+                    <p className="text-xs text-[var(--text-muted)] mt-0.5">Personalisasi suasana warna, tata letak, dan gaya antarmuka</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => {
+                        const accents = ['amber', 'blue', 'emerald', 'purple', 'rose', 'orange', 'teal', 'lime'];
+                        const darkAtmos = ['default', 'oled', 'forest', 'slate'];
+                        const lightAtmos = ['default', 'sepia'];
+                        const randomDark = Math.random() > 0.35;
+                        const randomAccent = accents[Math.floor(Math.random() * accents.length)];
+                        const randomAtmos = randomDark 
+                          ? darkAtmos[Math.floor(Math.random() * darkAtmos.length)]
+                          : lightAtmos[Math.floor(Math.random() * lightAtmos.length)];
+                        setIsDarkMode(randomDark);
+                        setThemeColor(randomAccent);
+                        setThemeAtmosphere(randomAtmos);
+                        localStorage.setItem('isDarkMode', String(randomDark));
+                        localStorage.setItem('themeColor', randomAccent);
+                        localStorage.setItem('themeAtmosphere', randomAtmos);
+                      }}
+                      title="Acak Kombinasi Tema"
+                      className="p-2 rounded-xl bg-[var(--hover-fill)] hover:bg-[var(--accent)] hover:text-slate-950 text-[var(--text-muted)] text-xs font-semibold flex items-center gap-1.5 transition-all"
+                    >
+                      <Sparkles size={14} className="text-[var(--accent)] group-hover:text-current" />
+                      <span className="hidden sm:inline">Acak</span>
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setIsDarkMode(true);
+                        setThemeColor('amber');
+                        setThemeAtmosphere('default');
+                        setFontSize('md');
+                        setGlassEffect(true);
+                        setIsCompactMode(false);
+                        localStorage.setItem('isDarkMode', 'true');
+                        localStorage.setItem('themeColor', 'amber');
+                        localStorage.setItem('themeAtmosphere', 'default');
+                        localStorage.setItem('themeFontSize', 'md');
+                        localStorage.setItem('themeGlassEffect', 'true');
+                        localStorage.setItem('isCompactMode', 'false');
+                      }}
+                      title="Kembalikan ke Setelan Bawaan"
+                      className="p-2 rounded-xl bg-[var(--hover-fill)] hover:bg-[var(--border-line)] text-[var(--text-muted)] text-xs transition-colors"
+                    >
+                      <RotateCw size={14} />
+                    </button>
+                    <button onClick={() => setIsThemeModalOpen(false)} className="p-2 bg-[var(--hover-fill)] hover:bg-[var(--border-line)] text-[var(--text-muted)] rounded-full transition-colors ml-1">
+                      <X size={16} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Sub-Tabs */}
+                <div className="px-6 pt-4 border-b border-[var(--border-line)] flex gap-4 bg-[var(--bg-main)]">
+                  <button 
+                    onClick={() => setThemeCustomTab('colors')} 
+                    className={`pb-3 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 ${themeCustomTab === 'colors' ? 'border-[var(--accent)] text-[var(--accent)]' : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}
+                  >
+                    <Palette size={14} /> Palet & Suasana
+                  </button>
+                  <button 
+                    onClick={() => setThemeCustomTab('display')} 
+                    className={`pb-3 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 ${themeCustomTab === 'display' ? 'border-[var(--accent)] text-[var(--accent)]' : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}
+                  >
+                    <Monitor size={14} /> Tampilan & Aksesibilitas
                   </button>
                 </div>
 
-                <div className="space-y-6">
-                  {/* Mode */}
-                  <div>
-                    <label className="text-sm font-semibold text-[var(--text-main)] block mb-3">Mode Layar</label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <button 
-                        onClick={() => { setIsDarkMode(false); localStorage.setItem('isDarkMode', 'false'); }}
-                        className={`p-3 rounded-2xl border transition-all flex flex-col items-center gap-2 ${!isDarkMode ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]' : 'border-[var(--border-line)] text-[var(--text-muted)] hover:border-[var(--border-strong)]'}`}
-                      >
-                        <Sun size={24} />
-                        <span className="text-xs font-medium">Terang</span>
-                      </button>
-                      <button 
-                        onClick={() => { setIsDarkMode(true); localStorage.setItem('isDarkMode', 'true'); }}
-                        className={`p-3 rounded-2xl border transition-all flex flex-col items-center gap-2 ${isDarkMode ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]' : 'border-[var(--border-line)] text-[var(--text-muted)] hover:border-[var(--border-strong)]'}`}
-                      >
-                        <Moon size={24} />
-                        <span className="text-xs font-medium">Gelap</span>
-                      </button>
-                    </div>
-                  </div>
+                {/* Modal Body */}
+                <div className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-6">
+                  {themeCustomTab === 'colors' ? (
+                    <>
+                      {/* Mode Terang / Gelap */}
+                      <div>
+                        <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-2.5">Mode Layar</label>
+                        <div className="grid grid-cols-2 gap-3">
+                          <button 
+                            onClick={() => { setIsDarkMode(false); localStorage.setItem('isDarkMode', 'false'); }}
+                            className={`p-3.5 rounded-2xl border transition-all flex items-center justify-center gap-3 ${!isDarkMode ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)] shadow-sm' : 'border-[var(--border-line)] text-[var(--text-muted)] hover:border-[var(--border-strong)]'}`}
+                          >
+                            <Sun size={20} className={!isDarkMode ? 'text-amber-500 fill-amber-500/20' : ''} />
+                            <div className="text-left">
+                              <p className="text-xs font-bold leading-tight">Mode Terang</p>
+                              <p className="text-[10px] text-[var(--text-muted)] opacity-80">Siang hari & kontras cerah</p>
+                            </div>
+                          </button>
+                          <button 
+                            onClick={() => { setIsDarkMode(true); localStorage.setItem('isDarkMode', 'true'); }}
+                            className={`p-3.5 rounded-2xl border transition-all flex items-center justify-center gap-3 ${isDarkMode ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)] shadow-sm' : 'border-[var(--border-line)] text-[var(--text-muted)] hover:border-[var(--border-strong)]'}`}
+                          >
+                            <Moon size={20} className={isDarkMode ? 'text-blue-400 fill-blue-400/20' : ''} />
+                            <div className="text-left">
+                              <p className="text-xs font-bold leading-tight">Mode Gelap</p>
+                              <p className="text-[10px] text-[var(--text-muted)] opacity-80">Malam hari & nyaman di mata</p>
+                            </div>
+                          </button>
+                        </div>
+                      </div>
 
-                  {/* Accent Colors */}
-                  <div>
-                    <label className="text-sm font-semibold text-[var(--text-main)] block mb-3">Warna Aksen</label>
-                    <div className="flex items-center gap-3 justify-center">
-                      {[
-                        { id: 'amber', color: '#f59e0b', name: 'Kuning' },
-                        { id: 'blue', color: '#3b82f6', name: 'Biru' },
-                        { id: 'emerald', color: '#10b981', name: 'Hijau' },
-                        { id: 'purple', color: '#a855f7', name: 'Ungu' }
-                      ].map((theme) => (
+                      {/* Suasana Latar Belakang */}
+                      <div>
+                        <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-2.5">
+                          Atmosfer Latar ({isDarkMode ? 'Nuansa Gelap' : 'Nuansa Terang'})
+                        </label>
+                        <div className="grid grid-cols-2 gap-2.5">
+                          {(isDarkMode ? [
+                            { id: 'default', name: 'Midnight Obsidian', desc: 'Biru navy dalam elegan', icon: '🌌', color: '#0c1220' },
+                            { id: 'oled', name: 'Pure OLED Black', desc: 'Hitam murni 100% hemat daya', icon: '🖤', color: '#000000' },
+                            { id: 'forest', name: 'Cyber Forest', desc: 'Hijau rimba pengawasan APIP', icon: '🌲', color: '#041210' },
+                            { id: 'slate', name: 'Slate Titanium', desc: 'Abu-abu grafit eksekutif', icon: '🏛️', color: '#0f172a' }
+                          ] : [
+                            { id: 'default', name: 'Clean Modern', desc: 'Putih bersih modern', icon: '☀️', color: '#f8fafc' },
+                            { id: 'sepia', name: 'Warm Paper Sepia', desc: 'Kertas arsip halus ramah mata', icon: '📜', color: '#fbf7ee' }
+                          ]).map(atmos => (
+                            <button
+                              key={atmos.id}
+                              onClick={() => {
+                                setThemeAtmosphere(atmos.id);
+                                localStorage.setItem('themeAtmosphere', atmos.id);
+                              }}
+                              className={`p-3 rounded-2xl border text-left transition-all flex items-center gap-3 ${themeAtmosphere === atmos.id ? 'border-[var(--accent)] bg-[var(--accent)]/10 shadow-sm' : 'border-[var(--border-line)] hover:border-[var(--border-strong)] bg-[var(--bg-main)]'}`}
+                            >
+                              <div className="w-8 h-8 rounded-xl border border-[var(--border-strong)] flex items-center justify-center text-sm shadow-inner flex-shrink-0" style={{ backgroundColor: atmos.color }}>
+                                {atmos.icon}
+                              </div>
+                              <div className="min-w-0">
+                                <p className={`text-xs font-bold truncate ${themeAtmosphere === atmos.id ? 'text-[var(--accent)]' : 'text-[var(--text-main)]'}`}>{atmos.name}</p>
+                                <p className="text-[10px] text-[var(--text-muted)] truncate">{atmos.desc}</p>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* 8 Palet Warna Aksen */}
+                      <div>
+                        <div className="flex items-center justify-between mb-2.5">
+                          <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">
+                            Warna Aksen Aplikasi
+                          </label>
+                          <span className="text-[11px] font-semibold text-[var(--accent)] capitalize">
+                            Terpilih: {themeColor}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-4 gap-2.5">
+                          {[
+                            { id: 'amber', color: '#f59e0b', name: 'Amber', label: 'Emas Irban' },
+                            { id: 'blue', color: '#3b82f6', name: 'Blue', label: 'Safir Laut' },
+                            { id: 'emerald', color: '#10b981', name: 'Emerald', label: 'Zamrud Hijau' },
+                            { id: 'purple', color: '#a855f7', name: 'Purple', label: 'Amethyst' },
+                            { id: 'rose', color: '#f43f5e', name: 'Rose', label: 'Ruby Merah' },
+                            { id: 'orange', color: '#f97316', name: 'Orange', label: 'Surya Oranye' },
+                            { id: 'teal', color: '#06b6d4', name: 'Teal', label: 'Cyan Siber' },
+                            { id: 'lime', color: '#84cc16', name: 'Lime', label: 'Neon Lime' },
+                          ].map(t => (
+                            <button
+                              key={t.id}
+                              onClick={() => {
+                                setThemeColor(t.id);
+                                localStorage.setItem('themeColor', t.id);
+                              }}
+                              className={`p-2.5 rounded-2xl border text-center transition-all flex flex-col items-center gap-1.5 ${themeColor === t.id ? 'border-[var(--accent)] bg-[var(--accent)]/10 shadow-md scale-[1.03]' : 'border-[var(--border-line)] hover:border-[var(--border-strong)] bg-[var(--bg-main)] hover:scale-[1.01]'}`}
+                            >
+                              <div 
+                                className={`w-8 h-8 rounded-full shadow-md transition-transform flex items-center justify-center ${themeColor === t.id ? 'ring-2 ring-white/60 scale-105' : ''}`}
+                                style={{ backgroundColor: t.color }}
+                              >
+                                {themeColor === t.id && <Check size={14} className="text-white drop-shadow" />}
+                              </div>
+                              <span className={`text-[10px] font-bold ${themeColor === t.id ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}`}>
+                                {t.label}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      {/* Skala Ukuran Font */}
+                      <div>
+                        <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-2.5">
+                          Skala Ukuran Teks (Keterbacaan)
+                        </label>
+                        <div className="grid grid-cols-3 gap-3">
+                          {[
+                            { id: 'sm', name: 'Ringkas', size: '13px', desc: 'Banyak berkas' },
+                            { id: 'md', name: 'Standar', size: '14px', desc: 'Seimbang ideal' },
+                            { id: 'lg', name: 'Ekstra Besar', size: '16px', desc: 'Sangat nyaman' },
+                          ].map(f => (
+                            <button
+                              key={f.id}
+                              onClick={() => {
+                                setFontSize(f.id as any);
+                                localStorage.setItem('themeFontSize', f.id);
+                              }}
+                              className={`p-3.5 rounded-2xl border text-center transition-all ${fontSize === f.id ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)] shadow-sm' : 'border-[var(--border-line)] text-[var(--text-muted)] hover:border-[var(--border-strong)] bg-[var(--bg-main)]'}`}
+                            >
+                              <p className="text-base font-bold mb-0.5" style={{ fontSize: f.size }}>Aa</p>
+                              <p className="text-xs font-bold">{f.name}</p>
+                              <p className="text-[10px] text-[var(--text-muted)]">{f.desc}</p>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Kepadatan Antarmuka (Compact Mode) */}
+                      <div className="p-4 rounded-2xl border border-[var(--border-line)] bg-[var(--bg-main)] flex items-center justify-between">
+                        <div>
+                          <p className="text-xs font-bold text-[var(--text-main)]">Mode Kepadatan Ringkas (Compact Layout)</p>
+                          <p className="text-[10px] text-[var(--text-muted)] mt-0.5">Memadatkan jarak daftar arsip agar memuat lebih banyak baris dokumen di layar</p>
+                        </div>
                         <button
-                          key={theme.id}
-                          onClick={() => { setThemeColor(theme.id); localStorage.setItem('themeColor', theme.id); }}
-                          title={theme.name}
-                          className={`w-12 h-12 rounded-full border-4 transition-all ${themeColor === theme.id ? 'border-[var(--border-strong)] scale-110 shadow-lg' : 'border-transparent hover:scale-105'}`}
-                          style={{ backgroundColor: theme.color }}
-                        />
-                      ))}
+                          onClick={() => {
+                            const next = !isCompactMode;
+                            setIsCompactMode(next);
+                            localStorage.setItem('isCompactMode', String(next));
+                          }}
+                          className={`w-12 h-6 rounded-full transition-colors relative flex items-center px-1 ${isCompactMode ? 'bg-[var(--accent)]' : 'bg-[var(--border-strong)]'}`}
+                        >
+                          <motion.div 
+                            layout 
+                            className={`w-4 h-4 rounded-full bg-white shadow-sm ${isCompactMode ? 'ml-auto' : 'mr-auto'}`} 
+                          />
+                        </button>
+                      </div>
+
+                      {/* Efek Kaca Blur (Glassmorphism) */}
+                      <div className="p-4 rounded-2xl border border-[var(--border-line)] bg-[var(--bg-main)] flex items-center justify-between">
+                        <div>
+                          <p className="text-xs font-bold text-[var(--text-main)]">Efek Transparansi Kaca (Glassmorphism)</p>
+                          <p className="text-[10px] text-[var(--text-muted)] mt-0.5">Efek kaca buram (frosted blur) pada sidebar, header, dan drawer preview dokumen</p>
+                        </div>
+                        <button
+                          onClick={() => {
+                            const next = !glassEffect;
+                            setGlassEffect(next);
+                            localStorage.setItem('themeGlassEffect', String(next));
+                          }}
+                          className={`w-12 h-6 rounded-full transition-colors relative flex items-center px-1 ${glassEffect ? 'bg-[var(--accent)]' : 'bg-[var(--border-strong)]'}`}
+                        >
+                          <motion.div 
+                            layout 
+                            className={`w-4 h-4 rounded-full bg-white shadow-sm ${glassEffect ? 'ml-auto' : 'mr-auto'}`} 
+                          />
+                        </button>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Interactive Live Preview Box */}
+                  <div className="p-4 rounded-2xl border border-[var(--border-line)] bg-[var(--bg-main)] transition-all">
+                    <div className="flex items-center justify-between mb-2.5">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] flex items-center gap-1.5">
+                        <Eye size={13} className="text-[var(--accent)]" /> Pratinjau Interaktif Langsung
+                      </span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--accent)]/10 text-[var(--accent)] font-semibold border border-[var(--accent-light)]">
+                        Real-time
+                      </span>
+                    </div>
+                    <div className="p-3.5 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-line)] shadow-sm">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="p-2 rounded-lg bg-[var(--accent)]/15 text-[var(--accent)] flex-shrink-0">
+                            <FileText size={18} />
+                          </div>
+                          <div className="min-w-0">
+                            <h5 className="text-xs font-bold text-[var(--text-main)] truncate">LHP Evaluasi Kamaru-Wanci (700.1.2.1/044/2025).pdf</h5>
+                            <p className="text-[10px] text-[var(--text-muted)] mt-0.5">Dokumen Resmi Inspektorat</p>
+                          </div>
+                        </div>
+                        <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex-shrink-0">
+                          Final
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-[var(--border-line)]">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] px-2 py-0.5 rounded-md font-medium bg-[var(--accent)]/10 text-[var(--accent)] border border-[var(--accent-light)]">
+                            Ketaatan
+                          </span>
+                          <span className="text-[10px] px-2 py-0.5 rounded-md font-medium bg-[var(--hover-fill)] text-[var(--text-muted)] border border-[var(--border-line)]">
+                            2025
+                          </span>
+                        </div>
+                        <button 
+                          type="button"
+                          className="px-3 py-1 rounded-lg text-xs font-semibold bg-[var(--accent)] text-[var(--accent-fg)] hover:opacity-90 transition-opacity"
+                        >
+                          Buka Berkas
+                        </button>
+                      </div>
                     </div>
                   </div>
+                </div>
+
+                {/* Modal Footer */}
+                <div className="p-4 border-t border-[var(--border-line)] flex items-center justify-between bg-[var(--bg-panel-trans)]">
+                  <p className="text-[11px] text-[var(--text-muted)]">
+                    Perubahan langsung disimpan ke peramban Anda
+                  </p>
+                  <button 
+                    onClick={() => setIsThemeModalOpen(false)}
+                    className="px-5 py-2 rounded-xl text-xs font-bold bg-[var(--accent)] text-[var(--accent-fg)] hover:opacity-90 transition-opacity shadow-sm"
+                  >
+                    Selesai
+                  </button>
                 </div>
               </motion.div>
             </motion.div>

@@ -1,18 +1,20 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700", "800", "900"],
 });
+
+export const viewport: Viewport = {
+  themeColor: "#f59e0b",
+};
 
 export const metadata: Metadata = {
   title: "Arsip Digital Irban III — Inspektorat Provinsi Sulawesi Tenggara",
   description: "Sistem Arsip Digital Laporan Hasil Pemeriksaan (LHP) Inspektorat Provinsi Sulawesi Tenggara",
   manifest: "/manifest.json",
-  themeColor: "#f59e0b",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
