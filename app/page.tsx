@@ -11,7 +11,8 @@ import {
   Command, Share2, Palette, BarChart2, KeyRound, Copy, Check,
   Minimize2, Maximize2, Smartphone, GripHorizontal, Sparkles,
   Monitor, Wrench, Focus, Rows3, FileSpreadsheet, Tag, Star,
-  RotateCw, Sliders, Volume2, VolumeX, Zap, Flame
+  RotateCw, Sliders, Volume2, VolumeX, Zap, Flame,
+  BookOpen, Scale, Bookmark, ExternalLink
 } from 'lucide-react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -43,6 +44,260 @@ interface ActivityLog {
   device: string;
   ip?: string;
 }
+
+export interface GlossaryItem {
+  id: string;
+  term: string;
+  fullTitle: string;
+  category: 'Keuangan' | 'Pengadaan' | 'APIP' | 'Hukum & Sanksi';
+  definition: string;
+  legalBasis: string;
+  significance: string;
+  tags: string[];
+}
+
+export const GLOSSARY_DATABASE: GlossaryItem[] = [
+  {
+    id: 'tgr',
+    term: 'TGR',
+    fullTitle: 'Tuntutan Ganti Rugi',
+    category: 'Hukum & Sanksi',
+    definition: 'Suatu proses tuntutan yang dilakukan terhadap pegawai negeri atau pejabat pengelola keuangan daerah dengan tujuan untuk memulihkan kerugian daerah/negara akibat perbuatan melanggar hukum atau kelalaian dalam pelaksanaan tugas.',
+    legalBasis: 'UU No. 1 Tahun 2004 tentang Perbendaharaan Negara (Pasal 59-63); Permendagri No. 133 Tahun 2018 tentang Penyelesaian Tuntutan Ganti Kerugian Daerah.',
+    significance: 'Instrumen hukum pemulihan kas daerah dari temuan kekurangan volume fisik, ketekoran kas, atau kelebihan pembayaran dalam LHP.',
+    tags: ['Kerugian Negara', 'Kas Daerah', 'SKTJM', 'Pengembalian']
+  },
+  {
+    id: 'lhp',
+    term: 'LHP',
+    fullTitle: 'Laporan Hasil Pemeriksaan',
+    category: 'APIP',
+    definition: 'Dokumen resmi yang diterbitkan oleh pemeriksa (BPK atau APIP/Inspektorat) yang memuat simpulan, temuan hasil pengujian sistem pengendalian intern, kepatuhan terhadap perundang-undangan, dan rekomendasi perbaikan.',
+    legalBasis: 'UU No. 15 Tahun 2004 tentang Pemeriksaan Pengelolaan dan Tanggung Jawab Keuangan Negara; Standar Audit Intern Pemerintah Indonesia (SAIPI).',
+    significance: 'Dokumen rujukan utama dalam audit yang menjadi dasar pelaksanaan tindak lanjut dan pengawasan kepatuhan entitas terperiksa.',
+    tags: ['BPK', 'Inspektorat', 'Audit', 'Temuan', 'Rekomendasi']
+  },
+  {
+    id: 'nhpt',
+    term: 'NHPT',
+    fullTitle: 'Naskah Hasil Pemeriksaan Sementara',
+    category: 'APIP',
+    definition: 'Naskah kerja audit yang memuat temuan sementara untuk dikonfirmasikan dan dibahas bersama entitas auditi sebelum difinalisasi dan diterbitkan menjadi LHP.',
+    legalBasis: 'Standar Audit Intern Pemerintah Indonesia (SAIPI); Peraturan BPKP No. 5 Tahun 2021 tentang Pedoman Pengawasan Intern.',
+    significance: 'Memberikan ruang formal bagi auditi untuk memberikan klarifikasi, bukti sanggahan, atau koreksi faktual sebelum simpulan akhir ditetapkan.',
+    tags: ['Draft Audit', 'Klarifikasi', 'Exit Meeting', 'Tanggapan']
+  },
+  {
+    id: 'silpa',
+    term: 'SiLPA',
+    fullTitle: 'Sisa Lebih Pembiayaan Anggaran',
+    category: 'Keuangan',
+    definition: 'Selisih lebih antara realisasi penerimaan dan pengeluaran APBD selama satu tahun anggaran berkenaan ditambah dengan pembiayaan neto setelah dilakukan penutupan buku anggaran.',
+    legalBasis: 'PP No. 12 Tahun 2019 tentang Pengelolaan Keuangan Daerah (Pasal 155-156); Permendagri No. 77 Tahun 2020.',
+    significance: 'Komponen penting dalam audit laporan keuangan daerah untuk menguji akurasi saldo kas akhir dan kepatuhan penganggaran tahun berikutnya.',
+    tags: ['APBD', 'Kas Daerah', 'Akuntansi', 'Penutupan Buku']
+  },
+  {
+    id: 'spip',
+    term: 'SPIP',
+    fullTitle: 'Sistem Pengendalian Intern Pemerintah',
+    category: 'APIP',
+    definition: 'Proses yang integral pada tindakan dan kegiatan yang dilakukan terus-menerus oleh pimpinan dan pegawai untuk memberikan keyakinan memadai atas tercapainya efektivitas dan efisiensi, keandalan pelaporan keuangan, pengamanan aset negara, dan ketaatan regulasi.',
+    legalBasis: 'PP No. 60 Tahun 2008 tentang Sistem Pengendalian Intern Pemerintah; Peraturan BPKP No. 5 Tahun 2021.',
+    significance: 'Tingkat maturitas SPIP menjadi parameter utama dalam menilai ketahanan tata kelola OPD terhadap risiko korupsi dan inefisiensi anggaran.',
+    tags: ['Maturitas', 'Manajemen Risiko', 'Pengendalian', 'Tata Kelola']
+  },
+  {
+    id: 'ssh',
+    term: 'SSH',
+    fullTitle: 'Standar Satuan Harga',
+    category: 'Pengadaan',
+    definition: 'Harga satuan batas tertinggi yang ditetapkan oleh Kepala Daerah untuk setiap komponen barang/jasa sebagai pedoman penyusunan Rencana Kerja dan Anggaran (RKA-SKPD).',
+    legalBasis: 'PP No. 12 Tahun 2019 tentang Pengelolaan Keuangan Daerah (Pasal 51); Permendagri No. 77 Tahun 2020 Lampiran Bab II.',
+    significance: 'Tolok ukur utama pemeriksa dalam menguji kewajaran penganggaran dan mendeteksi potensi pemborosan atau penggelembungan harga belanja.',
+    tags: ['RKA', 'APBD', 'Batas Tertinggi', 'Kewajaran Harga']
+  },
+  {
+    id: 'asb',
+    term: 'ASB',
+    fullTitle: 'Analisis Standar Belanja',
+    category: 'Keuangan',
+    definition: 'Standar untuk menilai kewajaran atas beban kerja dan biaya yang digunakan untuk melaksanakan suatu kegiatan pada masing-masing SKPD.',
+    legalBasis: 'PP No. 12 Tahun 2019; UU No. 23 Tahun 2014 tentang Pemerintahan Daerah; Permendagri No. 77 Tahun 2020.',
+    significance: 'Digunakan oleh Inspektorat dalam reviu RKA-SKPD untuk memastikan anggaran kegiatan non-fisik (studi, bimtek, sosialisasi) proporsional dan tidak berlebihan.',
+    tags: ['Beban Kerja', 'SKPD', 'Kewajaran Belanja', 'Reviu RKA']
+  },
+  {
+    id: 'hps',
+    term: 'HPS',
+    fullTitle: 'Harga Perkiraan Sendiri (Owner’s Estimate)',
+    category: 'Pengadaan',
+    definition: 'Perkiraan harga pengadaan barang/jasa yang dikalkulasikan secara keahlian oleh Pejabat Pembuat Komitmen (PPK) dan disahkan sebelum proses pemilihan penyedia dilaksanakan.',
+    legalBasis: 'Perpres No. 16 Tahun 2018 jo. Perpres No. 12 Tahun 2021 tentang Pengadaan Barang/Jasa Pemerintah (Pasal 26).',
+    significance: 'Titik rawan audit pengadaan; pemeriksa meneliti apakah survei harga riil, riwayat pasar, dan komponen overhead/keuntungan disusun objektif tanpa persekongkolan.',
+    tags: ['Tender', 'PPK', 'Pengadaan', 'Kalkulasi Biaya']
+  },
+  {
+    id: 'ppk',
+    term: 'PPK',
+    fullTitle: 'Pejabat Pembuat Komitmen',
+    category: 'Pengadaan',
+    definition: 'Pejabat yang diberi kewenangan oleh PA/KPA untuk mengambil keputusan dan/atau melakukan tindakan yang dapat mengakibatkan pengeluaran anggaran belanja negara/daerah dalam pengadaan barang/jasa.',
+    legalBasis: 'Perpres No. 16 Tahun 2018 jo. Perpres No. 12 Tahun 2021 (Pasal 11); Perka LKPP No. 19 Tahun 2019.',
+    significance: 'Pihak yang bertanggung jawab penuh atas substansi kontrak, addendum waktu, kepatuhan spesifikasi teknis, serta pengenaan denda keterlambatan.',
+    tags: ['Kontrak', 'BAST', 'SPK', 'Tanggung Jawab Teknis']
+  },
+  {
+    id: 'pptk',
+    term: 'PPTK',
+    fullTitle: 'Pejabat Pelaksana Teknis Kegiatan',
+    category: 'Keuangan',
+    definition: 'Pejabat pada SKPD yang ditugaskan oleh Pengguna Anggaran (PA) atau KPA untuk mengendalikan pelaksanaan teknis operasional dan melaporkan perkembangan subkegiatan.',
+    legalBasis: 'PP No. 12 Tahun 2019 (Pasal 12-13); Permendagri No. 77 Tahun 2020 tentang Pedoman Teknis Pengelolaan Keuangan Daerah.',
+    significance: 'Verifikator lapangan pertama yang mengesahkan bukti pengeluaran dan kebenaran fisik pekerjaan sebelum diajukan pembayaran ke bendahara/PPK-SKPD.',
+    tags: ['Subkegiatan', 'Pelaksanaan APBD', 'Verifikasi Lapangan']
+  },
+  {
+    id: 'btt',
+    term: 'BTT',
+    fullTitle: 'Belanja Tidak Terduga',
+    category: 'Keuangan',
+    definition: 'Pengeluaran anggaran untuk keadaan darurat termasuk keperluan mendesak yang tidak dapat diprediksi sebelumnya dan pengembalian atas kelebihan penerimaan daerah tahun sebelumnya.',
+    legalBasis: 'PP No. 12 Tahun 2019 (Pasal 68); Permendagri No. 77 Tahun 2020 Bab IV.',
+    significance: 'Fokus audit khusus APIP terkait kelengkapan dokumen kedaruratan, penetapan status tanggap bencana oleh Kepala Daerah, dan akuntabilitas realisasi lapangan.',
+    tags: ['Kedaruratan', 'Bencana', 'Keperluan Mendesak', 'Audit Khusus']
+  },
+  {
+    id: 'bast',
+    term: 'BAST',
+    fullTitle: 'Berita Acara Serah Terima',
+    category: 'Pengadaan',
+    definition: 'Akta formal yang ditandatangani oleh penyedia dan PPK/penjabat penerima yang menyatakan bahwa pekerjaan barang/jasa telah selesai dilaksanakan sesuai spesifikasi teknis dan volume kontrak.',
+    legalBasis: 'Perpres No. 16 Tahun 2018 jo. Perpres No. 12 Tahun 2021 (Pasal 57); KUHPerdata Pasal 1601.',
+    significance: 'Syarat wajib pencairan dana pembayaran termin 100%; apabila BAST ditandatangani tanpa uji fisik memadai, PPK dapat dikenakan sanksi kelalaian audit.',
+    tags: ['Serah Terima', 'Termin Akhir', 'Uji Fisik', 'Bukti Sah']
+  },
+  {
+    id: 'fop',
+    term: 'FOP',
+    fullTitle: 'Formulir Opini Pemeriksaan (Kondisi-Kriteria-Sebab-Akibat)',
+    category: 'APIP',
+    definition: 'Kertas kerja standar yang menguraikan 4 elemen pokok temuan pemeriksaan: Kondisi (apa yang terjadi), Kriteria (standar/hukum yang berlaku), Sebab (akar pemicu penyimpangan), dan Akibat (dampak kerugian atau risiko yang timbul).',
+    legalBasis: 'Standar Audit Intern Pemerintah Indonesia (SAIPI - AAIPI Kode Etik & Standar Audit No. KEP-005/AAIPI/DPN/2021).',
+    significance: 'Kerangka logika wajib bagi setiap auditor dalam merumuskan temuan agar rekomendasi yang diberikan tepat sasaran dan berdasar hukum.',
+    tags: ['Kondisi', 'Kriteria', 'Sebab', 'Akibat', 'Temuan Audit']
+  },
+  {
+    id: 'kkp',
+    term: 'KKP',
+    fullTitle: 'Kertas Kerja Pemeriksaan',
+    category: 'APIP',
+    definition: 'Dokumen tertulis dan data yang dikumpulkan serta diolah oleh pemeriksa secara sistematis selama proses audit untuk mendukung kesimpulan, temuan, dan opini.',
+    legalBasis: 'PermenPAN-RB No. Per/05/M.PAN/03/2008 tentang Petunjuk Teknis Pelaksanaan Pengawasan; SAIPI Paragraf 3000.',
+    significance: 'Bukti autentik dan dokumentasi pertanggungjawaban hukum tim audit apabila hasil pemeriksaan diuji di pengadilan atau di hadapan APH.',
+    tags: ['Bukti Audit', 'Sampling', 'Uji Petik', 'Dokumentasi Kerja']
+  },
+  {
+    id: 'sp2d',
+    term: 'SP2D',
+    fullTitle: 'Surat Perintah Pencairan Dana',
+    category: 'Keuangan',
+    definition: 'Surat perintah yang diterbitkan oleh Bendahara Umum Daerah (BUD) atau Kuasa BUD untuk memindahbukukan sejumlah uang dari RKUD ke rekening pihak ketiga atau rekening bendahara pengeluaran.',
+    legalBasis: 'PP No. 12 Tahun 2019 (Pasal 141); Permendagri No. 77 Tahun 2020.',
+    significance: 'Bukti legalitas kas keluar daerah yang sah; objek pemeriksaan uji tanggal pembayaran terkait kepatuhan tahun anggaran dan batas waktu pencairan.',
+    tags: ['Kas Daerah', 'BUD', 'RKUD', 'Pencairan Dana']
+  },
+  {
+    id: 'spm',
+    term: 'SPM',
+    fullTitle: 'Surat Perintah Membayar',
+    category: 'Keuangan',
+    definition: 'Dokumen yang diterbitkan oleh Pengguna Anggaran (PA) atau KPA untuk mencairkan alokasi dana yang tertera pada SPP setelah dilakukan verifikasi kelengkapan dan keabsahan dokumen oleh PPK-SKPD.',
+    legalBasis: 'PP No. 12 Tahun 2019 (Pasal 138-140); Permendagri No. 77 Tahun 2020.',
+    significance: 'Pintu gerbang pengendalian intern OPD sebelum tagihan diajukan ke BUD; titik verifikasi pemotongan pajak (PPN/PPh) dan kelengkapan bukti transaksi.',
+    tags: ['Verifikasi', 'PA', 'KPA', 'PPK-SKPD', 'SPP']
+  },
+  {
+    id: 'pa_kpa',
+    term: 'PA / KPA',
+    fullTitle: 'Pengguna Anggaran / Kuasa Pengguna Anggaran',
+    category: 'Keuangan',
+    definition: 'Pejabat pemegang kewenangan penggunaan anggaran untuk melaksanakan tugas dan fungsi pada SKPD / unit kerja yang dipimpinnya sesuai Dokumen Pelaksanaan Anggaran (DPA).',
+    legalBasis: 'UU No. 17 Tahun 2003 tentang Keuangan Negara (Pasal 10); PP No. 12 Tahun 2019 (Pasal 9-11).',
+    significance: 'Penanggung jawab utama secara formil dan materiel atas seluruh kebijakan belanja dan pertanggungjawaban keuangan pada satuan kerja perangkat daerah.',
+    tags: ['Kepala OPD', 'DPA', 'Tanggung Jawab Anggaran']
+  },
+  {
+    id: 'sktjm',
+    term: 'SKTJM',
+    fullTitle: 'Surat Keterangan Tanggung Jawab Mutlak',
+    category: 'Hukum & Sanksi',
+    definition: 'Surat pernyataan dari pihak yang merugikan keuangan daerah/negara yang memuat pengakuan bersalah bahwa kerugian tersebut merupakan tanggung jawab pribadinya dan kesanggupan untuk melunasi secara angsuran atau tunai.',
+    legalBasis: 'Permendagri No. 133 Tahun 2018 (Pasal 25-30); Peraturan BPK RI No. 3 Tahun 2007.',
+    significance: 'Alat bukti perdata yang mengikat pelaku kerugian kas untuk mengembalikan dana paling lama 24 bulan dan dapat dijadikan jaminan kebendaan.',
+    tags: ['Pengakuan Utang', 'Jaminan', 'TP-TGR', 'Pemulihan Kas']
+  },
+  {
+    id: 'tp_tgr',
+    term: 'TP-TGR',
+    fullTitle: 'Tim / Majelis Pertimbangan Penyelesaian Kerugian Daerah',
+    category: 'Hukum & Sanksi',
+    definition: 'Tim ad-hoc yang dibentuk oleh Kepala Daerah untuk memproses dan menuntut penggantian kerugian daerah terhadap pegawai negeri sipil bukan bendahara atau pejabat lain yang lalai.',
+    legalBasis: 'Permendagri No. 133 Tahun 2018; PP No. 38 Tahun 2016 tentang Tata Cara Tuntutan Ganti Kerugian Negara/Daerah.',
+    significance: 'Lembaga yudisial administratif internal pemerintah daerah yang menggelar sidang penetapan pembebanan kerugian daerah sebelum proses pelimpahan ke APH.',
+    tags: ['Sidang Majelis', 'Ganti Rugi', 'Disiplin Finansial', 'Penetapan Beban']
+  },
+  {
+    id: 'pkpt',
+    term: 'PKPT',
+    fullTitle: 'Program Kerja Pengawasan Tahunan',
+    category: 'APIP',
+    definition: 'Dokumen perencanaan pengawasan tahunan Inspektorat yang memuat sasaran, jadwal, fokus kegiatan (audit operasional, reviu, monev, audit kinerja) berbasis penilaian risiko (Risk-Based Internal Audit).',
+    legalBasis: 'Permendagri No. 88 Tahun 2022 tentang Perencanaan Pengawasan Penyelenggaraan Pemda; Standar Audit AAIPI.',
+    significance: 'Peta dasar penugasan seluruh tim auditor APIP; kepatuhan audit terhadap PKPT diawasi langsung oleh Inspektorat Jenderal Kementerian Dalam Negeri dan BPKP.',
+    tags: ['Rencana Kerja', 'Jadwal Audit', 'Risk Based', 'Inspektorat']
+  },
+  {
+    id: 'dalnis',
+    term: 'Dalnis',
+    fullTitle: 'Pengendali Teknis Pemeriksaan',
+    category: 'APIP',
+    definition: 'Auditor jenjang Madya atau pejabat fungsional senior yang ditugaskan untuk melakukan supervisi teknis metodologi audit, membimbing tim, dan mereviu kecukupan bukti uji petik pada KKP.',
+    legalBasis: 'PermenPAN-RB No. 38 Tahun 2014 tentang Jabatan Fungsional Auditor; Standar Pengendalian Mutu AAIPI.',
+    significance: 'Gerbang kendali mutu (quality control) atas keakuratan konstruksi temuan sebelum naskah laporan dipresentasikan kepada Pengendali Mutu (Irban/Inspektur).',
+    tags: ['Supervisi', 'Kendali Mutu', 'Auditor Madya', 'Reviu KKP']
+  },
+  {
+    id: 'bmd',
+    term: 'BMD',
+    fullTitle: 'Barang Milik Daerah (Aset Daerah)',
+    category: 'Keuangan',
+    definition: 'Semua barang yang dibeli atau diperoleh atas beban APBD atau berasal dari perolehan lainnya yang sah seperti hibah, tukar-menukar, atau putusan pengadilan berkekuatan hukum tetap.',
+    legalBasis: 'PP No. 27 Tahun 2014 jo. PP No. 28 Tahun 2020 tentang Pengelolaan BMD/BMN; Permendagri No. 47 Tahun 2021 tentang Tata Cara Pembukuan, Inventarisasi, dan Pelaporan BMD.',
+    significance: 'Pos neraca daerah yang kerap memicu opini BPK (WTP/WDP) akibat mutasi tanpa berita acara, aset hilang, tanah belum bersertifikat, atau pemanfaatan tanpa izin.',
+    tags: ['Aset Tetap', 'Inventarisasi', 'KIB', 'Sensitif Opini BPK']
+  },
+  {
+    id: 'fraud',
+    term: 'Pengeluaran Fiktif & Markup',
+    fullTitle: 'Pertanggungjawaban Belanja Fiktif & Penggelembungan Nilai',
+    category: 'Hukum & Sanksi',
+    definition: 'Tindakan curang berupa pemalsuan bukti transaksi/nota pembayaran tanpa penyerahan riil barang/jasa, atau penetapan harga satuan jauh melampaui harga pasar riil secara sengaja untuk memperkaya diri atau orang lain.',
+    legalBasis: 'UU No. 31 Tahun 1999 jo. UU No. 20 Tahun 2001 tentang Pemberantasan Tindak Pidana Korupsi (Pasal 2 dan Pasal 3); KUHP Pasal 263 tentang Pemalsuan Surat.',
+    significance: 'Kategori temuan audit kepatuhan berat yang tidak dapat ditoleransi; wajib direkomendasikan pengembalian seketika, sanksi disiplin berat, dan berpotensi diteruskan ke APH.',
+    tags: ['Tipikor', 'Fraud', 'Pidana', 'Bukti Palsu', 'Kerugian Negara']
+  },
+  {
+    id: 'aph',
+    term: 'APH',
+    fullTitle: 'Aparat Penegak Hukum (Kejaksaan, Kepolisian, KPK)',
+    category: 'Hukum & Sanksi',
+    definition: 'Lembaga penegak hukum negara yang berwenang melakukan penyelidikan, penyidikan, dan penuntutan terhadap tindak pidana korupsi yang terjadi di lingkungan pemerintahan daerah.',
+    legalBasis: 'Nota Kesepahaman (MoU) Tripartit Kementerian Dalam Negeri, Kejaksaan Agung RI, dan Kepolisian Negara RI tentang Koordinasi APIP dan APH dalam Penanganan Pengaduan Masyarakat; UU Tipikor.',
+    significance: 'Rujukan tindak lanjut apabila auditi tidak menyelesaikan rekomendasi TGR dalam tempo 60 hari kerja atau jika ditemukan mens rea (niat jahat) korupsi terstruktur.',
+    tags: ['Kejaksaan', 'Kepolisian', 'Tipikor', 'Koordinasi APIP-APH']
+  }
+];
 
 // Cached AudioContext singleton for mobile & PC performance (prevents memory leaks & GC pauses)
 let globalAudioCtx: AudioContext | null = null;
@@ -162,6 +417,26 @@ export default function Dashboard() {
   const [pipPosition, setPipPosition] = useState({ x: 0, y: 0 });
   const [isDraggingPip, setIsDraggingPip] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+
+  // --- Glosarium Hukum & Kamus Regulasi Melayang ---
+  const [isGlossaryModalOpen, setIsGlossaryModalOpen] = useState(false);
+  const [showFloatingGlossary, setShowFloatingGlossary] = useState(false);
+  const [glossarySearch, setGlossarySearch] = useState('');
+  const [glossaryCategory, setGlossaryCategory] = useState<'all' | 'Keuangan' | 'Pengadaan' | 'APIP' | 'Hukum & Sanksi'>('all');
+  const [selectedGlossaryTerm, setSelectedGlossaryTerm] = useState<GlossaryItem | null>(null);
+  const [glossaryCopyToast, setGlossaryCopyToast] = useState<string | null>(null);
+
+  const handleCopyLegalBasis = useCallback((item: GlossaryItem) => {
+    playHaptic('click');
+    const textToCopy = `${item.term} (${item.fullTitle})\nDasar Hukum: ${item.legalBasis}\nKutipan Glosarium Pengawasan Inspektorat`;
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(textToCopy);
+    }
+    setGlossaryCopyToast(`Dasar hukum "${item.term}" berhasil disalin!`);
+    setTimeout(() => {
+      setGlossaryCopyToast(null);
+    }, 2800);
+  }, [playHaptic]);
 
   // --- PWA Install ---
   const [installPrompt, setInstallPrompt] = useState<any>(null);
@@ -753,7 +1028,15 @@ export default function Dashboard() {
     setMounted(true);
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); setIsSearchModalOpen(true); }
-      if (e.key === 'Escape') { setSelectedFile(null); setIsSearchModalOpen(false); setSearchResults([]); setSearchTerm(''); }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'g') { e.preventDefault(); setIsGlossaryModalOpen(prev => !prev); }
+      if (e.key === 'Escape') { 
+        setSelectedFile(null); 
+        setIsSearchModalOpen(false); 
+        setSearchResults([]); 
+        setSearchTerm(''); 
+        setIsGlossaryModalOpen(false);
+        setShowFloatingGlossary(false);
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
 
@@ -1785,6 +2068,15 @@ export default function Dashboard() {
               <span className="hidden lg:block text-sm font-medium">Tema & Tampilan</span>
             </button>
 
+            <button 
+              onClick={() => { playHaptic('pop'); setIsGlossaryModalOpen(true); }} 
+              className="w-full flex items-center gap-3 p-3 lg:px-4 lg:py-3 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--hover-fill)] transition-all group"
+              title="Kamus Regulasi & Glosarium Hukum APIP (Ctrl+G)"
+            >
+              <BookOpen size={18} className="text-[var(--accent)] transition-transform group-hover:scale-110" />
+              <span className="hidden lg:block text-sm font-medium">Kamus Regulasi</span>
+            </button>
+
             {/* MODE TOGGLES */}
             <button 
               onClick={() => setIsPresentationMode(!isPresentationMode)} 
@@ -1937,6 +2229,14 @@ export default function Dashboard() {
                 className="p-2.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--hover-fill)] transition-all"
               >
                 <Palette size={16}/>
+              </button>
+              <button 
+                onClick={() => { playHaptic('pop'); setIsGlossaryModalOpen(true); }} 
+                title="Kamus Regulasi & Glosarium Hukum (Ctrl+G)" 
+                className="p-2.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--hover-fill)] transition-all flex items-center gap-1.5"
+              >
+                <BookOpen size={16}/>
+                <span className="hidden xl:inline text-xs font-semibold text-[var(--text-muted)]">Kamus Hukum</span>
               </button>
               {!isPresentationMode && (
                 <>
@@ -2906,6 +3206,21 @@ export default function Dashboard() {
                   >
                     <Star size={18} className={favorites.has(selectedFile.id) ? 'fill-amber-500 text-amber-500' : ''}/>
                   </button>
+                  <button 
+                    onClick={() => {
+                      playHaptic('pop');
+                      setShowFloatingGlossary(prev => !prev);
+                    }} 
+                    className={`p-2.5 rounded-xl transition-all flex items-center gap-1.5 ${
+                      showFloatingGlossary 
+                        ? 'bg-[var(--accent)] text-slate-950 shadow-md font-bold' 
+                        : 'bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-[var(--accent)]'
+                    }`}
+                    title={showFloatingGlossary ? "Tutup Kamus Regulasi Melayang" : "Kamus Regulasi & Glosarium Melayang"}
+                  >
+                    <BookOpen size={18} />
+                    <span className="hidden sm:inline text-xs font-semibold">Kamus</span>
+                  </button>
                   <button onClick={() => setIsFocusMode(!isFocusMode)} className={`p-2.5 rounded-xl transition-all ${isFocusMode ? 'bg-green-500/10 text-green-500 hover:bg-green-500/20' : 'bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-[var(--text-main)]'}`} title={isFocusMode ? 'Keluar Mode Fokus' : 'Mode Fokus (Layar Penuh)'}><Focus size={18}/></button>
                   <button onClick={() => {
                     setPipFile(selectedFile);
@@ -2992,6 +3307,233 @@ export default function Dashboard() {
                   }}
                 />
                 <iframe src={`https://drive.google.com/file/d/${selectedFile.id}/preview`} className="w-full h-full border-0 relative z-0" title="Preview" onLoad={() => setPreviewLoading(false)} />
+
+                {/* FLOATING REGULATION GLOSSARY OVERLAY */}
+                <AnimatePresence>
+                  {showFloatingGlossary && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -15, scale: 0.96 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -15, scale: 0.96 }}
+                      transition={{ duration: 0.2 }}
+                      className="absolute top-3 right-3 left-3 sm:left-auto sm:w-[430px] max-h-[85%] z-30 flex flex-col bg-[var(--bg-panel)]/96 backdrop-blur-2xl border border-[var(--border-strong)] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.6)] overflow-hidden"
+                    >
+                      {/* Floating Header */}
+                      <div className="p-3.5 bg-[var(--hover-fill)]/70 border-b border-[var(--border-line)] flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="p-1.5 rounded-lg bg-[var(--accent)]/15 text-[var(--accent)]">
+                            <BookOpen size={16} />
+                          </div>
+                          <div>
+                            <h5 className="text-xs font-bold text-[var(--text-main)] flex items-center gap-1.5">
+                              Kamus Regulasi Melayang
+                              <span className="text-[10px] font-normal px-1.5 py-0.5 rounded-md bg-[var(--accent)]/10 text-[var(--accent)]">
+                                APIP
+                              </span>
+                            </h5>
+                            <p className="text-[10px] text-[var(--text-muted)]">Rujukan yuridis & dasar hukum audit</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => {
+                              playHaptic('pop');
+                              setIsGlossaryModalOpen(true);
+                            }}
+                            className="p-1.5 rounded-lg hover:bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors"
+                            title="Buka Kamus Lengkap"
+                          >
+                            <ExternalLink size={14} />
+                          </button>
+                          <button
+                            onClick={() => {
+                              playHaptic('click');
+                              setShowFloatingGlossary(false);
+                            }}
+                            className="p-1.5 rounded-lg hover:bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-rose-400 transition-colors"
+                            title="Tutup"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Floating Search & Filter */}
+                      <div className="p-3 border-b border-[var(--border-line)] space-y-2 bg-[var(--bg-panel)]/50">
+                        <div className="relative">
+                          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+                          <input
+                            type="text"
+                            value={glossarySearch}
+                            onChange={(e) => setGlossarySearch(e.target.value)}
+                            placeholder="Cari istilah: TGR, HPS, BAST, SP2D..."
+                            className="w-full pl-8 pr-7 py-1.5 text-xs bg-[var(--hover-fill)] border border-[var(--border-line)] rounded-xl text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)]"
+                          />
+                          {glossarySearch && (
+                            <button
+                              onClick={() => setGlossarySearch('')}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-main)]"
+                            >
+                              <X size={12} />
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Category filter pills */}
+                        <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-thin">
+                          {(['all', 'Keuangan', 'Pengadaan', 'APIP', 'Hukum & Sanksi'] as const).map(cat => (
+                            <button
+                              key={cat}
+                              onClick={() => {
+                                playHaptic('click');
+                                setGlossaryCategory(cat);
+                              }}
+                              className={`text-[10px] px-2 py-0.5 rounded-lg font-medium whitespace-nowrap transition-all ${
+                                glossaryCategory === cat
+                                  ? 'bg-[var(--accent)] text-slate-950 font-bold shadow-sm'
+                                  : 'bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-[var(--text-main)]'
+                              }`}
+                            >
+                              {cat === 'all' ? 'Semua' : cat}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Floating Content Body */}
+                      <div className="p-3 overflow-y-auto max-h-[380px] space-y-2.5">
+                        {(() => {
+                          const filtered = GLOSSARY_DATABASE.filter(item => {
+                            const matchCat = glossaryCategory === 'all' || item.category === glossaryCategory;
+                            if (!matchCat) return false;
+                            if (!glossarySearch.trim()) return true;
+                            const q = glossarySearch.toLowerCase();
+                            return (
+                              item.term.toLowerCase().includes(q) ||
+                              item.fullTitle.toLowerCase().includes(q) ||
+                              item.definition.toLowerCase().includes(q) ||
+                              item.legalBasis.toLowerCase().includes(q) ||
+                              item.tags.some(t => t.toLowerCase().includes(q))
+                            );
+                          });
+
+                          if (filtered.length === 0) {
+                            return (
+                              <div className="py-8 text-center text-[var(--text-muted)]">
+                                <Scale size={24} className="mx-auto mb-2 opacity-40 text-[var(--accent)]" />
+                                <p className="text-xs">Istilah tidak ditemukan</p>
+                                <p className="text-[10px] mt-0.5">Coba kata kunci lain atau buka kamus lengkap</p>
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div className="space-y-2">
+                              {/* Quick Terms Chips Row */}
+                              <div className="flex flex-wrap gap-1 pb-1">
+                                {filtered.slice(0, 10).map(item => (
+                                  <button
+                                    key={item.id}
+                                    onClick={() => {
+                                      playHaptic('click');
+                                      setSelectedGlossaryTerm(item);
+                                    }}
+                                    className={`text-[11px] px-2 py-1 rounded-lg font-semibold transition-all flex items-center gap-1 ${
+                                      (selectedGlossaryTerm?.id === item.id || (!selectedGlossaryTerm && filtered[0]?.id === item.id))
+                                        ? 'bg-[var(--accent)] text-slate-950 shadow-sm font-bold'
+                                        : 'bg-[var(--hover-fill)] text-[var(--text-main)] hover:bg-[var(--accent)]/15 hover:text-[var(--accent)]'
+                                    }`}
+                                  >
+                                    <span>{item.term}</span>
+                                  </button>
+                                ))}
+                              </div>
+
+                              {/* Active or Featured Term Card */}
+                              {(() => {
+                                const activeItem = selectedGlossaryTerm || filtered[0];
+                                if (!activeItem) return null;
+
+                                const getCategoryBadge = (cat: string) => {
+                                  switch (cat) {
+                                    case 'Keuangan':
+                                      return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+                                    case 'Pengadaan':
+                                      return 'bg-sky-500/10 text-sky-400 border-sky-500/20';
+                                    case 'APIP':
+                                      return 'bg-purple-500/10 text-purple-400 border-purple-500/20';
+                                    case 'Hukum & Sanksi':
+                                      return 'bg-rose-500/10 text-rose-400 border-rose-500/20';
+                                    default:
+                                      return 'bg-[var(--hover-fill)] text-[var(--text-muted)]';
+                                  }
+                                };
+
+                                return (
+                                  <div className="p-3 bg-[var(--hover-fill)]/50 rounded-xl border border-[var(--border-line)] space-y-2">
+                                    <div className="flex items-start justify-between gap-2">
+                                      <div>
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                          <span className="text-sm font-bold text-[var(--text-main)]">{activeItem.term}</span>
+                                          <span className={`text-[9px] px-1.5 py-0.5 rounded-md font-semibold border ${getCategoryBadge(activeItem.category)}`}>
+                                            {activeItem.category}
+                                          </span>
+                                        </div>
+                                        <p className="text-[11px] text-[var(--text-muted)] font-medium mt-0.5">{activeItem.fullTitle}</p>
+                                      </div>
+                                      <button
+                                        onClick={() => handleCopyLegalBasis(activeItem)}
+                                        className="p-1.5 rounded-lg bg-[var(--accent)]/10 hover:bg-[var(--accent)]/20 text-[var(--accent)] transition-all flex items-center gap-1 text-[10px] font-semibold flex-shrink-0"
+                                        title="Salin Dasar Hukum"
+                                      >
+                                        <Copy size={11} /> Salin
+                                      </button>
+                                    </div>
+
+                                    {/* Definition */}
+                                    <p className="text-xs text-[var(--text-main)] leading-relaxed">
+                                      {activeItem.definition}
+                                    </p>
+
+                                    {/* Legal Basis Container */}
+                                    <div className="p-2 rounded-lg bg-[var(--accent)]/5 border border-[var(--accent)]/20 text-[11px]">
+                                      <div className="flex items-center gap-1 text-[var(--accent)] font-semibold text-[10px] mb-0.5">
+                                        <Scale size={11} /> Dasar Hukum Resmi:
+                                      </div>
+                                      <p className="text-[var(--text-main)] text-[11px] leading-snug font-mono select-all">
+                                        {activeItem.legalBasis}
+                                      </p>
+                                    </div>
+
+                                    {/* Audit Significance */}
+                                    <div className="text-[11px] text-[var(--text-muted)] bg-[var(--hover-fill)]/60 p-2 rounded-lg">
+                                      <span className="font-semibold text-[var(--text-main)]">Signifikansi Audit: </span>
+                                      {activeItem.significance}
+                                    </div>
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                          );
+                        })()}
+                      </div>
+
+                      {/* Floating Footer */}
+                      <div className="p-2.5 bg-[var(--hover-fill)]/70 border-t border-[var(--border-line)] flex items-center justify-between text-[11px]">
+                        <span className="text-[10px] text-[var(--text-muted)]">24 Istilah Pengawasan & Regulasi</span>
+                        <button
+                          onClick={() => {
+                            playHaptic('pop');
+                            setIsGlossaryModalOpen(true);
+                          }}
+                          className="text-[11px] font-bold text-[var(--accent)] hover:underline flex items-center gap-1"
+                        >
+                          Buka Kamus Penuh <ChevronRight size={13} />
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               {/* Preview Footer */}
@@ -4472,6 +5014,271 @@ export default function Dashboard() {
                 )}
               </motion.div>
             </div>
+          )}
+        </AnimatePresence>
+
+        {/* FULL GLOSSARY MODAL */}
+        <AnimatePresence>
+          {isGlossaryModalOpen && (
+            <div 
+              className="fixed inset-0 z-[260] flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-md"
+              onClick={() => { playHaptic('click'); setIsGlossaryModalOpen(false); }}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 15 }}
+                transition={{ duration: 0.2 }}
+                className="w-full max-w-5xl max-h-[92vh] bg-[var(--bg-panel)] border border-[var(--border-line)] rounded-3xl shadow-2xl flex flex-col overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Header */}
+                <div className="p-5 sm:p-6 border-b border-[var(--border-line)] flex items-start justify-between gap-4 bg-[var(--hover-fill)]/50">
+                  <div className="flex items-start gap-3.5">
+                    <div className="p-3 bg-[var(--accent)]/15 text-[var(--accent)] rounded-2xl flex-shrink-0 shadow-sm">
+                      <BookOpen size={26} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="text-lg sm:text-xl font-bold text-[var(--text-main)]">
+                          Glosarium Hukum & Kamus Regulasi
+                        </h3>
+                        <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[var(--accent)]/15 text-[var(--accent)] border border-[var(--accent)]/30">
+                          Inspektorat & APIP
+                        </span>
+                      </div>
+                      <p className="text-xs sm:text-sm text-[var(--text-muted)] mt-1">
+                        Kamus istilah yuridis resmi, dasar hukum (UU/PP/Permendagri/Perpres), dan signifikansi pengawasan LHP.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => { playHaptic('click'); setIsGlossaryModalOpen(false); }}
+                    className="p-2 rounded-xl bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--hover-fill)] transition-all flex-shrink-0"
+                    title="Tutup (Esc)"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                {/* Search Bar & Category Navigation */}
+                <div className="p-4 sm:p-6 border-b border-[var(--border-line)] space-y-4 bg-[var(--bg-panel)]">
+                  <div className="relative">
+                    <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+                    <input
+                      type="text"
+                      value={glossarySearch}
+                      onChange={(e) => setGlossarySearch(e.target.value)}
+                      placeholder="Cari istilah, singkatan, topik, atau nomor regulasi (contoh: TGR, SiLPA, HPS, PP 12/2019, fraud)..."
+                      className="w-full pl-11 pr-10 py-3 bg-[var(--hover-fill)] border border-[var(--border-line)] rounded-2xl text-sm text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20 transition-all"
+                      autoFocus
+                    />
+                    {glossarySearch && (
+                      <button
+                        onClick={() => setGlossarySearch('')}
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-main)] p-1 rounded-lg"
+                      >
+                        <X size={16} />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Category Filter Tabs */}
+                  <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+                    {[
+                      { id: 'all', label: 'Semua Istilah', count: GLOSSARY_DATABASE.length },
+                      { id: 'Keuangan', label: 'Keuangan Daerah', count: GLOSSARY_DATABASE.filter(g => g.category === 'Keuangan').length },
+                      { id: 'Pengadaan', label: 'Pengadaan Barang & Jasa', count: GLOSSARY_DATABASE.filter(g => g.category === 'Pengadaan').length },
+                      { id: 'APIP', label: 'APIP & Pengawasan', count: GLOSSARY_DATABASE.filter(g => g.category === 'APIP').length },
+                      { id: 'Hukum & Sanksi', label: 'Hukum & Sanksi', count: GLOSSARY_DATABASE.filter(g => g.category === 'Hukum & Sanksi').length },
+                    ].map(cat => (
+                      <button
+                        key={cat.id}
+                        onClick={() => {
+                          playHaptic('click');
+                          setGlossaryCategory(cat.id as any);
+                        }}
+                        className={`text-xs px-3.5 py-2 rounded-xl font-medium whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                          glossaryCategory === cat.id
+                            ? 'bg-[var(--accent)] text-slate-950 font-bold shadow-md'
+                            : 'bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--hover-fill)]/80'
+                        }`}
+                      >
+                        <span>{cat.label}</span>
+                        <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                          glossaryCategory === cat.id
+                            ? 'bg-black/20 text-slate-950'
+                            : 'bg-[var(--bg-panel)] text-[var(--text-muted)]'
+                        }`}>
+                          {cat.count}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Cards Grid Content */}
+                <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+                  {(() => {
+                    const filtered = GLOSSARY_DATABASE.filter(item => {
+                      const matchCat = glossaryCategory === 'all' || item.category === glossaryCategory;
+                      if (!matchCat) return false;
+                      if (!glossarySearch.trim()) return true;
+                      const q = glossarySearch.toLowerCase();
+                      return (
+                        item.term.toLowerCase().includes(q) ||
+                        item.fullTitle.toLowerCase().includes(q) ||
+                        item.definition.toLowerCase().includes(q) ||
+                        item.legalBasis.toLowerCase().includes(q) ||
+                        item.significance.toLowerCase().includes(q) ||
+                        item.tags.some(t => t.toLowerCase().includes(q))
+                      );
+                    });
+
+                    if (filtered.length === 0) {
+                      return (
+                        <div className="py-16 text-center text-[var(--text-muted)]">
+                          <Scale size={42} className="mx-auto mb-3 opacity-30 text-[var(--accent)]" />
+                          <h4 className="text-base font-semibold text-[var(--text-main)]">Tidak ada istilah yang cocok</h4>
+                          <p className="text-xs text-[var(--text-muted)] mt-1 max-w-sm mx-auto">
+                            Coba cari dengan singkatan (cth: TGR, SiLPA, BAST) atau ubah pilihan kategori di atas.
+                          </p>
+                          <button
+                            onClick={() => { setGlossarySearch(''); setGlossaryCategory('all'); }}
+                            className="mt-4 px-4 py-2 bg-[var(--hover-fill)] text-[var(--accent)] rounded-xl text-xs font-semibold hover:bg-[var(--accent)] hover:text-slate-950 transition-all"
+                          >
+                            Reset Pencarian
+                          </button>
+                        </div>
+                      );
+                    }
+
+                    const getCategoryBadge = (cat: string) => {
+                      switch (cat) {
+                        case 'Keuangan':
+                          return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
+                        case 'Pengadaan':
+                          return 'bg-sky-500/10 text-sky-400 border-sky-500/30';
+                        case 'APIP':
+                          return 'bg-purple-500/10 text-purple-400 border-purple-500/30';
+                        case 'Hukum & Sanksi':
+                          return 'bg-rose-500/10 text-rose-400 border-rose-500/30';
+                        default:
+                          return 'bg-[var(--hover-fill)] text-[var(--text-muted)]';
+                      }
+                    };
+
+                    return (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+                        {filtered.map(item => (
+                          <div
+                            key={item.id}
+                            className="p-4 sm:p-5 rounded-2xl bg-[var(--hover-fill)]/40 border border-[var(--border-line)] hover:border-[var(--accent)]/40 transition-all flex flex-col justify-between group shadow-sm hover:shadow-md"
+                          >
+                            <div className="space-y-3">
+                              {/* Top Title & Badge */}
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="text-base font-bold text-[var(--accent)] tracking-wide">
+                                      {item.term}
+                                    </span>
+                                    <span className={`text-[10px] px-2 py-0.5 rounded-lg font-semibold border ${getCategoryBadge(item.category)}`}>
+                                      {item.category}
+                                    </span>
+                                  </div>
+                                  <h4 className="text-sm font-semibold text-[var(--text-main)] mt-0.5 leading-snug">
+                                    {item.fullTitle}
+                                  </h4>
+                                </div>
+
+                                <button
+                                  onClick={() => handleCopyLegalBasis(item)}
+                                  className="p-2 rounded-xl bg-[var(--hover-fill)] hover:bg-[var(--accent)]/15 text-[var(--text-muted)] hover:text-[var(--accent)] transition-all flex-shrink-0 flex items-center gap-1.5 text-xs font-semibold"
+                                  title="Salin Rujukan & Dasar Hukum"
+                                >
+                                  <Copy size={13} />
+                                  <span className="hidden sm:inline">Salin</span>
+                                </button>
+                              </div>
+
+                              {/* Definition Text */}
+                              <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+                                {item.definition}
+                              </p>
+
+                              {/* Legal Basis Container */}
+                              <div className="p-3 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-line)] space-y-1">
+                                <div className="flex items-center gap-1.5 text-[var(--accent)] text-xs font-semibold">
+                                  <Scale size={13} />
+                                  <span>Dasar Hukum Resmi:</span>
+                                </div>
+                                <p className="text-xs text-[var(--text-main)] font-mono leading-relaxed select-all">
+                                  {item.legalBasis}
+                                </p>
+                              </div>
+
+                              {/* Audit Significance */}
+                              <div className="p-3 rounded-xl bg-[var(--hover-fill)]/70 text-xs text-[var(--text-muted)] leading-relaxed">
+                                <span className="font-semibold text-[var(--text-main)] block mb-0.5">
+                                  Signifikansi Pemeriksaan / LHP:
+                                </span>
+                                {item.significance}
+                              </div>
+                            </div>
+
+                            {/* Tags */}
+                            <div className="pt-3 mt-3 border-t border-[var(--border-line)]/60 flex items-center gap-1.5 flex-wrap">
+                              {item.tags.map(tag => (
+                                <span
+                                  key={tag}
+                                  className="text-[10px] px-2 py-0.5 rounded-md bg-[var(--bg-panel)] text-[var(--text-muted)] border border-[var(--border-line)] font-medium"
+                                >
+                                  #{tag}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* Footer */}
+                <div className="p-4 sm:p-5 border-t border-[var(--border-line)] bg-[var(--hover-fill)]/50 flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+                    <Bookmark size={14} className="text-[var(--accent)]" />
+                    <span>
+                      Tip: Tekan <kbd className="px-1.5 py-0.5 rounded bg-[var(--hover-fill)] border border-[var(--border-line)] font-mono text-[10px] text-[var(--text-main)]">Ctrl+G</kbd> untuk buka cepat kapan saja
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => { playHaptic('click'); setIsGlossaryModalOpen(false); }}
+                    className="px-5 py-2.5 bg-[var(--accent)] text-slate-950 font-semibold rounded-xl text-xs hover:opacity-90 transition-all shadow-md w-full sm:w-auto"
+                  >
+                    Tutup Glosarium
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* GLOSSARY COPY TOAST */}
+        <AnimatePresence>
+          {glossaryCopyToast && (
+            <motion.div
+              initial={{ opacity: 0, y: 30, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.95 }}
+              className="fixed bottom-6 right-6 z-[350] px-4 py-3 bg-[var(--bg-panel)] border border-[var(--accent)] text-[var(--text-main)] rounded-2xl shadow-2xl flex items-center gap-2.5 text-xs font-semibold"
+            >
+              <div className="w-6 h-6 rounded-full bg-[var(--accent)]/20 text-[var(--accent)] flex items-center justify-center flex-shrink-0">
+                <Check size={14} />
+              </div>
+              <span>{glossaryCopyToast}</span>
+            </motion.div>
           )}
         </AnimatePresence>
 
