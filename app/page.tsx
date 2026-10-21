@@ -12,7 +12,8 @@ import {
   Minimize2, Maximize2, Smartphone, GripHorizontal, Sparkles,
   Monitor, Wrench, Focus, Rows3, FileSpreadsheet, Tag, Star,
   RotateCw, Sliders, Volume2, VolumeX, Zap, Flame,
-  BookOpen, Scale, Bookmark, ExternalLink
+  BookOpen, Scale, Bookmark, ExternalLink,
+  Building2, Landmark, ChevronDown, CheckCheck, Settings
 } from 'lucide-react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -44,6 +45,266 @@ interface ActivityLog {
   device: string;
   ip?: string;
 }
+
+export interface OpdItem {
+  id: string;
+  code: string;
+  name: string;
+  category: 'Dinas' | 'Badan' | 'RSUD' | 'Sekretariat' | 'Lainnya';
+  aliases: string[];
+  isBinaanIrban3?: boolean;
+}
+
+export const DEFAULT_OPD_SULTRA: OpdItem[] = [
+  {
+    id: 'dikbud',
+    code: 'Dikbud',
+    name: 'Dinas Pendidikan dan Kebudayaan',
+    category: 'Dinas',
+    aliases: ['dikbud', 'pendidikan', 'kebudayaan', 'disdik', 'sekolah', 'guru', 'sma', 'smk', 'slb'],
+    isBinaanIrban3: true,
+  },
+  {
+    id: 'dinkes',
+    code: 'Dinkes',
+    name: 'Dinas Kesehatan',
+    category: 'Dinas',
+    aliases: ['dinkes', 'kesehatan', 'yankes', 'puskesmas', 'p2p', 'kesmas', 'farmasi'],
+    isBinaanIrban3: true,
+  },
+  {
+    id: 'pupr',
+    code: 'DSDABM / PUPR',
+    name: 'Dinas Sumber Daya Air & Bina Marga',
+    category: 'Dinas',
+    aliases: ['pupr', 'bina marga', 'sda', 'jalan', 'jembatan', 'irigasi', 'dsdabm', 'konstruksi'],
+    isBinaanIrban3: true,
+  },
+  {
+    id: 'cipta-karya',
+    code: 'Cipta Karya & PKP',
+    name: 'Dinas Perumahan Rakyat, Kawasan Permukiman dan Cipta Karya',
+    category: 'Dinas',
+    aliases: ['cipta karya', 'perkim', 'perumahan', 'permukiman', 'tata ruang', 'pkp'],
+    isBinaanIrban3: true,
+  },
+  {
+    id: 'rsud-bahteramas',
+    code: 'RSUD Bahteramas',
+    name: 'RSUD Bahteramas Provinsi Sultra',
+    category: 'RSUD',
+    aliases: ['bahteramas', 'rsud bahteramas', 'rumah sakit bahteramas', 'rsud'],
+    isBinaanIrban3: true,
+  },
+  {
+    id: 'rs-jantung',
+    code: 'RS Jantung',
+    name: 'RS Jantung, Pembuluh Darah & Otak Oputa Yi Koo',
+    category: 'RSUD',
+    aliases: ['oputa yi koo', 'rs jantung', 'jantung', 'oputa'],
+    isBinaanIrban3: true,
+  },
+  {
+    id: 'rsj',
+    code: 'RS Jiwa',
+    name: 'Rumah Sakit Jiwa Prov. Sultra',
+    category: 'RSUD',
+    aliases: ['rs jiwa', 'rsj', 'kejiwaan'],
+    isBinaanIrban3: false,
+  },
+  {
+    id: 'bappeda',
+    code: 'Bappeda',
+    name: 'Badan Perencanaan Pembangunan Daerah',
+    category: 'Badan',
+    aliases: ['bappeda', 'perencanaan', 'rkpd', 'rpjmd', 'litbang'],
+    isBinaanIrban3: true,
+  },
+  {
+    id: 'bpkad',
+    code: 'BPKAD',
+    name: 'Badan Pengelolaan Keuangan dan Aset Daerah',
+    category: 'Badan',
+    aliases: ['bpkad', 'keuangan daerah', 'aset daerah', 'kasda', 'bud', 'bmd'],
+    isBinaanIrban3: true,
+  },
+  {
+    id: 'bapenda',
+    code: 'Bapenda',
+    name: 'Badan Pendapatan Daerah',
+    category: 'Badan',
+    aliases: ['bapenda', 'pendapatan', 'pajak daerah', 'retribusi', 'samsat'],
+    isBinaanIrban3: false,
+  },
+  {
+    id: 'bkd',
+    code: 'BKD',
+    name: 'Badan Kepegawaian Daerah',
+    category: 'Badan',
+    aliases: ['bkd', 'kepegawaian', 'asn', 'mutasi', 'pns'],
+    isBinaanIrban3: false,
+  },
+  {
+    id: 'bpsdm',
+    code: 'BPSDM',
+    name: 'Badan Pengembangan Sumber Daya Manusia',
+    category: 'Badan',
+    aliases: ['bpsdm', 'diklat', 'pelatihan'],
+    isBinaanIrban3: false,
+  },
+  {
+    id: 'dinsos',
+    code: 'Dinsos',
+    name: 'Dinas Sosial',
+    category: 'Dinas',
+    aliases: ['dinsos', 'sosial', 'bansos', 'pkh', 'kemiskinan'],
+    isBinaanIrban3: true,
+  },
+  {
+    id: 'disnakertrans',
+    code: 'Disnakertrans',
+    name: 'Dinas Tenaga Kerja dan Transmigrasi',
+    category: 'Dinas',
+    aliases: ['disnaker', 'tenaga kerja', 'transmigrasi', 'disnakertrans', 'ketenagakerjaan'],
+    isBinaanIrban3: false,
+  },
+  {
+    id: 'dlh',
+    code: 'DLH',
+    name: 'Dinas Lingkungan Hidup',
+    category: 'Dinas',
+    aliases: ['dlh', 'lingkungan hidup', 'amdal', 'kebersihan', 'sampah'],
+    isBinaanIrban3: false,
+  },
+  {
+    id: 'dishub',
+    code: 'Dishub',
+    name: 'Dinas Perhubungan',
+    category: 'Dinas',
+    aliases: ['dishub', 'perhubungan', 'lalu lintas', 'pelabuhan', 'terminal'],
+    isBinaanIrban3: false,
+  },
+  {
+    id: 'diskominfo',
+    code: 'Diskominfo',
+    name: 'Dinas Komunikasi, Informatika, Statistik dan Persandian',
+    category: 'Dinas',
+    aliases: ['kominfo', 'diskominfo', 'informatika', 'statistik', 'persandian'],
+    isBinaanIrban3: true,
+  },
+  {
+    id: 'dpmptsp',
+    code: 'DPMPTSP',
+    name: 'Dinas Penanaman Modal & PTSP',
+    category: 'Dinas',
+    aliases: ['dpmptsp', 'perizinan', 'investasi', 'penanaman modal', 'ptsp'],
+    isBinaanIrban3: false,
+  },
+  {
+    id: 'dispora',
+    code: 'Dispora',
+    name: 'Dinas Pemuda dan Olahraga',
+    category: 'Dinas',
+    aliases: ['dispora', 'pemuda', 'olahraga', 'stadion', 'koni'],
+    isBinaanIrban3: false,
+  },
+  {
+    id: 'dkp',
+    code: 'DKP',
+    name: 'Dinas Kelautan dan Perikanan',
+    category: 'Dinas',
+    aliases: ['dkp', 'kelautan', 'perikanan', 'nelayan', 'tambak'],
+    isBinaanIrban3: false,
+  },
+  {
+    id: 'dispar',
+    code: 'Dispar',
+    name: 'Dinas Pariwisata',
+    category: 'Dinas',
+    aliases: ['dispar', 'pariwisata', 'wisata', 'destinasi'],
+    isBinaanIrban3: false,
+  },
+  {
+    id: 'distan',
+    code: 'Distanak',
+    name: 'Dinas Tanaman Pangan dan Peternakan',
+    category: 'Dinas',
+    aliases: ['pertanian', 'peternakan', 'distan', 'pangan', 'distanpt'],
+    isBinaanIrban3: false,
+  },
+  {
+    id: 'dishut',
+    code: 'Dishut',
+    name: 'Dinas Kehutanan',
+    category: 'Dinas',
+    aliases: ['dishut', 'kehutanan', 'hutan', 'kph'],
+    isBinaanIrban3: false,
+  },
+  {
+    id: 'esdm',
+    code: 'Dinas ESDM',
+    name: 'Dinas Energi dan Sumber Daya Mineral',
+    category: 'Dinas',
+    aliases: ['esdm', 'energi', 'mineral', 'tambang', 'kelistrikan'],
+    isBinaanIrban3: false,
+  },
+  {
+    id: 'disperindag',
+    code: 'Disperindag',
+    name: 'Dinas Perindustrian dan Perdagangan',
+    category: 'Dinas',
+    aliases: ['disperindag', 'perindustrian', 'perdagangan', 'pasar', 'ukm', 'industri'],
+    isBinaanIrban3: false,
+  },
+  {
+    id: 'dpmd',
+    code: 'DPMD',
+    name: 'Dinas Pemberdayaan Masyarakat dan Desa',
+    category: 'Dinas',
+    aliases: ['dpmd', 'desa', 'masyarakat desa', 'pemberdayaan desa'],
+    isBinaanIrban3: false,
+  },
+  {
+    id: 'bpbd',
+    code: 'BPBD',
+    name: 'Badan Penanggulangan Bencana Daerah',
+    category: 'Badan',
+    aliases: ['bpbd', 'bencana', 'tanggap darurat', 'kebakaran'],
+    isBinaanIrban3: false,
+  },
+  {
+    id: 'satpol-pp',
+    code: 'Satpol PP',
+    name: 'Satuan Polisi Pamong Praja',
+    category: 'Lainnya',
+    aliases: ['satpol', 'pol pp', 'satpol pp', 'pamong praja', 'perda'],
+    isBinaanIrban3: false,
+  },
+  {
+    id: 'sekda',
+    code: 'Sekretariat Daerah',
+    name: 'Sekretariat Daerah Prov. Sultra',
+    category: 'Sekretariat',
+    aliases: ['setda', 'sekda', 'biro umum', 'biro hukum', 'biro perekonomian', 'biro adbang', 'biro pengadaan', 'ulp', 'biro'],
+    isBinaanIrban3: false,
+  },
+  {
+    id: 'sekwan',
+    code: 'Sekretariat DPRD',
+    name: 'Sekretariat DPRD Prov. Sultra',
+    category: 'Sekretariat',
+    aliases: ['sekwan', 'dprd', 'dewan'],
+    isBinaanIrban3: false,
+  },
+  {
+    id: 'inspektorat',
+    code: 'Inspektorat',
+    name: 'Inspektorat Daerah Prov. Sultra',
+    category: 'Lainnya',
+    aliases: ['inspektorat', 'irban', 'apip', 'sekretariat inspektorat'],
+    isBinaanIrban3: true,
+  }
+];
 
 export interface GlossaryItem {
   id: string;
@@ -405,6 +666,15 @@ export default function Dashboard() {
   const [tagSaving, setTagSaving] = useState(false);
   const [customTagHistory, setCustomTagHistory] = useState<string[]>([]);
 
+  // --- Filter OPD (Organisasi Perangkat Daerah) Irban 3 ---
+  const [opdList, setOpdList] = useState<OpdItem[]>(DEFAULT_OPD_SULTRA);
+  const [selectedOpdFilter, setSelectedOpdFilter] = useState<string>('all');
+  const [isOpdDropdownOpen, setIsOpdDropdownOpen] = useState(false);
+  const [opdSearchQuery, setOpdSearchQuery] = useState('');
+  const [opdOnlyBinaan, setOpdOnlyBinaan] = useState(false);
+  const [isManageOpdModalOpen, setIsManageOpdModalOpen] = useState(false);
+  const [newOpdForm, setNewOpdForm] = useState({ name: '', code: '', category: 'Dinas' as const, aliases: '', isBinaanIrban3: true });
+
   // --- Favorit & Riwayat Terakhir ---
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [recentlyViewed, setRecentlyViewed] = useState<{ id: string; name: string; mimeType: string; viewedAt: number }[]>([]);
@@ -761,6 +1031,107 @@ export default function Dashboard() {
       return updated;
     });
   };
+
+  // --- OPD MANAGEMENT & FILTER HELPERS ---
+  const saveOpdList = (updated: OpdItem[]) => {
+    setOpdList(updated);
+    try {
+      localStorage.setItem('archive_custom_opds', JSON.stringify(updated));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleToggleOpdBinaan = (opdId: string) => {
+    playHaptic('click');
+    const updated = opdList.map(o => o.id === opdId ? { ...o, isBinaanIrban3: !o.isBinaanIrban3 } : o);
+    saveOpdList(updated);
+  };
+
+  const handleAddNewOpd = () => {
+    if (!newOpdForm.name.trim() || !newOpdForm.code.trim()) return;
+    playHaptic('pop');
+    const id = newOpdForm.code.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Date.now().toString().slice(-4);
+    const parsedAliases = newOpdForm.aliases
+      .split(',')
+      .map(a => a.trim().toLowerCase())
+      .filter(Boolean);
+
+    if (!parsedAliases.includes(newOpdForm.code.toLowerCase())) {
+      parsedAliases.push(newOpdForm.code.toLowerCase());
+    }
+
+    const newOpd: OpdItem = {
+      id,
+      name: newOpdForm.name.trim(),
+      code: newOpdForm.code.trim(),
+      category: newOpdForm.category,
+      aliases: parsedAliases,
+      isBinaanIrban3: newOpdForm.isBinaanIrban3,
+    };
+
+    saveOpdList([newOpd, ...opdList]);
+    setNewOpdForm({ name: '', code: '', category: 'Dinas', aliases: '', isBinaanIrban3: true });
+  };
+
+  const handleDeleteCustomOpd = (opdId: string) => {
+    playHaptic('click');
+    const updated = opdList.filter(o => o.id !== opdId);
+    saveOpdList(updated);
+    if (selectedOpdFilter === opdId) setSelectedOpdFilter('all');
+  };
+
+  const handleResetOpdToDefault = () => {
+    playHaptic('pop');
+    saveOpdList(DEFAULT_OPD_SULTRA);
+  };
+
+  const isFileBelongToOpd = useCallback((file: DriveFile, opdId: string): boolean => {
+    if (!opdId || opdId === 'all') return true;
+    const targetOpd = opdList.find(o => o.id === opdId);
+    if (!targetOpd) return true;
+
+    // 1. Cek tags manual file
+    const fileTags = getFileTags(file);
+    const tagMatch = fileTags.some(t => {
+      const tLower = t.toLowerCase();
+      if (tLower === targetOpd.code.toLowerCase()) return true;
+      if (tLower === targetOpd.name.toLowerCase()) return true;
+      return targetOpd.aliases.some(alias => tLower === alias.toLowerCase() || tLower.includes(alias.toLowerCase()));
+    });
+    if (tagMatch) return true;
+
+    // 2. Cek nama file
+    const nameLower = file.name.toLowerCase();
+    const nameMatch = targetOpd.aliases.some(alias => {
+      const aLower = alias.toLowerCase();
+      if (aLower.length <= 3) {
+        const rx = new RegExp(`(^|[^a-z0-9])${aLower}([^a-z0-9]|$)`, 'i');
+        return rx.test(nameLower);
+      }
+      return nameLower.includes(aLower);
+    });
+    if (nameMatch) return true;
+
+    // 3. Cek folder history (jika pengguna sedang berada di dalam folder yang bernama OPD ini)
+    const inCurrentFolder = folderHistory.some(f => {
+      const fLower = f.name.toLowerCase();
+      return targetOpd.aliases.some(alias => fLower.includes(alias.toLowerCase())) ||
+             fLower.includes(targetOpd.code.toLowerCase());
+    });
+    if (inCurrentFolder) return true;
+
+    return false;
+  }, [opdList, getFileTags, folderHistory]);
+
+  const opdCounts = React.useMemo(() => {
+    const counts: Record<string, number> = {};
+    const pool = (searchTerm.length >= 2 ? searchResults : files);
+    opdList.forEach(opd => {
+      counts[opd.id] = pool.filter(f => isFileBelongToOpd(f, opd.id)).length;
+    });
+    return counts;
+  }, [opdList, searchTerm, searchResults, files, isFileBelongToOpd]);
 
   const openTagModal = (file: DriveFile) => {
     setTagModalFile(file);
@@ -1133,6 +1504,14 @@ export default function Dashboard() {
         const parsed = JSON.parse(savedRecent);
         if (Array.isArray(parsed)) setRecentlyViewed(parsed);
       }
+
+      const savedOpds = localStorage.getItem('archive_custom_opds');
+      if (savedOpds) {
+        try {
+          const parsed = JSON.parse(savedOpds);
+          if (Array.isArray(parsed) && parsed.length > 0) setOpdList(parsed);
+        } catch {}
+      }
     } catch {}
   }, []);
 
@@ -1457,6 +1836,12 @@ export default function Dashboard() {
       rows.push(`"Diekspor Oleh",${cleanCsvVal(`${userName || 'Petugas'} (${userRole || 'User'})`)}`);
       rows.push(`"Cakupan Data",${cleanCsvVal(scope === 'all' ? 'Seluruh Arsip Sistem (Google Drive)' : `Tampilan Saat Ini (${currentFolderName})`)}`);
       rows.push(`"Total Arsip",${cleanCsvVal(`${itemsToExport.length} Berkas`)}`);
+      if (selectedOpdFilter !== 'all') {
+        const activeOpdObj = opdList.find(o => o.id === selectedOpdFilter);
+        if (activeOpdObj) {
+          rows.push(`"Filter OPD Binaan",${cleanCsvVal(`${activeOpdObj.name} (${activeOpdObj.code})`)}`);
+        }
+      }
       rows.push(''); // Baris pemisah
 
       // Header Kolom Tabel
@@ -1662,6 +2047,10 @@ export default function Dashboard() {
       if (selectedTagFilter === 'all') return true;
       const fileTags = getFileTags(f);
       return fileTags.some(t => t.toLowerCase() === selectedTagFilter.toLowerCase());
+    })
+    .filter(f => {
+      if (!selectedOpdFilter || selectedOpdFilter === 'all') return true;
+      return isFileBelongToOpd(f, selectedOpdFilter);
     })
     .filter(f => {
       if (!showFavoritesOnly) return true;
@@ -2204,6 +2593,235 @@ export default function Dashboard() {
               )}
             </div>
 
+            {/* FILTER OPD DROPDOWN SELECTOR */}
+            <div className="relative">
+              <button
+                onClick={() => { playHaptic('click'); setIsOpdDropdownOpen(!isOpdDropdownOpen); }}
+                className={`flex items-center gap-2 px-3 sm:px-3.5 py-2.5 rounded-xl border text-xs sm:text-sm font-semibold transition-all shadow-sm ${
+                  selectedOpdFilter !== 'all'
+                    ? 'bg-[var(--accent)] text-[var(--accent-fg)] border-[var(--accent)] ring-2 ring-[var(--accent)]/30'
+                    : 'bg-white/[0.04] hover:bg-[var(--hover-fill)] text-[var(--text-main)] border-[var(--border-line)] hover:border-[var(--border-strong)]'
+                }`}
+                title="Filter Dokumen berdasarkan OPD Binaan Irban 3"
+              >
+                <Landmark size={15} className={selectedOpdFilter !== 'all' ? 'text-[var(--accent-fg)]' : 'text-[var(--accent)]'} />
+                <span className="hidden sm:inline max-w-[130px] truncate">
+                  {selectedOpdFilter === 'all'
+                    ? 'Semua OPD'
+                    : opdList.find(o => o.id === selectedOpdFilter)?.code || 'Filter OPD'}
+                </span>
+                <span className="sm:hidden">
+                  {selectedOpdFilter === 'all' ? 'OPD' : opdList.find(o => o.id === selectedOpdFilter)?.code || 'OPD'}
+                </span>
+                {selectedOpdFilter !== 'all' && (
+                  <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-black/20 text-white">
+                    {opdCounts[selectedOpdFilter] || 0}
+                  </span>
+                )}
+                <ChevronDown size={14} className={`transition-transform duration-200 ${isOpdDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {/* Popover / Dropdown Menu */}
+              {isOpdDropdownOpen && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-40" 
+                    onClick={() => setIsOpdDropdownOpen(false)} 
+                  />
+                  <div 
+                    className="absolute right-0 sm:left-0 top-full mt-2 w-80 sm:w-96 rounded-2xl bg-[var(--surface-color)]/95 backdrop-blur-2xl border border-[var(--border-line)] shadow-2xl z-50 p-3 space-y-2.5 animate-in fade-in slide-in-from-top-2 duration-150"
+                    style={{ backdropFilter: 'blur(24px)' }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {/* Header */}
+                    <div className="flex items-center justify-between pb-2 border-b border-[var(--border-line)]">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-[var(--accent)]/15 text-[var(--accent)] flex items-center justify-center">
+                          <Building2 size={15} />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-bold text-[var(--text-main)]">Filter OPD Pengawasan</h4>
+                          <p className="text-[10px] text-[var(--text-muted)]">Irban Wilayah III Prov. Sultra</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => { setIsOpdDropdownOpen(false); setIsManageOpdModalOpen(true); }}
+                        className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--hover-fill)] transition-colors"
+                        title="Atur Daftar OPD / Tambah OPD Baru"
+                      >
+                        <Settings size={14} />
+                      </button>
+                    </div>
+
+                    {/* Filter Tab & Search Input */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--hover-fill)] border border-[var(--border-line)] text-xs">
+                        <button
+                          type="button"
+                          onClick={() => setOpdOnlyBinaan(false)}
+                          className={`flex-1 py-1 rounded-lg font-medium transition-all text-center ${
+                            !opdOnlyBinaan 
+                              ? 'bg-[var(--accent)] text-[var(--accent-fg)] font-semibold shadow-xs' 
+                              : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
+                          }`}
+                        >
+                          Semua OPD ({opdList.length})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setOpdOnlyBinaan(true)}
+                          className={`flex-1 py-1 rounded-lg font-medium transition-all text-center flex items-center justify-center gap-1 ${
+                            opdOnlyBinaan 
+                              ? 'bg-[var(--accent)] text-[var(--accent-fg)] font-semibold shadow-xs' 
+                              : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
+                          }`}
+                        >
+                          <Star size={11} className={opdOnlyBinaan ? 'fill-current' : ''} />
+                          Binaan Irban 3 ({opdList.filter(o => o.isBinaanIrban3).length})
+                        </button>
+                      </div>
+
+                      <div className="relative">
+                        <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                        <input
+                          type="text"
+                          value={opdSearchQuery}
+                          onChange={(e) => setOpdSearchQuery(e.target.value)}
+                          placeholder="Cari nama atau kode OPD..."
+                          className="w-full bg-[var(--hover-fill)] border border-[var(--border-line)] rounded-xl py-1.5 pl-8 pr-3 text-xs text-[var(--text-main)] placeholder:text-slate-500 outline-none focus:border-[var(--accent)] transition-all"
+                        />
+                        {opdSearchQuery && (
+                          <button onClick={() => setOpdSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-[var(--text-main)]">
+                            <X size={12} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* OPD List Scrollable */}
+                    <div className="max-h-60 overflow-y-auto space-y-1 custom-scrollbar pr-0.5">
+                      {/* Opsi "Semua OPD" */}
+                      <button
+                        onClick={() => {
+                          playHaptic('click');
+                          setSelectedOpdFilter('all');
+                          setIsOpdDropdownOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-all text-xs ${
+                          selectedOpdFilter === 'all'
+                            ? 'bg-[var(--accent)]/15 text-[var(--accent)] border border-[var(--accent)]/30 font-semibold'
+                            : 'hover:bg-[var(--hover-fill)] text-[var(--text-main)] border border-transparent'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className={`w-2 h-2 rounded-full ${selectedOpdFilter === 'all' ? 'bg-[var(--accent)]' : 'bg-slate-500'}`} />
+                          <div>
+                            <p className="font-semibold">Semua OPD (Tanpa Filter)</p>
+                            <p className="text-[10px] text-[var(--text-muted)]">Tampilkan seluruh arsip</p>
+                          </div>
+                        </div>
+                        {selectedOpdFilter === 'all' && <Check size={14} className="text-[var(--accent)]" />}
+                      </button>
+
+                      {/* Filtered OPDs */}
+                      {opdList
+                        .filter(o => {
+                          if (opdOnlyBinaan && !o.isBinaanIrban3) return false;
+                          if (!opdSearchQuery.trim()) return true;
+                          const q = opdSearchQuery.toLowerCase();
+                          return o.name.toLowerCase().includes(q) || 
+                                 o.code.toLowerCase().includes(q) ||
+                                 o.aliases.some(a => a.toLowerCase().includes(q));
+                        })
+                        .map(opd => {
+                          const isSelected = selectedOpdFilter === opd.id;
+                          const count = opdCounts[opd.id] || 0;
+                          return (
+                            <div
+                              key={opd.id}
+                              onClick={() => {
+                                playHaptic('click');
+                                setSelectedOpdFilter(isSelected ? 'all' : opd.id);
+                                setIsOpdDropdownOpen(false);
+                              }}
+                              className={`group w-full flex items-center justify-between p-2 rounded-xl cursor-pointer transition-all text-xs border ${
+                                isSelected
+                                  ? 'bg-[var(--accent)]/15 text-[var(--accent)] border-[var(--accent)]/40 font-semibold'
+                                  : 'hover:bg-[var(--hover-fill)] text-[var(--text-main)] border-transparent'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 min-w-0 pr-2">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleToggleOpdBinaan(opd.id);
+                                  }}
+                                  className="p-1 rounded hover:bg-white/10 text-slate-500 hover:text-amber-400 transition-colors flex-shrink-0"
+                                  title={opd.isBinaanIrban3 ? "Hapus dari Binaan Irban 3" : "Tandai sebagai Binaan Irban 3"}
+                                >
+                                  <Star size={13} className={opd.isBinaanIrban3 ? "fill-amber-400 text-amber-400" : ""} />
+                                </button>
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="font-bold text-[var(--text-main)] truncate">{opd.code}</span>
+                                    <span className="text-[9px] px-1.5 py-0.2 rounded-md bg-[var(--hover-fill)] text-[var(--text-muted)] border border-[var(--border-line)]">
+                                      {opd.category}
+                                    </span>
+                                  </div>
+                                  <p className="text-[10px] text-[var(--text-muted)] truncate max-w-[200px]" title={opd.name}>
+                                    {opd.name}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1.5 flex-shrink-0">
+                                {count > 0 && (
+                                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                                    isSelected 
+                                      ? 'bg-[var(--accent)] text-[var(--accent-fg)]' 
+                                      : 'bg-[var(--hover-fill)] text-[var(--text-muted)] border border-[var(--border-line)]'
+                                  }`}>
+                                    {count}
+                                  </span>
+                                )}
+                                {isSelected && <Check size={14} className="text-[var(--accent)] ml-1" />}
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+
+                    {/* Footer inside Popover */}
+                    <div className="pt-2 border-t border-[var(--border-line)] flex items-center justify-between text-xs">
+                      {selectedOpdFilter !== 'all' ? (
+                        <button
+                          onClick={() => {
+                            playHaptic('click');
+                            setSelectedOpdFilter('all');
+                            setIsOpdDropdownOpen(false);
+                          }}
+                          className="text-[11px] text-rose-400 hover:underline flex items-center gap-1"
+                        >
+                          <X size={12} /> Reset Filter OPD
+                        </button>
+                      ) : (
+                        <span className="text-[10px] text-slate-500">Klik bintang untuk prioritaskan OPD</span>
+                      )}
+                      <button
+                        onClick={() => {
+                          setIsOpdDropdownOpen(false);
+                          setIsManageOpdModalOpen(true);
+                        }}
+                        className="text-[11px] text-[var(--accent)] hover:underline flex items-center gap-1 font-semibold ml-auto"
+                      >
+                        <Plus size={12} /> Tambah OPD
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
             {/* Header Actions */}
             <div className="flex items-center gap-2">
               {!isPresentationMode && (
@@ -2445,6 +3063,130 @@ export default function Dashboard() {
                         </button>
                       </div>
                     )}
+                  </div>
+
+                  {/* BANNER OPD AKTIF */}
+                  {selectedOpdFilter !== 'all' && (() => {
+                    const activeOpd = opdList.find(o => o.id === selectedOpdFilter);
+                    if (!activeOpd) return null;
+                    const matchCount = opdCounts[activeOpd.id] || 0;
+                    const matchingFolder = allFolders.find(f => {
+                      const fLower = f.name.toLowerCase();
+                      return activeOpd.aliases.some(alias => fLower.includes(alias.toLowerCase())) ||
+                             fLower.includes(activeOpd.code.toLowerCase());
+                    });
+
+                    return (
+                      <motion.div
+                        initial={{ opacity: 0, y: -8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -8 }}
+                        className="mb-4 p-4 rounded-2xl bg-gradient-to-r from-[var(--accent)]/15 via-[var(--accent)]/5 to-transparent border border-[var(--accent)]/30 backdrop-blur-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg shadow-[var(--accent)]/5"
+                      >
+                        <div className="flex items-center gap-3.5">
+                          <div className="w-10 h-10 rounded-xl bg-[var(--accent)] text-[var(--accent-fg)] flex items-center justify-center font-bold shadow-md flex-shrink-0">
+                            <Building2 size={20} />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--accent)]/20 text-[var(--accent)] font-semibold border border-[var(--accent)]/30">
+                                {activeOpd.category}
+                              </span>
+                              {activeOpd.isBinaanIrban3 && (
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 font-bold border border-amber-500/30 flex items-center gap-1">
+                                  <Star size={10} className="fill-amber-400" /> Binaan Irban 3
+                                </span>
+                              )}
+                              <h3 className="text-sm sm:text-base font-bold text-[var(--text-main)]">
+                                {activeOpd.name}
+                              </h3>
+                            </div>
+                            <p className="text-xs text-[var(--text-muted)] mt-0.5 flex items-center gap-2 flex-wrap">
+                              <span>Kode: <strong className="text-[var(--text-main)]">{activeOpd.code}</strong></span>
+                              <span>•</span>
+                              <span className="text-[var(--accent)] font-semibold">
+                                {matchCount} Dokumen / Folder Ditemukan
+                              </span>
+                              <span>•</span>
+                              <span className="text-slate-500">Pencarian Otomatis Kata Kunci & Label</span>
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 self-end sm:self-center flex-shrink-0">
+                          {matchingFolder && currentFolder !== matchingFolder.id && (
+                            <button
+                              onClick={() => {
+                                playHaptic('click');
+                                navigateToFolder(matchingFolder.id, matchingFolder.name);
+                              }}
+                              className="px-3 py-1.5 rounded-xl bg-[var(--accent)]/15 hover:bg-[var(--accent)]/25 text-[var(--accent)] border border-[var(--accent)]/30 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs"
+                              title={`Lompat langsung ke folder Google Drive: ${matchingFolder.name}`}
+                            >
+                              <Folder size={14} />
+                              <span>Buka Folder Drive</span>
+                            </button>
+                          )}
+                          <button
+                            onClick={() => { playHaptic('pop'); setSelectedOpdFilter('all'); }}
+                            className="px-3 py-1.5 rounded-xl bg-[var(--hover-fill)] hover:bg-rose-500/15 text-[var(--text-muted)] hover:text-rose-400 border border-[var(--border-line)] hover:border-rose-500/30 text-xs font-medium flex items-center gap-1 transition-all"
+                            title="Hapus filter OPD ini"
+                          >
+                            <X size={13} />
+                            <span>Reset OPD</span>
+                          </button>
+                        </div>
+                      </motion.div>
+                    );
+                  })()}
+
+                  {/* QUICK OPD FILTER CHIP BAR */}
+                  <div className="flex items-center gap-2 overflow-x-auto pb-2 mb-3 scrollbar-none">
+                    <span className="text-xs text-[var(--text-muted)] flex items-center gap-1.5 flex-shrink-0 font-medium">
+                      <Landmark size={13} className="text-[var(--accent)]" /> OPD Binaan:
+                    </span>
+                    <button
+                      onClick={() => { playHaptic('click'); setSelectedOpdFilter('all'); }}
+                      className={`px-3 py-1 rounded-full text-xs font-medium transition-all whitespace-nowrap border ${
+                        selectedOpdFilter === 'all'
+                          ? 'bg-[var(--accent)] text-[var(--accent-fg)] border-[var(--accent)] shadow-sm'
+                          : 'bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-[var(--text-main)] border-[var(--border-line)]'
+                      }`}
+                    >
+                      Semua
+                    </button>
+                    {opdList
+                      .filter(o => o.isBinaanIrban3)
+                      .map(opd => {
+                        const isSelected = selectedOpdFilter === opd.id;
+                        const count = opdCounts[opd.id] || 0;
+                        return (
+                          <button
+                            key={opd.id}
+                            onClick={() => { playHaptic('click'); setSelectedOpdFilter(isSelected ? 'all' : opd.id); }}
+                            className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all whitespace-nowrap border ${
+                              isSelected
+                                ? 'bg-[var(--accent)]/15 text-[var(--accent)] border-[var(--accent)] ring-2 ring-[var(--accent)]/30 font-semibold shadow-sm'
+                                : 'bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-[var(--text-main)] border-[var(--border-line)]'
+                            }`}
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)]"></span>
+                            <span>{opd.code}</span>
+                            {count > 0 && (
+                              <span className="text-[10px] px-1 py-0.2 rounded-full bg-white/10 opacity-90 font-bold">
+                                {count}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    <button
+                      onClick={() => { playHaptic('click'); setIsManageOpdModalOpen(true); }}
+                      className="text-[11px] text-[var(--text-muted)] hover:text-[var(--accent)] flex items-center gap-1 px-2 whitespace-nowrap transition-colors"
+                      title="Atur OPD Binaan Irban 3 atau Tambah OPD Baru"
+                    >
+                      <Sliders size={12} /> Atur OPD
+                    </button>
                   </div>
 
                   {/* LABEL FILTER BAR */}
@@ -4721,6 +5463,52 @@ export default function Dashboard() {
                   </div>
                 </div>
 
+                {/* Section 2.3: Label Cepat OPD Binaan Irban 3 */}
+                <div className="mb-5">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider flex items-center gap-1.5">
+                      <Building2 size={13} className="text-[var(--accent)]" /> Labeli OPD Binaan
+                    </label>
+                    <span className="text-[10px] text-slate-500">1-Klik untuk menyematkan OPD</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-2 rounded-xl bg-[var(--hover-fill)] border border-[var(--border-line)] custom-scrollbar">
+                    {opdList.filter(o => o.isBinaanIrban3).map(opd => {
+                      const active = getFileTags(tagModalFile).some(t => 
+                        t.toLowerCase() === opd.code.toLowerCase() || 
+                        t.toLowerCase() === opd.name.toLowerCase()
+                      );
+                      return (
+                        <button
+                          key={opd.id}
+                          type="button"
+                          disabled={tagSaving}
+                          onClick={() => {
+                            const current = getFileTags(tagModalFile);
+                            let updated: string[];
+                            if (active) {
+                              updated = current.filter(t => 
+                                t.toLowerCase() !== opd.code.toLowerCase() && 
+                                t.toLowerCase() !== opd.name.toLowerCase()
+                              );
+                            } else {
+                              updated = [...current, opd.code];
+                            }
+                            handleSaveFileTags(tagModalFile.id, tagModalFile.name, updated);
+                          }}
+                          className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border transition-all ${
+                            active
+                              ? 'bg-[var(--accent)]/20 text-[var(--accent)] border-[var(--accent)] font-semibold shadow-xs'
+                              : 'bg-black/20 text-[var(--text-muted)] hover:text-[var(--text-main)] border-white/5'
+                          }`}
+                        >
+                          <span>{opd.code}</span>
+                          {active && <Check size={11} />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 {/* Section 2.5: Riwayat Label Kustom */}
                 {customTagHistory.length > 0 && (
                   <div className="mb-5">
@@ -5258,6 +6046,238 @@ export default function Dashboard() {
                     className="px-5 py-2.5 bg-[var(--accent)] text-slate-950 font-semibold rounded-xl text-xs hover:opacity-90 transition-all shadow-md w-full sm:w-auto"
                   >
                     Tutup Glosarium
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* MODAL KELOLA OPD BINAAN IRBAN 3 */}
+        <AnimatePresence>
+          {isManageOpdModalOpen && (
+            <div className="fixed inset-0 z-[260] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0, y: 15 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.95, opacity: 0, y: 15 }}
+                className="bg-[var(--bg-panel)] rounded-2xl w-full max-w-2xl border border-[var(--border-line)] shadow-2xl relative flex flex-col max-h-[90vh] overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Header Modal */}
+                <div className="p-5 sm:p-6 border-b border-[var(--border-line)] flex items-start justify-between bg-[var(--hover-fill)]/30">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-[var(--accent)]/15 text-[var(--accent)] flex items-center justify-center font-bold flex-shrink-0">
+                      <Building2 size={22} />
+                    </div>
+                    <div>
+                      <h3 className="text-base sm:text-lg font-bold text-[var(--text-main)]">
+                        Kelola Wilayah Binaan OPD
+                      </h3>
+                      <p className="text-xs text-[var(--text-muted)]">
+                        Atur daftar OPD Pemprov Sultra dan tandai bintang untuk OPD yang menjadi wilayah pengawasan Irban 3
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => { playHaptic('click'); setIsManageOpdModalOpen(false); }}
+                    className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--hover-fill)] transition-colors"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {/* Content Modal (Scrollable) */}
+                <div className="p-5 sm:p-6 space-y-6 overflow-y-auto custom-scrollbar flex-1">
+                  {/* Form Tambah OPD Baru */}
+                  <div className="p-4 rounded-xl bg-[var(--hover-fill)] border border-[var(--border-line)] space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold text-[var(--text-main)] flex items-center gap-1.5">
+                        <Plus size={14} className="text-[var(--accent)]" /> Tambah OPD Baru / Kustom
+                      </h4>
+                      <span className="text-[10px] text-slate-500">Kecamatan, UPTD, BUMD atau Dinas baru</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                      <div className="sm:col-span-2">
+                        <label className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider block mb-1">
+                          Nama Lengkap OPD *
+                        </label>
+                        <input
+                          type="text"
+                          value={newOpdForm.name}
+                          onChange={(e) => setNewOpdForm({ ...newOpdForm, name: e.target.value })}
+                          placeholder="misal: Dinas Kehutanan Prov. Sultra"
+                          className="w-full bg-[var(--bg-panel)] border border-[var(--border-line)] rounded-lg px-3 py-1.5 text-xs text-[var(--text-main)] outline-none focus:border-[var(--accent)]"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider block mb-1">
+                          Kode / Singkatan *
+                        </label>
+                        <input
+                          type="text"
+                          value={newOpdForm.code}
+                          onChange={(e) => setNewOpdForm({ ...newOpdForm, code: e.target.value })}
+                          placeholder="misal: Dishut"
+                          className="w-full bg-[var(--bg-panel)] border border-[var(--border-line)] rounded-lg px-3 py-1.5 text-xs text-[var(--text-main)] outline-none focus:border-[var(--accent)]"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                      <div>
+                        <label className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider block mb-1">
+                          Kategori
+                        </label>
+                        <select
+                          value={newOpdForm.category}
+                          onChange={(e) => setNewOpdForm({ ...newOpdForm, category: e.target.value as any })}
+                          className="w-full bg-[var(--bg-panel)] border border-[var(--border-line)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--text-main)] outline-none focus:border-[var(--accent)]"
+                        >
+                          <option value="Dinas">Dinas</option>
+                          <option value="Badan">Badan</option>
+                          <option value="RSUD">RSUD</option>
+                          <option value="Sekretariat">Sekretariat</option>
+                          <option value="Lainnya">Lainnya / Kecamatan</option>
+                        </select>
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider block mb-1">
+                          Kata Kunci / Alias (Pisahkan dengan koma)
+                        </label>
+                        <input
+                          type="text"
+                          value={newOpdForm.aliases}
+                          onChange={(e) => setNewOpdForm({ ...newOpdForm, aliases: e.target.value })}
+                          placeholder="misal: dishut, kehutanan, hutan, kph"
+                          className="w-full bg-[var(--bg-panel)] border border-[var(--border-line)] rounded-lg px-3 py-1.5 text-xs text-[var(--text-main)] outline-none focus:border-[var(--accent)]"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1">
+                      <label className="flex items-center gap-2 cursor-pointer text-xs text-[var(--text-muted)]">
+                        <input
+                          type="checkbox"
+                          checked={newOpdForm.isBinaanIrban3}
+                          onChange={(e) => setNewOpdForm({ ...newOpdForm, isBinaanIrban3: e.target.checked })}
+                          className="rounded border-[var(--border-line)] text-[var(--accent)] focus:ring-[var(--accent)]"
+                        />
+                        <span>Tandai langsung sebagai Binaan Irban 3</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={handleAddNewOpd}
+                        disabled={!newOpdForm.name.trim() || !newOpdForm.code.trim()}
+                        className="px-3.5 py-1.5 rounded-lg bg-[var(--accent)] text-[var(--accent-fg)] font-semibold text-xs hover:opacity-90 disabled:opacity-50 transition-all flex items-center gap-1.5 shadow-sm"
+                      >
+                        <Plus size={13} strokeWidth={2.5} /> Simpan OPD
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Daftar OPD */}
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-xs font-bold text-[var(--text-main)] uppercase tracking-wider">
+                        Daftar OPD Terdaftar ({opdList.length})
+                      </h4>
+                      <button
+                        onClick={handleResetOpdToDefault}
+                        className="text-[11px] text-[var(--text-muted)] hover:text-amber-400 hover:underline flex items-center gap-1"
+                        title="Kembalikan ke daftar bawaan standar Pemprov Sulawesi Tenggara"
+                      >
+                        <RotateCw size={11} /> Reset ke Standar Sultra
+                      </button>
+                    </div>
+
+                    <div className="space-y-1.5 max-h-80 overflow-y-auto custom-scrollbar p-0.5">
+                      {opdList.map((opd) => {
+                        const count = opdCounts[opd.id] || 0;
+                        const isCustom = !DEFAULT_OPD_SULTRA.some(d => d.id === opd.id);
+                        return (
+                          <div
+                            key={opd.id}
+                            className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
+                              opd.isBinaanIrban3
+                                ? 'bg-[var(--accent)]/5 border-[var(--accent)]/30'
+                                : 'bg-[var(--hover-fill)]/60 border-[var(--border-line)]'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3 min-w-0 pr-2">
+                              <button
+                                type="button"
+                                onClick={() => handleToggleOpdBinaan(opd.id)}
+                                className={`p-1.5 rounded-lg transition-colors flex-shrink-0 ${
+                                  opd.isBinaanIrban3
+                                    ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30'
+                                    : 'text-slate-500 hover:text-amber-400 hover:bg-white/5'
+                                }`}
+                                title={opd.isBinaanIrban3 ? 'Hapus dari Binaan Irban 3' : 'Tandai sebagai Binaan Irban 3'}
+                              >
+                                <Star size={15} className={opd.isBinaanIrban3 ? 'fill-amber-400 text-amber-400' : ''} />
+                              </button>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <strong className="text-xs font-bold text-[var(--text-main)]">{opd.code}</strong>
+                                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--hover-fill)] text-[var(--text-muted)] border border-[var(--border-line)]">
+                                    {opd.category}
+                                  </span>
+                                  {opd.isBinaanIrban3 && (
+                                    <span className="text-[9px] px-1.5 py-0.2 rounded-md bg-amber-500/15 text-amber-400 font-bold border border-amber-500/30">
+                                      Binaan Irban 3
+                                    </span>
+                                  )}
+                                  {isCustom && (
+                                    <span className="text-[9px] px-1.5 py-0.2 rounded-md bg-purple-500/15 text-purple-400 font-bold border border-purple-500/30">
+                                      Kustom
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-[var(--text-muted)] truncate max-w-sm sm:max-w-md mt-0.5">
+                                  {opd.name}
+                                </p>
+                                <p className="text-[10px] text-slate-500 truncate mt-0.5">
+                                  Alias: {opd.aliases.join(', ')}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              {count > 0 && (
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--accent)]/15 text-[var(--accent)] font-bold border border-[var(--accent)]/30">
+                                  {count} berkas
+                                </span>
+                              )}
+                              {isCustom && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteCustomOpd(opd.id)}
+                                  className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                                  title="Hapus OPD Kustom ini"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer Modal */}
+                <div className="p-4 sm:p-5 border-t border-[var(--border-line)] bg-[var(--hover-fill)]/40 flex items-center justify-between">
+                  <span className="text-xs text-[var(--text-muted)] flex items-center gap-1.5">
+                    <CheckCheck size={14} className="text-emerald-400" /> Pengaturan disimpan otomatis di perangkat
+                  </span>
+                  <button
+                    onClick={() => { playHaptic('click'); setIsManageOpdModalOpen(false); }}
+                    className="px-4 py-2 bg-[var(--accent)] text-[var(--accent-fg)] rounded-xl text-xs font-semibold hover:opacity-90 transition-all shadow-md"
+                  >
+                    Selesai
                   </button>
                 </div>
               </motion.div>
