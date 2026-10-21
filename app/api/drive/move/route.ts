@@ -28,10 +28,15 @@ function getAuth() {
 
 export async function POST(request: Request) {
   try {
-    const { fileId, destinationFolderId, currentFolderId } = await request.json();
+    const body = await request.json();
+    const { fileId, fileIds, destinationFolderId, currentFolderId } = body;
 
-    if (!fileId) {
-      return NextResponse.json({ error: 'fileId wajib disertakan' }, { status: 400 });
+    const idsToMove: string[] = Array.isArray(fileIds) && fileIds.length > 0 
+      ? fileIds 
+      : (fileId ? [fileId] : []);
+
+    if (idsToMove.length === 0) {
+      return NextResponse.json({ error: 'fileId atau fileIds wajib disertakan' }, { status: 400 });
     }
 
     const defaultRootId = process.env.DRIVE_FOLDER_ID || process.env.GOOGLE_DRIVE_FOLDER_ID;
@@ -51,7 +56,8 @@ export async function POST(request: Request) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             action: 'move',
-            fileId,
+            fileId: idsToMove[0],
+            fileIds: idsToMove,
             destinationFolderId: targetParent,
           }),
         });
@@ -59,7 +65,10 @@ export async function POST(request: Request) {
         if (gasData && gasData.success) {
           return NextResponse.json({
             success: true,
-            message: 'Dokumen berhasil dipindahkan',
+            movedCount: idsToMove.length,
+            message: idsToMove.length > 1
+              ? `${idsToMove.length} dokumen berhasil dipindahkan`
+              : 'Dokumen berhasil dipindahkan',
             destinationFolderId: targetParent,
           });
         }
@@ -72,45 +81,67 @@ export async function POST(request: Request) {
     const auth = getAuth();
     const drive = google.drive({ version: 'v3', auth });
 
-    // Dapatkan data parent saat ini dari file
-    let previousParents = '';
-    try {
-      const fileMeta = await drive.files.get({
-        fileId,
-        fields: 'id, name, parents',
-        supportsAllDrives: true,
-      });
+    let successCount = 0;
+    const errors: string[] = [];
 
-      if (fileMeta.data.parents && fileMeta.data.parents.length > 0) {
-        previousParents = fileMeta.data.parents.join(',');
-      } else if (currentFolderId && currentFolderId !== 'root') {
-        previousParents = currentFolderId;
-      }
-    } catch (getErr: any) {
-      console.warn('Gagal membaca parent file, mencoba langsung update:', getErr.message);
-      if (currentFolderId && currentFolderId !== 'root') {
-        previousParents = currentFolderId;
+    for (const singleFileId of idsToMove) {
+      try {
+        // Dapatkan data parent saat ini dari file
+        let previousParents = '';
+        try {
+          const fileMeta = await drive.files.get({
+            fileId: singleFileId,
+            fields: 'id, name, parents',
+            supportsAllDrives: true,
+          });
+
+          if (fileMeta.data.parents && fileMeta.data.parents.length > 0) {
+            previousParents = fileMeta.data.parents.join(',');
+          } else if (currentFolderId && currentFolderId !== 'root') {
+            previousParents = currentFolderId;
+          }
+        } catch (getErr: any) {
+          console.warn(`Gagal membaca parent file ${singleFileId}:`, getErr.message);
+          if (currentFolderId && currentFolderId !== 'root') {
+            previousParents = currentFolderId;
+          }
+        }
+
+        // Lakukan pemindahan folder dengan addParents dan removeParents
+        const updateParams: any = {
+          fileId: singleFileId,
+          addParents: targetParent,
+          fields: 'id, name, parents',
+          supportsAllDrives: true,
+        };
+
+        if (previousParents && previousParents !== targetParent) {
+          updateParams.removeParents = previousParents;
+        }
+
+        await drive.files.update(updateParams);
+        successCount++;
+      } catch (err: any) {
+        console.error(`Error moving file ${singleFileId}:`, err);
+        errors.push(err.message || String(err));
       }
     }
 
-    // Lakukan pemindahan folder dengan addParents dan removeParents
-    const updateParams: any = {
-      fileId,
-      addParents: targetParent,
-      fields: 'id, name, parents',
-      supportsAllDrives: true,
-    };
-
-    if (previousParents && previousParents !== targetParent) {
-      updateParams.removeParents = previousParents;
+    if (successCount === 0 && errors.length > 0) {
+      return NextResponse.json(
+        { error: errors[0] || 'Gagal memindahkan dokumen ke folder tujuan' },
+        { status: 500 }
+      );
     }
-
-    const updated = await drive.files.update(updateParams);
 
     return NextResponse.json({
       success: true,
-      message: 'Dokumen berhasil dipindahkan',
-      file: updated.data,
+      movedCount: successCount,
+      total: idsToMove.length,
+      errors: errors.length > 0 ? errors : undefined,
+      message: successCount > 1
+        ? `${successCount} dokumen berhasil dipindahkan`
+        : 'Dokumen berhasil dipindahkan',
       destinationFolderId: targetParent,
     });
   } catch (error: any) {

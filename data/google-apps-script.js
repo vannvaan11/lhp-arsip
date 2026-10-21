@@ -89,13 +89,16 @@ function doPost(e) {
 
     // 4. AKSI PINDAH FOLDER (MOVE)
     if (action === 'move') {
-      var fileToMove = DriveApp.getFileById(data.fileId);
+      var ids = data.fileIds || (data.fileId ? [data.fileId] : []);
       var destFolder = data.destinationFolderId ? DriveApp.getFolderById(data.destinationFolderId) : DriveApp.getRootFolder();
-      fileToMove.moveTo(destFolder);
+      for (var m = 0; m < ids.length; m++) {
+        var fileToMove = DriveApp.getFileById(ids[m]);
+        fileToMove.moveTo(destFolder);
+      }
 
       return ContentService.createTextOutput(JSON.stringify({
         success: true,
-        message: "File berhasil dipindahkan",
+        message: ids.length > 1 ? (ids.length + " file berhasil dipindahkan") : "File berhasil dipindahkan",
         destinationFolderId: destFolder.getId()
       })).setMimeType(ContentService.MimeType.JSON);
     }

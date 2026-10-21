@@ -14,7 +14,7 @@ import {
   RotateCw, Sliders, Volume2, VolumeX, Zap, Flame,
   BookOpen, Scale, Bookmark, ExternalLink,
   Building2, Landmark, ChevronDown, CheckCheck, Settings,
-  ClipboardCheck, CheckSquare, FileCheck, BadgeCheck, Printer,
+  ClipboardCheck, CheckSquare, FileCheck, BadgeCheck, Printer, Square,
   FolderPlus, FolderInput, AlertTriangle
 } from 'lucide-react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
@@ -781,13 +781,19 @@ export default function Dashboard() {
   // --- Modal Pindahkan Dokumen (Move) ---
   const [moveModal, setMoveModal] = useState<{
     isOpen: boolean;
-    fileId: string;
-    fileName: string;
+    fileId?: string;
+    fileName?: string;
+    fileIds?: string[];
+    fileNames?: string[];
     targetFolderId: string;
     isMoving: boolean;
     error: string | null;
     searchQuery: string;
   } | null>(null);
+
+  // --- Mode Pilih Banyak (Multi-Select) & Operasi Massal Dokumen ---
+  const [isMultiSelectMode, setIsMultiSelectMode] = useState<boolean>(false);
+  const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set());
 
   // --- Modal Tambah Folder Baru ---
   const [createFolderModal, setCreateFolderModal] = useState<{
@@ -1766,7 +1772,7 @@ export default function Dashboard() {
   useEffect(() => { if (isUploadModalOpen) fetchAllFolders(); }, [isUploadModalOpen]);
 
   const navigateToFolder = (id: string, name: string) => {
-    setCurrentFolder(id); setFolderHistory(prev => [...prev, { id, name }]); setSelectedFile(null);
+    setCurrentFolder(id); setFolderHistory(prev => [...prev, { id, name }]); setSelectedFile(null); setSelectedFileIds(new Set());
     addOnlineLog("OPEN_FOLDER", name);
   };
 
@@ -1779,7 +1785,7 @@ export default function Dashboard() {
   const goBackOneLevel = () => {
     if (folderHistory.length > 0) {
       const newHistory = [...folderHistory]; newHistory.pop(); setFolderHistory(newHistory);
-      const prevFolder = newHistory[newHistory.length - 1]; setCurrentFolder(prevFolder ? prevFolder.id : ''); setSelectedFile(null);
+      const prevFolder = newHistory[newHistory.length - 1]; setCurrentFolder(prevFolder ? prevFolder.id : ''); setSelectedFile(null); setSelectedFileIds(new Set());
       if (prevFolder) addOnlineLog("OPEN_FOLDER", prevFolder.name);
     }
   };
@@ -1790,10 +1796,11 @@ export default function Dashboard() {
     const targetFolder = newHistory[newHistory.length - 1];
     setCurrentFolder(targetFolder.id);
     setSelectedFile(null);
+    setSelectedFileIds(new Set());
     addOnlineLog("OPEN_FOLDER", targetFolder.name);
   };
 
-  const goHome = () => { setCurrentFolder(''); setFolderHistory([]); setSelectedFile(null); setSearchTerm(''); setFilterType('all'); };
+  const goHome = () => { setCurrentFolder(''); setFolderHistory([]); setSelectedFile(null); setSelectedFileIds(new Set()); setSearchTerm(''); setFilterType('all'); };
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1894,7 +1901,42 @@ export default function Dashboard() {
     }
   };
 
-  // Buka Modal Pindahkan Dokumen
+  // Toggle seleksi dokumen perorangan
+  const toggleSelectFile = (fileId: string) => {
+    playHaptic('toggle');
+    setSelectedFileIds(prev => {
+      const next = new Set(prev);
+      if (next.has(fileId)) {
+        next.delete(fileId);
+      } else {
+        next.add(fileId);
+      }
+      return next;
+    });
+  };
+
+  // Pilih Semua Dokumen yang sedang tampil (tidak termasuk folder)
+  const handleSelectAllFiles = () => {
+    playHaptic('click');
+    const selectableDocs = filteredFilesMain.filter(f => !f.mimeType.includes('folder'));
+    const allSelected = selectableDocs.length > 0 && selectableDocs.every(f => selectedFileIds.has(f.id));
+    
+    if (allSelected) {
+      setSelectedFileIds(new Set());
+    } else {
+      const next = new Set(selectedFileIds);
+      selectableDocs.forEach(f => next.add(f.id));
+      setSelectedFileIds(next);
+    }
+  };
+
+  // Batalkan seluruh seleksi dokumen
+  const handleClearSelection = () => {
+    playHaptic('click');
+    setSelectedFileIds(new Set());
+  };
+
+  // Buka Modal Pindahkan Dokumen (Tunggal)
   const openMoveModal = (file: DriveFile) => {
     if (userRole !== 'admin') {
       playHaptic('toggle');
@@ -1907,6 +1949,8 @@ export default function Dashboard() {
       isOpen: true,
       fileId: file.id,
       fileName: file.name,
+      fileIds: [file.id],
+      fileNames: [file.name],
       targetFolderId: '',
       isMoving: false,
       error: null,
@@ -1914,28 +1958,76 @@ export default function Dashboard() {
     });
   };
 
-  // Eksekusi Pindahkan Dokumen
+  // Buka Modal Pindahkan Dokumen Banyak Sekaligus (Batch Move)
+  const openBatchMoveModal = () => {
+    if (userRole !== 'admin') {
+      playHaptic('toggle');
+      setAdminNoticeModal('Hanya Administrator yang memiliki hak akses untuk memindahkan dokumen antar folder.');
+      return;
+    }
+    if (selectedFileIds.size === 0) return;
+
+    playHaptic('click');
+    fetchAllFolders();
+
+    const ids = Array.from(selectedFileIds);
+    const names = ids.map(id => {
+      const found = files.find(f => f.id === id) || filteredFilesMain.find(f => f.id === id);
+      return found ? found.name : 'Dokumen';
+    });
+
+    setMoveModal({
+      isOpen: true,
+      fileIds: ids,
+      fileNames: names,
+      fileId: ids[0],
+      fileName: names.length === 1 ? names[0] : `${names.length} dokumen terpilih`,
+      targetFolderId: '',
+      isMoving: false,
+      error: null,
+      searchQuery: '',
+    });
+  };
+
+  // Eksekusi Pindahkan Dokumen (Tunggal maupun Banyak Sekaligus)
   const handleConfirmMove = async () => {
-    if (!moveModal || !moveModal.fileId || !moveModal.targetFolderId) return;
-    const { fileId, fileName, targetFolderId } = moveModal;
+    if (!moveModal || !moveModal.targetFolderId) return;
+    const isBatch = Boolean(moveModal.fileIds && moveModal.fileIds.length > 0);
+    if (!isBatch && !moveModal.fileId) return;
+
     setMoveModal(prev => prev ? { ...prev, isMoving: true, error: null } : null);
 
     try {
+      const payload: any = {
+        destinationFolderId: moveModal.targetFolderId,
+        currentFolderId: currentFolder || 'root',
+      };
+
+      if (isBatch && moveModal.fileIds) {
+        payload.fileIds = moveModal.fileIds;
+      } else {
+        payload.fileId = moveModal.fileId;
+      }
+
       const res = await fetch('/api/drive/move', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fileId,
-          destinationFolderId: targetFolderId,
-          currentFolderId: currentFolder || 'root',
-        }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        const destName = targetFolderId === 'root' 
+        const destName = moveModal.targetFolderId === 'root' 
           ? 'Beranda / Root' 
-          : (allFolders.find(f => f.id === targetFolderId)?.name || 'Folder Tujuan');
-        addOnlineLog("MOVE", `${fileName} ➔ ${destName}`);
+          : (allFolders.find(f => f.id === moveModal.targetFolderId)?.name || 'Folder Tujuan');
+        
+        if (isBatch && moveModal.fileIds && moveModal.fileIds.length > 1) {
+          addOnlineLog("MOVE", `${moveModal.fileIds.length} dokumen ➔ ${destName}`);
+          setSelectedFileIds(new Set());
+          setIsMultiSelectMode(false);
+        } else {
+          addOnlineLog("MOVE", `${moveModal.fileName || 'Dokumen'} ➔ ${destName}`);
+        }
+
         playHaptic('pop');
         setMoveModal(null);
         fetchData(currentFolder);
@@ -3438,6 +3530,38 @@ export default function Dashboard() {
                             </span>
                           )}
                         </button>
+
+                        {/* Tombol Mode Pilih Banyak (Multi-Select) */}
+                        {userRole === 'admin' && (
+                          <button
+                            onClick={() => {
+                              playHaptic('click');
+                              if (isMultiSelectMode) {
+                                setIsMultiSelectMode(false);
+                                setSelectedFileIds(new Set());
+                              } else {
+                                setIsMultiSelectMode(true);
+                              }
+                            }}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-semibold transition-all border shadow-sm ${
+                              isMultiSelectMode
+                                ? 'bg-[var(--accent)] text-[var(--accent-fg)] border-[var(--accent)] ring-2 ring-[var(--accent)]/30'
+                                : 'bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-[var(--text-main)] border-[var(--border-line)] hover:border-[var(--border-strong)]'
+                            }`}
+                            title={isMultiSelectMode ? 'Keluar dari Mode Pilih Banyak' : 'Aktifkan Mode Pilih Banyak untuk Memindahkan Dokumen Sekaligus'}
+                          >
+                            <CheckSquare size={14} className={isMultiSelectMode ? 'text-[var(--accent-fg)]' : 'text-[var(--accent)]'} />
+                            <span className="hidden sm:inline">{isMultiSelectMode ? 'Selesai Pilih' : 'Pilih Banyak'}</span>
+                            <span className="sm:hidden">Pilih</span>
+                            {selectedFileIds.size > 0 && (
+                              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                                isMultiSelectMode ? 'bg-black/30 text-white' : 'bg-[var(--accent)] text-[var(--accent-fg)]'
+                              }`}>
+                                {selectedFileIds.size}
+                              </span>
+                            )}
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -3877,6 +4001,66 @@ export default function Dashboard() {
                     )}
                   </div>
 
+                  {/* Banner Status Mode Pilih Banyak (Multi-Select) */}
+                  <AnimatePresence>
+                    {isMultiSelectMode && userRole === 'admin' && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0, y: -6 }}
+                        animate={{ opacity: 1, height: 'auto', y: 0 }}
+                        exit={{ opacity: 0, height: 0, y: -6 }}
+                        className="mb-4 p-3 sm:p-3.5 rounded-2xl bg-gradient-to-r from-[var(--accent)]/15 via-[var(--accent)]/10 to-amber-500/10 border border-[var(--accent)]/30 flex flex-wrap items-center justify-between gap-3 shadow-md"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="p-2 rounded-xl bg-[var(--accent)] text-[var(--accent-fg)] flex-shrink-0 shadow-sm">
+                            <CheckSquare size={16} />
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-[var(--text-main)] flex items-center gap-2">
+                              <span>Mode Pilih Banyak Aktif</span>
+                              {selectedFileIds.size > 0 && (
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--accent)] text-[var(--accent-fg)] font-bold">
+                                  {selectedFileIds.size} dipilih
+                                </span>
+                              )}
+                            </p>
+                            <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                              Klik pada dokumen untuk memilih, lalu tekan tombol "Pindahkan" untuk memindahkan sekaligus ke folder tujuan
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-wrap ml-auto">
+                          <button
+                            onClick={handleSelectAllFiles}
+                            className="px-3 py-1.5 rounded-xl bg-[var(--bg-panel)] hover:bg-[var(--hover-fill)] text-[var(--accent)] border border-[var(--accent)]/40 text-xs font-semibold transition-all shadow-sm"
+                          >
+                            {filteredFilesMain.filter(f => !f.mimeType.includes('folder')).length > 0 &&
+                             filteredFilesMain.filter(f => !f.mimeType.includes('folder')).every(f => selectedFileIds.has(f.id))
+                              ? 'Lepas Semua'
+                              : `Pilih Semua (${filteredFilesMain.filter(f => !f.mimeType.includes('folder')).length})`}
+                          </button>
+                          {selectedFileIds.size > 0 && (
+                            <button
+                              onClick={openBatchMoveModal}
+                              className="px-3.5 py-1.5 rounded-xl bg-[var(--accent)] hover:opacity-90 text-[var(--accent-fg)] text-xs font-bold transition-all shadow-sm flex items-center gap-1.5"
+                            >
+                              <FolderInput size={14} /> Pindahkan ({selectedFileIds.size})
+                            </button>
+                          )}
+                          <button
+                            onClick={() => {
+                              setIsMultiSelectMode(false);
+                              setSelectedFileIds(new Set());
+                            }}
+                            className="px-3 py-1.5 rounded-xl bg-[var(--hover-fill)] hover:bg-white/10 text-[var(--text-muted)] hover:text-[var(--text-main)] border border-[var(--border-line)] text-xs font-medium transition-all"
+                          >
+                            Tutup
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
                   {filteredFilesMain.length === 0 ? (
                     <div className="text-center py-20">
                       {showFavoritesOnly ? (
@@ -3910,13 +4094,45 @@ export default function Dashboard() {
                           animate={{ opacity: 1, y: 0 }} 
                           transition={{ delay: Math.min(i * 0.015, 0.2), duration: 0.2 }}
                           key={file.id}
-                          onClick={() => file.mimeType.includes('folder') ? navigateToFolder(file.id, file.name) : handleFileSelect(file)}
+                          onClick={() => {
+                            if (file.mimeType.includes('folder')) {
+                              navigateToFolder(file.id, file.name);
+                            } else if (isMultiSelectMode || selectedFileIds.size > 0) {
+                              toggleSelectFile(file.id);
+                            } else {
+                              handleFileSelect(file);
+                            }
+                          }}
                           className={`group relative bg-[var(--hover-fill)] ${isCompactMode ? 'p-3' : 'p-4 sm:p-5'} rounded-2xl border cursor-pointer transition-all ${
-                            selectedFile?.id === file.id 
-                              ? 'border-[var(--accent)] bg-[var(--accent)]/[0.05]' 
-                              : 'border-[var(--border-line)] hover:border-[var(--border-strong)] hover:bg-[var(--hover-fill)]'
+                            selectedFileIds.has(file.id)
+                              ? 'border-[var(--accent)] bg-[var(--accent)]/[0.08] ring-2 ring-[var(--accent)]/40 shadow-lg'
+                              : selectedFile?.id === file.id 
+                                ? 'border-[var(--accent)] bg-[var(--accent)]/[0.05]' 
+                                : 'border-[var(--border-line)] hover:border-[var(--border-strong)] hover:bg-[var(--hover-fill)]'
                           }`}
                         >
+                          {/* Multi-Select Checkbox Badge */}
+                          {!file.mimeType.includes('folder') && userRole === 'admin' && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (!isMultiSelectMode) setIsMultiSelectMode(true);
+                                toggleSelectFile(file.id);
+                              }}
+                              className={`absolute top-2.5 left-2.5 z-10 w-6 h-6 rounded-lg flex items-center justify-center transition-all shadow-sm ${
+                                selectedFileIds.has(file.id)
+                                  ? 'bg-[var(--accent)] text-[var(--accent-fg)] ring-2 ring-[var(--accent)]/40 scale-105 opacity-100'
+                                  : isMultiSelectMode
+                                    ? 'bg-black/50 hover:bg-black/80 text-white/40 hover:text-white border border-white/25 opacity-100'
+                                    : 'bg-black/40 hover:bg-black/70 text-transparent hover:text-white/50 border border-white/20 opacity-0 group-hover:opacity-100'
+                              }`}
+                              title={selectedFileIds.has(file.id) ? "Batalkan pilihan berkas ini" : "Pilih berkas ini"}
+                            >
+                              <Check size={13} strokeWidth={3} className={selectedFileIds.has(file.id) ? 'opacity-100' : 'opacity-0 hover:opacity-50'} />
+                            </button>
+                          )}
+
                           <div className={`flex items-start justify-between ${isCompactMode ? 'mb-2' : 'mb-3 sm:mb-6'}`}>
                             <div className={`p-3 rounded-xl overflow-hidden ${
                               file.hasThumbnail && file.thumbnailLink 
@@ -4050,19 +4266,78 @@ export default function Dashboard() {
                   ) : (
                     /* LIST VIEW */
                     <div className="bg-[var(--hover-fill)] rounded-xl border border-[var(--border-line)] overflow-hidden">
-                      <div className="grid grid-cols-12 px-4 sm:px-5 py-3 border-b border-[var(--border-line)] text-xs font-medium text-[var(--text-muted)] bg-[var(--hover-fill)]">
-                        <div className="col-span-9 sm:col-span-7">Nama</div>
+                      <div className="grid grid-cols-12 px-4 sm:px-5 py-3 border-b border-[var(--border-line)] text-xs font-medium text-[var(--text-muted)] bg-[var(--hover-fill)] items-center">
+                        <div className="col-span-9 sm:col-span-7 flex items-center gap-2.5">
+                          {userRole === 'admin' && (isMultiSelectMode || selectedFileIds.size > 0) && (
+                            <button
+                              type="button"
+                              onClick={handleSelectAllFiles}
+                              className={`w-5 h-5 rounded-md flex items-center justify-center transition-all flex-shrink-0 ${
+                                filteredFilesMain.filter(f => !f.mimeType.includes('folder')).length > 0 &&
+                                filteredFilesMain.filter(f => !f.mimeType.includes('folder')).every(f => selectedFileIds.has(f.id))
+                                  ? 'bg-[var(--accent)] text-[var(--accent-fg)] border border-[var(--accent)]'
+                                  : 'border border-[var(--border-strong)] bg-white/5 hover:border-[var(--accent)]'
+                              }`}
+                              title={
+                                filteredFilesMain.filter(f => !f.mimeType.includes('folder')).every(f => selectedFileIds.has(f.id))
+                                  ? "Batalkan pilihan semua"
+                                  : "Pilih semua dokumen"
+                              }
+                            >
+                              <Check size={12} strokeWidth={3} className={
+                                filteredFilesMain.filter(f => !f.mimeType.includes('folder')).length > 0 &&
+                                filteredFilesMain.filter(f => !f.mimeType.includes('folder')).every(f => selectedFileIds.has(f.id))
+                                  ? 'opacity-100'
+                                  : 'opacity-0'
+                              } />
+                            </button>
+                          )}
+                          <span>Nama</span>
+                        </div>
                         <div className="hidden sm:block sm:col-span-3">Tipe</div>
                         <div className="col-span-3 sm:col-span-2 text-right">Aksi</div>
                       </div>
                       {filteredFilesMain.map(file => (
                         <div 
                           key={file.id} 
-                          onClick={() => file.mimeType.includes('folder') ? navigateToFolder(file.id, file.name) : handleFileSelect(file)} 
-                          className="grid grid-cols-12 px-4 sm:px-5 py-3 sm:py-3.5 items-center hover:bg-[var(--hover-fill)] transition-colors cursor-pointer group border-b border-[var(--border-line)] last:border-0"
+                          onClick={() => {
+                            if (file.mimeType.includes('folder')) {
+                              navigateToFolder(file.id, file.name);
+                            } else if (isMultiSelectMode || selectedFileIds.size > 0) {
+                              toggleSelectFile(file.id);
+                            } else {
+                              handleFileSelect(file);
+                            }
+                          }} 
+                          className={`grid grid-cols-12 px-4 sm:px-5 py-3 sm:py-3.5 items-center transition-colors cursor-pointer group border-b border-[var(--border-line)] last:border-0 ${
+                            selectedFileIds.has(file.id)
+                              ? 'bg-[var(--accent)]/[0.08] hover:bg-[var(--accent)]/[0.12] border-l-4 border-l-[var(--accent)]'
+                              : 'hover:bg-[var(--hover-fill)]'
+                          }`}
                         >
                           <div className="col-span-9 sm:col-span-7 flex flex-col justify-center pr-2">
                             <div className="flex items-center gap-2 sm:gap-3">
+                              {/* Checkbox Multi-Select in List View */}
+                              {!file.mimeType.includes('folder') && userRole === 'admin' && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (!isMultiSelectMode) setIsMultiSelectMode(true);
+                                    toggleSelectFile(file.id);
+                                  }}
+                                  className={`w-5 h-5 rounded-md flex items-center justify-center transition-all flex-shrink-0 ${
+                                    selectedFileIds.has(file.id)
+                                      ? 'bg-[var(--accent)] text-[var(--accent-fg)] border border-[var(--accent)] ring-1 ring-[var(--accent)]/40'
+                                      : isMultiSelectMode
+                                        ? 'border border-[var(--border-strong)] bg-white/5 hover:border-[var(--accent)]'
+                                        : 'opacity-0 group-hover:opacity-100 border border-[var(--border-line)] hover:border-[var(--accent)]'
+                                  }`}
+                                  title={selectedFileIds.has(file.id) ? "Batalkan pilihan" : "Pilih berkas ini"}
+                                >
+                                  <Check size={12} strokeWidth={3} className={selectedFileIds.has(file.id) ? 'opacity-100' : 'opacity-0'} />
+                                </button>
+                              )}
                               <div className={`p-1.5 rounded-lg flex-shrink-0 ${file.mimeType.includes('folder') ? 'text-[var(--accent)] bg-[var(--accent)]/10' : 'text-[var(--text-muted)] bg-[var(--hover-fill)]'}`}>
                                 {file.mimeType.includes('folder') ? <Folder size={16}/> : <FileText size={16}/>}
                               </div>
@@ -4193,6 +4468,64 @@ export default function Dashboard() {
             </div>
           </div>
         </main>
+
+        {/* FLOATING ACTION BAR FOR MULTI-SELECT (BULK ACTIONS) */}
+        <AnimatePresence>
+          {userRole === 'admin' && selectedFileIds.size > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 50, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 50, scale: 0.95 }}
+              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+              className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[140] w-[94%] max-w-2xl bg-[var(--bg-panel)]/95 backdrop-blur-xl border border-[var(--accent)]/40 p-3 sm:p-4 rounded-2xl shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-3 text-xs sm:text-sm ring-1 ring-[var(--accent)]/20"
+            >
+              <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-[var(--accent)] text-[var(--accent-fg)] flex items-center justify-center font-bold text-xs shadow-md shadow-[var(--accent)]/30">
+                    {selectedFileIds.size}
+                  </div>
+                  <div>
+                    <p className="font-bold text-[var(--text-main)] text-xs sm:text-sm">
+                      {selectedFileIds.size} Dokumen Terpilih
+                    </p>
+                    <p className="text-[10px] text-[var(--text-muted)]">
+                      Siap dipindahkan ke folder tujuan
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5 ml-2">
+                  <button
+                    onClick={handleSelectAllFiles}
+                    className="px-2.5 py-1 rounded-lg text-[11px] font-semibold text-[var(--accent)] hover:bg-[var(--accent)]/15 border border-[var(--accent)]/30 transition-all whitespace-nowrap"
+                  >
+                    {filteredFilesMain.filter(f => !f.mimeType.includes('folder')).length > 0 &&
+                     filteredFilesMain.filter(f => !f.mimeType.includes('folder')).every(f => selectedFileIds.has(f.id))
+                      ? 'Lepas Semua'
+                      : 'Pilih Semua'}
+                  </button>
+                  <button
+                    onClick={handleClearSelection}
+                    className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-rose-400 hover:bg-rose-500/10 transition-all"
+                    title="Batalkan pilihan"
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <button
+                  onClick={openBatchMoveModal}
+                  className="flex-1 sm:flex-initial px-4 sm:px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 via-[var(--accent)] to-amber-500 hover:opacity-95 text-slate-950 font-bold text-xs sm:text-sm shadow-lg shadow-amber-500/25 transition-all flex items-center justify-center gap-2 whitespace-nowrap"
+                >
+                  <FolderInput size={16} strokeWidth={2.5} />
+                  <span>Pindahkan ke Folder ({selectedFileIds.size})</span>
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* --- MODALS --- */}
         
@@ -7541,10 +7874,14 @@ export default function Dashboard() {
                     </div>
                     <div>
                       <h3 className="text-base sm:text-lg font-bold text-[var(--text-main)]">
-                        Pindahkan Dokumen
+                        {moveModal.fileIds && moveModal.fileIds.length > 1
+                          ? `Pindahkan ${moveModal.fileIds.length} Dokumen Sekaligus`
+                          : 'Pindahkan Dokumen'}
                       </h3>
                       <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                        Pilih folder tujuan untuk memindahkan berkas
+                        {moveModal.fileIds && moveModal.fileIds.length > 1
+                          ? `Pilih folder tujuan untuk memindahkan ${moveModal.fileIds.length} berkas yang dipilih`
+                          : 'Pilih folder tujuan untuk memindahkan berkas'}
                       </p>
                     </div>
                   </div>
@@ -7562,12 +7899,36 @@ export default function Dashboard() {
                   {/* File Info Box */}
                   <div className="p-3.5 rounded-xl bg-black/20 dark:bg-white/[0.03] border border-[var(--border-line)] space-y-2">
                     <div className="flex items-start gap-2.5">
-                      <FileText size={16} className="text-[var(--accent)] flex-shrink-0 mt-0.5" />
+                      <div className="p-2 rounded-xl bg-[var(--accent)]/15 text-[var(--accent)] flex-shrink-0 mt-0.5">
+                        {moveModal.fileIds && moveModal.fileIds.length > 1 ? <CheckSquare size={16} /> : <FileText size={16} />}
+                      </div>
                       <div className="min-w-0 flex-1">
-                        <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider block">Dokumen</span>
-                        <p className="text-xs font-semibold text-[var(--text-main)] break-all" title={moveModal.fileName}>
-                          {moveModal.fileName}
-                        </p>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider block font-bold">
+                            {moveModal.fileIds && moveModal.fileIds.length > 1
+                              ? `${moveModal.fileIds.length} Dokumen Dipilih`
+                              : 'Dokumen'}
+                          </span>
+                          {moveModal.fileIds && moveModal.fileIds.length > 1 && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--accent)] text-[var(--accent-fg)] font-bold">
+                              {moveModal.fileIds.length} Berkas
+                            </span>
+                          )}
+                        </div>
+                        {moveModal.fileIds && moveModal.fileIds.length > 1 ? (
+                          <div className="mt-2 max-h-28 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+                            {moveModal.fileNames?.map((name, idx) => (
+                              <div key={idx} className="flex items-center gap-1.5 text-xs text-[var(--text-main)] bg-[var(--hover-fill)] px-2 py-1 rounded-lg border border-[var(--border-line)]">
+                                <FileText size={12} className="text-[var(--accent)] flex-shrink-0" />
+                                <span className="truncate" title={name}>{name}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-xs font-semibold text-[var(--text-main)] break-all mt-0.5" title={moveModal.fileName}>
+                            {moveModal.fileName}
+                          </p>
+                        )}
                       </div>
                     </div>
                     <div className="pt-2 border-t border-[var(--border-line)]/50 flex items-center justify-between text-xs">
@@ -7733,7 +8094,11 @@ export default function Dashboard() {
                     ) : (
                       <>
                         <FolderInput size={14} />
-                        <span>Pindahkan ke Sini</span>
+                        <span>
+                          {moveModal.fileIds && moveModal.fileIds.length > 1
+                            ? `Pindahkan ${moveModal.fileIds.length} Dokumen ke Sini`
+                            : 'Pindahkan ke Sini'}
+                        </span>
                       </>
                     )}
                   </button>
