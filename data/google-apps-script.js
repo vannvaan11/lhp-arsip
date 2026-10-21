@@ -87,6 +87,31 @@ function doPost(e) {
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
+    // 4. AKSI PINDAH FOLDER (MOVE)
+    if (action === 'move') {
+      var fileToMove = DriveApp.getFileById(data.fileId);
+      var destFolder = data.destinationFolderId ? DriveApp.getFolderById(data.destinationFolderId) : DriveApp.getRootFolder();
+      fileToMove.moveTo(destFolder);
+
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true,
+        message: "File berhasil dipindahkan",
+        destinationFolderId: destFolder.getId()
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // 5. AKSI BUAT FOLDER BARU (CREATE FOLDER)
+    if (action === 'createFolder') {
+      var parentFolder = data.parentId ? DriveApp.getFolderById(data.parentId) : DriveApp.getRootFolder();
+      var newFolder = parentFolder.createFolder(data.name);
+
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true,
+        id: newFolder.getId(),
+        name: newFolder.getName()
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
     return ContentService.createTextOutput(JSON.stringify({
       success: false,
       error: "Aksi tidak dikenali: " + action

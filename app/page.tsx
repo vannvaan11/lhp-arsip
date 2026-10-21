@@ -14,7 +14,8 @@ import {
   RotateCw, Sliders, Volume2, VolumeX, Zap, Flame,
   BookOpen, Scale, Bookmark, ExternalLink,
   Building2, Landmark, ChevronDown, CheckCheck, Settings,
-  ClipboardCheck, CheckSquare, FileCheck, BadgeCheck, Printer
+  ClipboardCheck, CheckSquare, FileCheck, BadgeCheck, Printer,
+  FolderPlus, FolderInput, AlertTriangle
 } from 'lucide-react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -767,6 +768,38 @@ export default function Dashboard() {
   const [logCategoryFilter, setLogCategoryFilter] = useState<'ALL' | 'DOCS' | 'AUTH' | 'MANAGE' | 'SHARE'>('ALL');
   const [isConfirmClearLogsOpen, setIsConfirmClearLogsOpen] = useState(false);
   const [clearLogsLoading, setClearLogsLoading] = useState(false);
+
+  // --- Modal Konfirmasi Hapus Modern (Desain Ulang) ---
+  const [deleteModal, setDeleteModal] = useState<{
+    isOpen: boolean;
+    fileId: string;
+    fileName: string;
+    isDeleting: boolean;
+    error: string | null;
+  } | null>(null);
+
+  // --- Modal Pindahkan Dokumen (Move) ---
+  const [moveModal, setMoveModal] = useState<{
+    isOpen: boolean;
+    fileId: string;
+    fileName: string;
+    targetFolderId: string;
+    isMoving: boolean;
+    error: string | null;
+    searchQuery: string;
+  } | null>(null);
+
+  // --- Modal Tambah Folder Baru ---
+  const [createFolderModal, setCreateFolderModal] = useState<{
+    isOpen: boolean;
+    name: string;
+    targetParentId: string;
+    isCreating: boolean;
+    error: string | null;
+  } | null>(null);
+
+  // --- Modal Notifikasi Hak Akses Administrator ---
+  const [adminNoticeModal, setAdminNoticeModal] = useState<string | null>(null);
 
   // --- FUZZY SEARCH (Levenshtein Distance) ---
   const levenshtein = (a: string, b: string): number => {
@@ -1817,12 +1850,28 @@ export default function Dashboard() {
     setUploading(false);
   };
 
-  const handleDelete = async (fileId: string, fileName: string) => {
+  // Pemicu Modal Hapus dengan Desain Baru yang Modern
+  const handleDelete = (fileId: string, fileName: string) => {
     if (userRole !== 'admin') {
-      alert('Hanya Administrator yang memiliki akses untuk menghapus dokumen.');
+      playHaptic('toggle');
+      setAdminNoticeModal('Hanya Administrator yang memiliki hak akses untuk menghapus dokumen dari arsip.');
       return;
     }
-    if (!confirm(`Hapus berkas "${fileName}" dari arsip?`)) return;
+    playHaptic('pop');
+    setDeleteModal({
+      isOpen: true,
+      fileId,
+      fileName,
+      isDeleting: false,
+      error: null,
+    });
+  };
+
+  // Eksekusi Konfirmasi Hapus Berkas
+  const handleConfirmDelete = async () => {
+    if (!deleteModal || !deleteModal.fileId) return;
+    const { fileId, fileName } = deleteModal;
+    setDeleteModal(prev => prev ? { ...prev, isDeleting: true, error: null } : null);
 
     try {
       const res = await fetch(`/api/drive?fileId=${fileId}`, { method: 'DELETE' });
@@ -1832,13 +1881,122 @@ export default function Dashboard() {
         if (selectedFile?.id === fileId) {
           setSelectedFile(null);
         }
+        playHaptic('pop');
+        setDeleteModal(null);
         fetchData(currentFolder);
+        fetchGlobalChecklist();
       } else {
-        alert(`Gagal menghapus berkas: ${data.error || 'Terjadi kesalahan'}`);
+        setDeleteModal(prev => prev ? { ...prev, isDeleting: false, error: data.error || 'Gagal menghapus berkas dari Google Drive' } : null);
       }
     } catch (e: any) {
       console.error(e);
-      alert(`Gagal menghapus berkas: ${e.message}`);
+      setDeleteModal(prev => prev ? { ...prev, isDeleting: false, error: e.message || 'Terjadi kesalahan jaringan saat menghapus berkas' } : null);
+    }
+  };
+
+  // Buka Modal Pindahkan Dokumen
+  const openMoveModal = (file: DriveFile) => {
+    if (userRole !== 'admin') {
+      playHaptic('toggle');
+      setAdminNoticeModal('Hanya Administrator yang memiliki hak akses untuk memindahkan dokumen antar folder.');
+      return;
+    }
+    playHaptic('click');
+    fetchAllFolders();
+    setMoveModal({
+      isOpen: true,
+      fileId: file.id,
+      fileName: file.name,
+      targetFolderId: '',
+      isMoving: false,
+      error: null,
+      searchQuery: '',
+    });
+  };
+
+  // Eksekusi Pindahkan Dokumen
+  const handleConfirmMove = async () => {
+    if (!moveModal || !moveModal.fileId || !moveModal.targetFolderId) return;
+    const { fileId, fileName, targetFolderId } = moveModal;
+    setMoveModal(prev => prev ? { ...prev, isMoving: true, error: null } : null);
+
+    try {
+      const res = await fetch('/api/drive/move', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileId,
+          destinationFolderId: targetFolderId,
+          currentFolderId: currentFolder || 'root',
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        const destName = targetFolderId === 'root' 
+          ? 'Beranda / Root' 
+          : (allFolders.find(f => f.id === targetFolderId)?.name || 'Folder Tujuan');
+        addOnlineLog("MOVE", `${fileName} ➔ ${destName}`);
+        playHaptic('pop');
+        setMoveModal(null);
+        fetchData(currentFolder);
+        fetchGlobalChecklist();
+      } else {
+        setMoveModal(prev => prev ? { ...prev, isMoving: false, error: data.error || 'Gagal memindahkan dokumen ke folder tujuan' } : null);
+      }
+    } catch (e: any) {
+      console.error(e);
+      setMoveModal(prev => prev ? { ...prev, isMoving: false, error: e.message || 'Terjadi kesalahan jaringan' } : null);
+    }
+  };
+
+  // Buka Modal Tambah Folder Baru
+  const openCreateFolderModal = () => {
+    if (userRole !== 'admin') {
+      playHaptic('toggle');
+      setAdminNoticeModal('Hanya Administrator yang memiliki hak akses untuk membuat folder baru.');
+      return;
+    }
+    playHaptic('click');
+    fetchAllFolders();
+    setCreateFolderModal({
+      isOpen: true,
+      name: '',
+      targetParentId: currentFolder || 'root',
+      isCreating: false,
+      error: null,
+    });
+  };
+
+  // Eksekusi Pembuatan Folder Baru
+  const handleConfirmCreateFolder = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!createFolderModal || !createFolderModal.name.trim()) return;
+    const { name, targetParentId } = createFolderModal;
+    setCreateFolderModal(prev => prev ? { ...prev, isCreating: true, error: null } : null);
+
+    try {
+      const res = await fetch('/api/drive/folder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: name.trim(),
+          parentId: targetParentId === 'root' ? '' : targetParentId,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        addOnlineLog("CREATE_FOLDER", name.trim());
+        playHaptic('pop');
+        setCreateFolderModal(null);
+        fetchData(currentFolder);
+        fetchAllFolders();
+        fetchGlobalChecklist();
+      } else {
+        setCreateFolderModal(prev => prev ? { ...prev, isCreating: false, error: data.error || 'Gagal membuat folder baru' } : null);
+      }
+    } catch (e: any) {
+      console.error(e);
+      setCreateFolderModal(prev => prev ? { ...prev, isCreating: false, error: e.message || 'Terjadi kesalahan jaringan' } : null);
     }
   };
 
@@ -3046,13 +3204,23 @@ export default function Dashboard() {
                 </>
               )}
               {userRole === 'admin' && !isPresentationMode && (
-                <button 
-                  onClick={() => { setUploadStatus('idle'); setUploadErrorMessage(''); setUploadDestinationId(currentFolder); setIsUploadModalOpen(true); }}
-                  className="bg-[var(--accent)] hover:opacity-90 text-[var(--accent-fg)] px-4 py-2.5 rounded-xl font-semibold text-sm transition-all flex items-center gap-2"
-                >
-                  <Plus size={16} strokeWidth={2.5} />
-                  <span className="hidden lg:block">Upload</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={openCreateFolderModal}
+                    className="bg-[var(--bg-panel)] hover:bg-[var(--hover-fill)] text-[var(--text-main)] border border-[var(--border-line)] hover:border-[var(--border-strong)] px-3.5 py-2.5 rounded-xl font-semibold text-xs sm:text-sm transition-all flex items-center gap-2 shadow-sm"
+                    title="Tambah Folder Baru"
+                  >
+                    <FolderPlus size={16} className="text-[var(--accent)]" />
+                    <span className="hidden sm:inline">Folder Baru</span>
+                  </button>
+                  <button 
+                    onClick={() => { setUploadStatus('idle'); setUploadErrorMessage(''); setUploadDestinationId(currentFolder); setIsUploadModalOpen(true); }}
+                    className="bg-[var(--accent)] hover:opacity-90 text-[var(--accent-fg)] px-4 py-2.5 rounded-xl font-semibold text-sm transition-all flex items-center gap-2 shadow-sm"
+                  >
+                    <Plus size={16} strokeWidth={2.5} />
+                    <span className="hidden lg:block">Upload</span>
+                  </button>
+                </div>
               )}
             </div>
           </header>
@@ -3817,8 +3985,11 @@ export default function Dashboard() {
                                 )}
                                 {userRole === 'admin' && (
                                   <>
-                                    <button onClick={(e) => { e.stopPropagation(); handleRename(file.id, file.name); }} className="p-2 rounded-lg hover:bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-blue-400 transition-all"><Edit2 size={14}/></button>
-                                    <button onClick={(e) => { e.stopPropagation(); handleDelete(file.id, file.name); }} className="p-2 rounded-lg hover:bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-red-400 transition-all"><Trash2 size={14}/></button>
+                                    {!file.mimeType.includes('folder') && (
+                                      <button onClick={(e) => { e.stopPropagation(); openMoveModal(file); }} title="Pindahkan Dokumen" className="p-2 rounded-lg hover:bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-amber-400 transition-all"><FolderInput size={14}/></button>
+                                    )}
+                                    <button onClick={(e) => { e.stopPropagation(); handleRename(file.id, file.name); }} title="Ganti Nama" className="p-2 rounded-lg hover:bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-blue-400 transition-all"><Edit2 size={14}/></button>
+                                    <button onClick={(e) => { e.stopPropagation(); handleDelete(file.id, file.name); }} title="Hapus Berkas" className="p-2 rounded-lg hover:bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-red-400 transition-all"><Trash2 size={14}/></button>
                                   </>
                                 )}
                               </div>
@@ -3986,6 +4157,9 @@ export default function Dashboard() {
                             )}
                             {userRole === 'admin' && (
                               <>
+                                {!file.mimeType.includes('folder') && (
+                                  <button onClick={(e) => { e.stopPropagation(); openMoveModal(file); }} title="Pindahkan Dokumen" className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-amber-400 hover:bg-[var(--hover-fill)] transition-all"><FolderInput size={14}/></button>
+                                )}
                                 <button onClick={(e) => { e.stopPropagation(); handleRename(file.id, file.name); }} title="Ganti Nama" className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-blue-400 hover:bg-[var(--hover-fill)] transition-all"><Edit2 size={14}/></button>
                                 <button onClick={(e) => { e.stopPropagation(); handleDelete(file.id, file.name); }} title="Hapus Berkas" className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-red-400 hover:bg-[var(--hover-fill)] transition-all"><Trash2 size={14}/></button>
                               </>
@@ -4521,6 +4695,7 @@ export default function Dashboard() {
                   }} className="p-2.5 bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 rounded-xl transition-all" title="Bagikan dengan PIN"><Share2 size={18}/></button>
                   {userRole === 'admin' && (
                     <>
+                      <button onClick={() => openMoveModal(selectedFile)} className="p-2.5 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 rounded-xl transition-all" title="Pindahkan Dokumen"><FolderInput size={18}/></button>
                       <button onClick={() => handleRename(selectedFile.id, selectedFile.name)} className="p-2.5 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 rounded-xl transition-all" title="Ganti Nama Berkas"><Edit2 size={18}/></button>
                       <button onClick={() => handleDelete(selectedFile.id, selectedFile.name)} className="p-2.5 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-xl transition-all" title="Hapus Berkas"><Trash2 size={18}/></button>
                     </>
@@ -7223,6 +7398,512 @@ export default function Dashboard() {
                     Tutup
                   </button>
                 </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* MODAL KONFIRMASI HAPUS BERKAS (DESAIN MODERN & ELEGAN) */}
+        <AnimatePresence>
+          {deleteModal && deleteModal.isOpen && (
+            <div 
+              className="fixed inset-0 z-[160] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md"
+              onClick={() => !deleteModal.isDeleting && setDeleteModal(null)}
+            >
+              <motion.div
+                initial={{ scale: 0.92, opacity: 0, y: 15 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.94, opacity: 0, y: 10 }}
+                transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                className="bg-[var(--bg-panel)] border border-rose-500/30 rounded-2xl max-w-md w-full shadow-2xl overflow-hidden relative"
+                onClick={e => e.stopPropagation()}
+              >
+                {/* Accent Top Strip */}
+                <div className="h-1.5 bg-gradient-to-r from-rose-500 via-red-500 to-amber-500 w-full" />
+
+                {/* Close Button */}
+                <button
+                  onClick={() => !deleteModal.isDeleting && setDeleteModal(null)}
+                  disabled={deleteModal.isDeleting}
+                  className="absolute right-4 top-4 p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--hover-fill)] transition-all disabled:opacity-40"
+                >
+                  <X size={18} />
+                </button>
+
+                <div className="p-6 text-center space-y-4">
+                  {/* Glowing Warning Danger Icon */}
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-rose-500/20 via-red-500/10 to-rose-600/5 text-rose-500 flex items-center justify-center mx-auto border border-rose-500/30 shadow-lg shadow-rose-500/10 relative">
+                    <Trash2 size={28} className="text-rose-500 animate-pulse" />
+                    <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-rose-600 text-white flex items-center justify-center text-[11px] font-black shadow-md border-2 border-[var(--bg-panel)]">
+                      !
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-lg font-bold text-[var(--text-main)]">
+                      Hapus Dokumen Arsip?
+                    </h3>
+                    <p className="text-xs text-[var(--text-muted)] mt-1.5 leading-relaxed">
+                      Tindakan ini memerlukan konfirmasi keamanan Administrator.
+                    </p>
+                  </div>
+
+                  {/* Document Card Preview */}
+                  <div className="p-3.5 rounded-xl bg-black/20 dark:bg-white/[0.03] border border-[var(--border-line)] flex items-start gap-3 text-left">
+                    <div className="p-2 rounded-lg bg-rose-500/10 text-rose-400 flex-shrink-0 mt-0.5 border border-rose-500/20">
+                      <FileText size={18} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] text-[var(--text-muted)] font-medium uppercase tracking-wider">Berkas yang akan dihapus</p>
+                      <p className="text-xs font-semibold text-[var(--text-main)] break-all line-clamp-2 mt-0.5" title={deleteModal.fileName}>
+                        {deleteModal.fileName}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Info Notice Banner */}
+                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-left flex items-start gap-2.5">
+                    <AlertTriangle size={16} className="text-amber-400 flex-shrink-0 mt-0.5" />
+                    <p className="text-[11px] text-amber-300/90 leading-relaxed">
+                      Dokumen akan dipindahkan ke Sampah Google Drive atau dihapus dari direktori arsip sesuai otorisasi sistem.
+                    </p>
+                  </div>
+
+                  {/* Error Notification Banner if Failed */}
+                  {deleteModal.error && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }}
+                      className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs text-left leading-relaxed flex items-start gap-2"
+                    >
+                      <AlertCircle size={15} className="text-rose-400 flex-shrink-0 mt-0.5" />
+                      <span><strong>Gagal:</strong> {deleteModal.error}</span>
+                    </motion.div>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="flex items-center gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => !deleteModal.isDeleting && setDeleteModal(null)}
+                      disabled={deleteModal.isDeleting}
+                      className="flex-1 py-2.5 px-4 rounded-xl border border-[var(--border-line)] text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--hover-fill)] transition-all disabled:opacity-40"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleConfirmDelete}
+                      disabled={deleteModal.isDeleting}
+                      className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white text-xs font-bold shadow-lg shadow-rose-600/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      {deleteModal.isDeleting ? (
+                        <>
+                          <Loader2 size={15} className="animate-spin" />
+                          <span>Menghapus...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Trash2 size={15} />
+                          <span>Ya, Hapus Dokumen</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* MODAL PINDAHKAN DOKUMEN (MOVE TO FOLDER) */}
+        <AnimatePresence>
+          {moveModal && moveModal.isOpen && (
+            <div 
+              className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md"
+              onClick={() => !moveModal.isMoving && setMoveModal(null)}
+            >
+              <motion.div
+                initial={{ scale: 0.92, opacity: 0, y: 15 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.94, opacity: 0, y: 10 }}
+                transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                className="bg-[var(--bg-panel)] border border-[var(--border-line)] rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden flex flex-col max-h-[85vh] relative"
+                onClick={e => e.stopPropagation()}
+              >
+                {/* Accent Top Strip */}
+                <div className="h-1.5 bg-gradient-to-r from-amber-500 via-[var(--accent)] to-blue-500 w-full" />
+
+                {/* Header */}
+                <div className="p-5 sm:p-6 border-b border-[var(--border-line)] flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-xl flex-shrink-0">
+                      <FolderInput size={20} />
+                    </div>
+                    <div>
+                      <h3 className="text-base sm:text-lg font-bold text-[var(--text-main)]">
+                        Pindahkan Dokumen
+                      </h3>
+                      <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                        Pilih folder tujuan untuk memindahkan berkas
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => !moveModal.isMoving && setMoveModal(null)}
+                    disabled={moveModal.isMoving}
+                    className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--hover-fill)] transition-all"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {/* Body Content */}
+                <div className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
+                  {/* File Info Box */}
+                  <div className="p-3.5 rounded-xl bg-black/20 dark:bg-white/[0.03] border border-[var(--border-line)] space-y-2">
+                    <div className="flex items-start gap-2.5">
+                      <FileText size={16} className="text-[var(--accent)] flex-shrink-0 mt-0.5" />
+                      <div className="min-w-0 flex-1">
+                        <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider block">Dokumen</span>
+                        <p className="text-xs font-semibold text-[var(--text-main)] break-all" title={moveModal.fileName}>
+                          {moveModal.fileName}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="pt-2 border-t border-[var(--border-line)]/50 flex items-center justify-between text-xs">
+                      <span className="text-[var(--text-muted)]">Lokasi Sekarang:</span>
+                      <span className="font-semibold text-[var(--text-main)] px-2 py-0.5 rounded bg-[var(--hover-fill)] border border-[var(--border-line)]">
+                        {currentFolder 
+                          ? (allFolders.find(f => f.id === currentFolder)?.name || 'Folder Aktif') 
+                          : '📂 Beranda / Root'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Search Destination Folders */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-[var(--text-main)] flex items-center justify-between">
+                      <span>Pilih Folder Tujuan:</span>
+                      <span className="text-[11px] text-[var(--text-muted)] font-normal">
+                        {allFolders.length + 1} lokasi tersedia
+                      </span>
+                    </label>
+                    <div className="relative">
+                      <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+                      <input
+                        type="text"
+                        value={moveModal.searchQuery}
+                        onChange={(e) => setMoveModal(prev => prev ? { ...prev, searchQuery: e.target.value } : null)}
+                        placeholder="Cari folder tujuan..."
+                        className="w-full bg-white/[0.04] border border-[var(--border-line)] rounded-xl py-2 pl-9 pr-3 text-xs text-[var(--text-main)] outline-none focus:border-[var(--accent)] transition-all placeholder:text-[var(--text-muted)]"
+                      />
+                      {moveModal.searchQuery && (
+                        <button
+                          onClick={() => setMoveModal(prev => prev ? { ...prev, searchQuery: '' } : null)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-main)]"
+                        >
+                          <X size={12} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Folder Destination List */}
+                  <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1 custom-scrollbar">
+                    {/* Root Option */}
+                    {('beranda root folder utama'.includes(moveModal.searchQuery.toLowerCase())) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (currentFolder === '') return;
+                          setMoveModal(prev => prev ? { ...prev, targetFolderId: 'root' } : null);
+                        }}
+                        disabled={currentFolder === ''}
+                        className={`w-full p-3 rounded-xl border text-left flex items-center justify-between transition-all ${
+                          currentFolder === ''
+                            ? 'opacity-40 border-[var(--border-line)] bg-[var(--hover-fill)] cursor-not-allowed'
+                            : moveModal.targetFolderId === 'root'
+                              ? 'border-[var(--accent)] bg-[var(--accent)]/10 ring-1 ring-[var(--accent)] text-[var(--text-main)] shadow-sm'
+                              : 'border-[var(--border-line)] hover:border-[var(--border-strong)] hover:bg-[var(--hover-fill)] text-[var(--text-main)]'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className={`p-1.5 rounded-lg ${moveModal.targetFolderId === 'root' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'bg-slate-500/10 text-slate-400'}`}>
+                            <Database size={16} />
+                          </div>
+                          <div>
+                            <p className="text-xs font-semibold">📂 Beranda / Root</p>
+                            <p className="text-[10px] text-[var(--text-muted)]">Direktori terluar Google Drive</p>
+                          </div>
+                        </div>
+                        {currentFolder === '' ? (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-500/15 text-[var(--text-muted)] font-medium">
+                            Lokasi Saat Ini
+                          </span>
+                        ) : moveModal.targetFolderId === 'root' ? (
+                          <Check size={16} className="text-[var(--accent)] flex-shrink-0" />
+                        ) : null}
+                      </button>
+                    )}
+
+                    {/* Subfolders */}
+                    {allFolders
+                      .filter(f => !moveModal.searchQuery || f.name.toLowerCase().includes(moveModal.searchQuery.toLowerCase()))
+                      .map((f) => {
+                        const isCurrentLocation = f.id === currentFolder;
+                        const isSelected = moveModal.targetFolderId === f.id;
+                        return (
+                          <button
+                            key={f.id}
+                            type="button"
+                            onClick={() => {
+                              if (isCurrentLocation) return;
+                              setMoveModal(prev => prev ? { ...prev, targetFolderId: f.id } : null);
+                            }}
+                            disabled={isCurrentLocation}
+                            className={`w-full p-3 rounded-xl border text-left flex items-center justify-between transition-all ${
+                              isCurrentLocation
+                                ? 'opacity-40 border-[var(--border-line)] bg-[var(--hover-fill)] cursor-not-allowed'
+                                : isSelected
+                                  ? 'border-[var(--accent)] bg-[var(--accent)]/10 ring-1 ring-[var(--accent)] text-[var(--text-main)] shadow-sm'
+                                  : 'border-[var(--border-line)] hover:border-[var(--border-strong)] hover:bg-[var(--hover-fill)] text-[var(--text-main)]'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className={`p-1.5 rounded-lg ${isSelected ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'bg-blue-500/10 text-blue-400'}`}>
+                                <Folder size={16} />
+                              </div>
+                              <span className="text-xs font-semibold truncate" title={f.name}>
+                                {f.name}
+                              </span>
+                            </div>
+                            {isCurrentLocation ? (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-500/15 text-[var(--text-muted)] font-medium">
+                                Lokasi Saat Ini
+                              </span>
+                            ) : isSelected ? (
+                              <Check size={16} className="text-[var(--accent)] flex-shrink-0" />
+                            ) : null}
+                          </button>
+                        );
+                      })}
+
+                    {allFolders.filter(f => !moveModal.searchQuery || f.name.toLowerCase().includes(moveModal.searchQuery.toLowerCase())).length === 0 && !('beranda root folder utama'.includes(moveModal.searchQuery.toLowerCase())) && (
+                      <div className="text-center py-6 text-[var(--text-muted)]">
+                        <Folder size={28} className="mx-auto opacity-30 mb-2" />
+                        <p className="text-xs">Tidak ada folder yang cocok dengan "{moveModal.searchQuery}"</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Error Notification Banner if Failed */}
+                  {moveModal.error && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }}
+                      className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs text-left leading-relaxed flex items-start gap-2"
+                    >
+                      <AlertCircle size={15} className="text-rose-400 flex-shrink-0 mt-0.5" />
+                      <span><strong>Gagal:</strong> {moveModal.error}</span>
+                    </motion.div>
+                  )}
+                </div>
+
+                {/* Footer Actions */}
+                <div className="p-4 sm:p-5 border-t border-[var(--border-line)] bg-[var(--hover-fill)]/30 flex items-center justify-between gap-3">
+                  <button
+                    type="button"
+                    onClick={() => !moveModal.isMoving && setMoveModal(null)}
+                    disabled={moveModal.isMoving}
+                    className="px-4 py-2.5 rounded-xl border border-[var(--border-line)] text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--hover-fill)] transition-all disabled:opacity-40"
+                  >
+                    Batal
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleConfirmMove}
+                    disabled={!moveModal.targetFolderId || moveModal.targetFolderId === currentFolder || moveModal.isMoving}
+                    className="px-5 py-2.5 rounded-xl bg-[var(--accent)] text-[var(--accent-fg)] text-xs font-bold shadow-md hover:opacity-90 transition-all flex items-center gap-2 disabled:opacity-40"
+                  >
+                    {moveModal.isMoving ? (
+                      <>
+                        <Loader2 size={14} className="animate-spin" />
+                        <span>Memindahkan...</span>
+                      </>
+                    ) : (
+                      <>
+                        <FolderInput size={14} />
+                        <span>Pindahkan ke Sini</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* MODAL TAMBAH FOLDER BARU (CREATE FOLDER) */}
+        <AnimatePresence>
+          {createFolderModal && createFolderModal.isOpen && (
+            <div 
+              className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md"
+              onClick={() => !createFolderModal.isCreating && setCreateFolderModal(null)}
+            >
+              <motion.div
+                initial={{ scale: 0.92, opacity: 0, y: 15 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.94, opacity: 0, y: 10 }}
+                transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                className="bg-[var(--bg-panel)] border border-[var(--border-line)] rounded-2xl max-w-md w-full shadow-2xl p-6 relative overflow-hidden"
+                onClick={e => e.stopPropagation()}
+              >
+                {/* Accent Top Strip */}
+                <div className="h-1.5 bg-gradient-to-r from-[var(--accent)] via-emerald-500 to-cyan-500 absolute top-0 left-0 right-0" />
+
+                {/* Close Button */}
+                <button
+                  onClick={() => !createFolderModal.isCreating && setCreateFolderModal(null)}
+                  disabled={createFolderModal.isCreating}
+                  className="absolute right-4 top-4 p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--hover-fill)] transition-all disabled:opacity-40"
+                >
+                  <X size={18} />
+                </button>
+
+                <form onSubmit={handleConfirmCreateFolder} className="space-y-4 pt-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-[var(--accent)]/10 text-[var(--accent)] border border-[var(--accent-light)] flex items-center justify-center flex-shrink-0">
+                      <FolderPlus size={22} />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-[var(--text-main)]">
+                        Buat Folder Baru
+                      </h3>
+                      <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                        Tambahkan direktori baru di Google Drive
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Input Nama Folder */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-[var(--text-main)] block">
+                      Nama Folder:
+                    </label>
+                    <input
+                      type="text"
+                      autoFocus
+                      required
+                      value={createFolderModal.name}
+                      onChange={(e) => setCreateFolderModal(prev => prev ? { ...prev, name: e.target.value } : null)}
+                      placeholder="Contoh: LHP Dinas Pendidikan 2026"
+                      className="w-full bg-white/[0.04] border border-[var(--border-line)] rounded-xl p-3 text-xs sm:text-sm text-[var(--text-main)] outline-none focus:border-[var(--accent)] transition-all placeholder:text-[var(--text-muted)]"
+                    />
+                  </div>
+
+                  {/* Pilihan Lokasi Penempatan Folder */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-[var(--text-main)] block">
+                      Lokasi Penyimpanan:
+                    </label>
+                    <select
+                      value={createFolderModal.targetParentId}
+                      onChange={(e) => setCreateFolderModal(prev => prev ? { ...prev, targetParentId: e.target.value } : null)}
+                      className="w-full p-3 rounded-xl bg-white/[0.04] border border-[var(--border-line)] outline-none text-xs sm:text-sm text-[var(--text-main)] focus:border-[var(--accent)] cursor-pointer"
+                    >
+                      <option value={currentFolder || 'root'} className="bg-[var(--bg-panel)] text-[var(--text-main)]">
+                        📁 Lokasi Saat Ini ({currentFolder ? (allFolders.find(f => f.id === currentFolder)?.name || 'Folder Aktif') : 'Beranda / Root'})
+                      </option>
+                      {currentFolder && (
+                        <option value="root" className="bg-[var(--bg-panel)] text-[var(--text-main)]">
+                          📂 Beranda / Root (Tingkat Teratas)
+                        </option>
+                      )}
+                      {allFolders
+                        .filter(f => f.id !== currentFolder)
+                        .map(f => (
+                          <option key={f.id} value={f.id} className="bg-[var(--bg-panel)] text-[var(--text-main)]">
+                            📁 {f.name}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+
+                  {/* Error Notification Banner if Failed */}
+                  {createFolderModal.error && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }}
+                      className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs text-left leading-relaxed flex items-start gap-2"
+                    >
+                      <AlertCircle size={15} className="text-rose-400 flex-shrink-0 mt-0.5" />
+                      <span><strong>Gagal:</strong> {createFolderModal.error}</span>
+                    </motion.div>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="flex items-center gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => !createFolderModal.isCreating && setCreateFolderModal(null)}
+                      disabled={createFolderModal.isCreating}
+                      className="flex-1 py-2.5 px-4 rounded-xl border border-[var(--border-line)] text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--hover-fill)] transition-all disabled:opacity-40"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={!createFolderModal.name.trim() || createFolderModal.isCreating}
+                      className="flex-1 py-2.5 px-4 rounded-xl bg-[var(--accent)] text-[var(--accent-fg)] text-xs font-bold shadow-md hover:opacity-90 transition-all flex items-center justify-center gap-2 disabled:opacity-40"
+                    >
+                      {createFolderModal.isCreating ? (
+                        <>
+                          <Loader2 size={14} className="animate-spin" />
+                          <span>Membuat Folder...</span>
+                        </>
+                      ) : (
+                        <>
+                          <FolderPlus size={14} />
+                          <span>Buat Folder</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* MODAL NOTIFIKASI HAK AKSES ADMINISTRATOR */}
+        <AnimatePresence>
+          {adminNoticeModal && (
+            <div 
+              className="fixed inset-0 z-[170] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md"
+              onClick={() => setAdminNoticeModal(null)}
+            >
+              <motion.div
+                initial={{ scale: 0.92, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.94, opacity: 0 }}
+                className="bg-[var(--bg-panel)] border border-amber-500/30 p-6 rounded-2xl max-w-sm w-full shadow-2xl text-center space-y-4 relative"
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="w-14 h-14 rounded-2xl bg-amber-500/10 text-amber-400 flex items-center justify-center mx-auto border border-amber-500/20 shadow-md">
+                  <ShieldAlert size={26} />
+                </div>
+                <div>
+                  <h4 className="text-base font-bold text-[var(--text-main)]">Akses Dibatasi</h4>
+                  <p className="text-xs text-[var(--text-muted)] mt-1.5 leading-relaxed">
+                    {adminNoticeModal}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAdminNoticeModal(null)}
+                  className="w-full py-2.5 px-4 rounded-xl bg-[var(--accent)] text-[var(--accent-fg)] text-xs font-bold shadow-md hover:opacity-90 transition-all"
+                >
+                  Saya Mengerti
+                </button>
               </motion.div>
             </div>
           )}
