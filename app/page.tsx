@@ -13,7 +13,8 @@ import {
   Monitor, Wrench, Focus, Rows3, FileSpreadsheet, Tag, Star,
   RotateCw, Sliders, Volume2, VolumeX, Zap, Flame,
   BookOpen, Scale, Bookmark, ExternalLink,
-  Building2, Landmark, ChevronDown, CheckCheck, Settings
+  Building2, Landmark, ChevronDown, CheckCheck, Settings,
+  ClipboardCheck, CheckSquare, FileCheck, BadgeCheck, Printer
 } from 'lucide-react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -675,6 +676,15 @@ export default function Dashboard() {
   const [isManageOpdModalOpen, setIsManageOpdModalOpen] = useState(false);
   const [newOpdForm, setNewOpdForm] = useState({ name: '', code: '', category: 'Dinas' as const, aliases: '', isBinaanIrban3: true });
 
+  // --- Checklist Kelengkapan Dokumen Wajib (LHP & ST) Irban 3 ---
+  const [isChecklistModalOpen, setIsChecklistModalOpen] = useState(false);
+  const [checklistGlobalData, setChecklistGlobalData] = useState<{ summary: any; checklists: any[] } | null>(null);
+  const [checklistLoading, setChecklistLoading] = useState(false);
+  const [checklistSearchQuery, setChecklistSearchQuery] = useState('');
+  const [checklistTabFilter, setChecklistTabFilter] = useState<'all' | 'complete' | 'missing_st' | 'missing_lhp' | 'empty'>('all');
+  const [manualDocRoles, setManualDocRoles] = useState<Record<string, 'LHP' | 'ST' | 'none'>>({});
+  const [selectedDocRoleFilter, setSelectedDocRoleFilter] = useState<'all' | 'LHP' | 'ST' | 'complete' | 'missing_st' | 'missing_lhp'>('all');
+
   // --- Favorit & Riwayat Terakhir ---
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [recentlyViewed, setRecentlyViewed] = useState<{ id: string; name: string; mimeType: string; viewedAt: number }[]>([]);
@@ -1133,6 +1143,139 @@ export default function Dashboard() {
     return counts;
   }, [opdList, searchTerm, searchResults, files, isFileBelongToOpd]);
 
+  // --- DETEKSI & PENGELOLAAN DOKUMEN WAJIB (LHP & ST) IRBAN 3 ---
+  const detectFileRole = useCallback((file: DriveFile | null): 'LHP' | 'ST' | 'none' => {
+    if (!file) return 'none';
+
+    // 1. Cek manual override peran dokumen
+    if (manualDocRoles[file.id]) {
+      return manualDocRoles[file.id];
+    }
+
+    // 2. Cek tags dokumen
+    const tags = getFileTags(file);
+    const tagsLower = tags.map(t => t.toLowerCase());
+    if (tagsLower.some(t => t === 'lhp' || t === 'laporan hasil' || t === 'laporan pengawasan' || t === 'laporan pemeriksaan')) {
+      return 'LHP';
+    }
+    if (tagsLower.some(t => t === 'st' || t === 'spt' || t === 'surat tugas' || t === 'surat perintah tugas')) {
+      return 'ST';
+    }
+
+    // 3. Cek nama file
+    const name = file.name.toLowerCase();
+    const isLhp = 
+      name.includes('lhp') ||
+      name.includes('laporan hasil pengawasan') ||
+      name.includes('laporan hasil pemeriksaan') ||
+      name.includes('laporan-hasil') ||
+      name.includes('laporan_hasil') ||
+      name.includes('laporan hasil') ||
+      name.includes('laporan akhir');
+
+    const isSt = 
+      name.includes('surat tugas') ||
+      name.includes('surat-tugas') ||
+      name.includes('surat_tugas') ||
+      name.includes('surat perintah tugas') ||
+      name.includes('surat penugasan') ||
+      /(^|[^a-z0-9])(st|spt)[-_ ]/i.test(name) ||
+      /[-_ ](st|spt)([^a-z0-9]|$)/i.test(name) ||
+      /[-_ ](st|spt)\.(pdf|docx?)/i.test(name) ||
+      /\bst\b/i.test(name) ||
+      /\bspt\b/i.test(name) ||
+      /\b(090|094|800)\//.test(name);
+
+    if (isLhp && isSt) {
+      if (name.startsWith('lhp') || name.includes('laporan')) return 'LHP';
+      return 'ST';
+    }
+    if (isLhp) return 'LHP';
+    if (isSt) return 'ST';
+
+    return 'none';
+  }, [manualDocRoles, getFileTags]);
+
+  const handleSetFileRole = (fileId: string, role: 'LHP' | 'ST' | 'none') => {
+    playHaptic('pop');
+    const updated = { ...manualDocRoles, [fileId]: role };
+    setManualDocRoles(updated);
+    try {
+      localStorage.setItem('archive_manual_doc_roles', JSON.stringify(updated));
+    } catch (e) {
+      console.error(e);
+    }
+
+    // Otomatis sinkronkan label agar konsisten
+    if (role === 'LHP' || role === 'ST') {
+      const targetFile = files.find(f => f.id === fileId) || (selectedFile?.id === fileId ? selectedFile : null);
+      if (targetFile) {
+        const existingTags = getFileTags(targetFile);
+        const tagToAdd = role === 'LHP' ? 'LHP' : 'Surat Tugas';
+        if (!existingTags.some(t => t.toLowerCase() === tagToAdd.toLowerCase())) {
+          handleSaveFileTags(fileId, targetFile.name, [...existingTags, tagToAdd]);
+        }
+      }
+    }
+  };
+
+  const fetchGlobalChecklist = useCallback(async () => {
+    setChecklistLoading(true);
+    try {
+      const res = await fetch('/api/drive/checklist');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          setChecklistGlobalData(data);
+        }
+      }
+    } catch (e) {
+      console.error("Gagal mengambil data checklist:", e);
+    } finally {
+      setChecklistLoading(false);
+    }
+  }, []);
+
+  const handleExportChecklistCsv = () => {
+    if (!checklistGlobalData?.checklists) return;
+    playHaptic('click');
+    const headers = [
+      "No",
+      "Folder Penugasan / OPD",
+      "Status Surat Tugas (ST)",
+      "File Surat Tugas",
+      "Status Laporan Hasil (LHP)",
+      "File LHP",
+      "Skor Kelengkapan",
+      "Status Kepatuhan"
+    ];
+    const rows = checklistGlobalData.checklists.map((item: any, idx: number) => {
+      const stName = item.stFiles && item.stFiles.length > 0 ? item.stFiles.map((f: any) => f.name).join('; ') : '-';
+      const lhpName = item.lhpFiles && item.lhpFiles.length > 0 ? item.lhpFiles.map((f: any) => f.name).join('; ') : '-';
+      const statusLabel = item.status === 'complete' ? 'Lengkap (100%)' : item.status === 'missing_st' ? 'Kurang ST (50%)' : item.status === 'missing_lhp' ? 'Kurang LHP (50%)' : 'Kosong (0%)';
+      return [
+        idx + 1,
+        `"${(item.name || '').replace(/"/g, '""')}"`,
+        item.hasSt ? 'Terpenuhi' : 'Belum Ada',
+        `"${stName.replace(/"/g, '""')}"`,
+        item.hasLhp ? 'Terpenuhi' : 'Belum Ada',
+        `"${lhpName.replace(/"/g, '""')}"`,
+        `${item.completenessScore}%`,
+        `"${statusLabel}"`
+      ].join(',');
+    });
+    const csvContent = "\uFEFF" + [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `Matriks_Kelengkapan_LHP_ST_Irban3_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    addOnlineLog("EXPORT_CSV", "Ekspor Matriks Kelengkapan LHP & ST");
+  };
+
   const openTagModal = (file: DriveFile) => {
     setTagModalFile(file);
     setCustomTagInput('');
@@ -1512,6 +1655,14 @@ export default function Dashboard() {
           if (Array.isArray(parsed) && parsed.length > 0) setOpdList(parsed);
         } catch {}
       }
+
+      const savedDocRoles = localStorage.getItem('archive_manual_doc_roles');
+      if (savedDocRoles) {
+        try {
+          const parsed = JSON.parse(savedDocRoles);
+          if (parsed && typeof parsed === 'object') setManualDocRoles(parsed);
+        } catch {}
+      }
     } catch {}
   }, []);
 
@@ -1564,7 +1715,12 @@ export default function Dashboard() {
     setLoading(false);
   };
 
-  useEffect(() => { if (isLoggedIn) fetchData(currentFolder); }, [isLoggedIn, currentFolder]);
+  useEffect(() => { 
+    if (isLoggedIn) {
+      fetchData(currentFolder);
+      fetchGlobalChecklist();
+    }
+  }, [isLoggedIn, currentFolder, fetchGlobalChecklist]);
 
   const fetchAllFolders = async () => {
     try {
@@ -2055,10 +2211,23 @@ export default function Dashboard() {
     .filter(f => {
       if (!showFavoritesOnly) return true;
       return favorites.has(f.id);
+    })
+    .filter(f => {
+      if (selectedDocRoleFilter === 'all') return true;
+      if (selectedDocRoleFilter === 'LHP') return detectFileRole(f) === 'LHP';
+      if (selectedDocRoleFilter === 'ST') return detectFileRole(f) === 'ST';
+      return true;
     });
 
   const folders = filteredFilesMain.filter(f => f.mimeType.includes('folder'));
   const documents = filteredFilesMain.filter(f => !f.mimeType.includes('folder'));
+
+  // Kelengkapan LHP & ST pada tampilan folder / OPD aktif saat ini
+  const viewStFiles = filteredFilesMain.filter(f => !f.mimeType.includes('folder') && detectFileRole(f) === 'ST');
+  const viewLhpFiles = filteredFilesMain.filter(f => !f.mimeType.includes('folder') && detectFileRole(f) === 'LHP');
+  const hasStInCurrentView = viewStFiles.length > 0;
+  const hasLhpInCurrentView = viewLhpFiles.length > 0;
+  const viewCompletenessScore = hasStInCurrentView && hasLhpInCurrentView ? 100 : (hasStInCurrentView || hasLhpInCurrentView ? 50 : 0);
 
   // --- SHARED VIEW (Bypass Login) ---
   if (isSharedView) {
@@ -2979,7 +3148,27 @@ export default function Dashboard() {
                           </div>
                           <div className="min-w-0">
                             <h4 title={folder.name} className="text-xs sm:text-sm font-medium text-[var(--text-main)] line-clamp-2 sm:truncate group-hover:text-[var(--accent)] transition-colors">{folder.name}</h4>
-                            <p className="text-[10px] sm:text-[11px] text-[var(--text-muted)] mt-0.5">Folder</p>
+                            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                              <p className="text-[10px] sm:text-[11px] text-[var(--text-muted)]">Folder</p>
+                              {(() => {
+                                const chk = checklistGlobalData?.checklists?.find((c: any) => c.id === folder.id);
+                                if (!chk || chk.status === 'empty') return null;
+                                return (
+                                  <div className="flex items-center gap-1">
+                                    <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold border ${
+                                      chk.hasSt ? 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30' : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                                    }`}>
+                                      {chk.hasSt ? '✓ ST' : '✗ ST'}
+                                    </span>
+                                    <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold border ${
+                                      chk.hasLhp ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                                    }`}>
+                                      {chk.hasLhp ? '✓ LHP' : '✗ LHP'}
+                                    </span>
+                                  </div>
+                                );
+                              })()}
+                            </div>
                           </div>
                         </motion.div>
                       ))}
@@ -3061,9 +3250,231 @@ export default function Dashboard() {
                           <span className="hidden sm:inline">Ekspor Excel</span>
                           <span className="sm:hidden">Excel</span>
                         </button>
+
+                        {/* Tombol Matriks Checklist Kelengkapan LHP & ST */}
+                        <button
+                          onClick={() => {
+                            playHaptic('click');
+                            setIsChecklistModalOpen(true);
+                            fetchGlobalChecklist();
+                          }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 bg-gradient-to-r from-emerald-500/15 to-cyan-500/15 hover:from-emerald-500/25 hover:to-cyan-500/25 text-[var(--text-main)] border border-emerald-500/30 rounded-xl text-xs font-semibold transition-all shadow-sm group"
+                          title="Buka Matriks Rekapitulasi Kelengkapan LHP & Surat Tugas (ST)"
+                        >
+                          <ClipboardCheck size={15} className="text-emerald-400 group-hover:scale-110 transition-transform" />
+                          <span className="hidden sm:inline">Checklist LHP & ST</span>
+                          <span className="sm:hidden">Checklist</span>
+                          {checklistGlobalData?.summary?.completeCount !== undefined && (
+                            <span className="text-[10px] px-1.5 py-0.2 bg-emerald-500/20 text-emerald-400 rounded-full font-bold">
+                              {checklistGlobalData.summary.completeCount}/{checklistGlobalData.summary.totalFolders}
+                            </span>
+                          )}
+                        </button>
                       </div>
                     )}
                   </div>
+
+                  {/* CARD CHECKLIST KELENGKAPAN PENUGASAN (LHP & ST) */}
+                  {(currentFolder || selectedOpdFilter !== 'all') && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mb-4 p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-[var(--bg-panel)] via-[var(--hover-fill)]/60 to-[var(--bg-panel)] border border-[var(--border-line)] shadow-lg relative overflow-hidden"
+                    >
+                      {/* Accent line on top */}
+                      <div className={`absolute top-0 left-0 right-0 h-1 ${
+                        viewCompletenessScore === 100 
+                          ? 'bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500' 
+                          : viewCompletenessScore === 50 
+                            ? 'bg-gradient-to-r from-amber-500 via-orange-400 to-amber-500' 
+                            : 'bg-gradient-to-r from-slate-600 via-slate-500 to-slate-600'
+                      }`} />
+
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold flex-shrink-0 shadow-sm ${
+                            viewCompletenessScore === 100
+                              ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                              : viewCompletenessScore === 50
+                                ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                                : 'bg-slate-500/15 text-slate-400 border border-slate-500/30'
+                          }`}>
+                            <ClipboardCheck size={22} />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="text-sm sm:text-base font-bold text-[var(--text-main)]">
+                                Checklist Kelengkapan Penugasan
+                              </h3>
+                              <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-bold border flex items-center gap-1 ${
+                                viewCompletenessScore === 100
+                                  ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                                  : viewCompletenessScore === 50
+                                    ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                                    : 'bg-rose-500/15 text-rose-400 border-rose-500/30'
+                              }`}>
+                                {viewCompletenessScore === 100 && <CheckCircle2 size={12} />}
+                                {viewCompletenessScore === 50 && <AlertCircle size={12} />}
+                                {viewCompletenessScore === 0 && <X size={12} />}
+                                {viewCompletenessScore === 100 ? 'Lengkap (2/2 Dokumen)' : viewCompletenessScore === 50 ? 'Sebagian (1/2 Dokumen)' : 'Belum Ada Berkas Wajib (0/2)'}
+                              </span>
+                            </div>
+                            <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                              Standar penugasan pengawasan Irban 3 mewajibkan minimal 2 dokumen utama: <strong>Surat Tugas (ST)</strong> dan <strong>Laporan Hasil Pengawasan (LHP)</strong>.
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Progress Bar & Quick Matrix button */}
+                        <div className="flex items-center gap-3 self-end md:self-center flex-shrink-0">
+                          <div className="text-right">
+                            <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-semibold">Skor Kelengkapan</p>
+                            <p className={`text-sm font-bold ${
+                              viewCompletenessScore === 100 ? 'text-emerald-400' : viewCompletenessScore === 50 ? 'text-amber-400' : 'text-slate-400'
+                            }`}>
+                              {viewCompletenessScore}%
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => {
+                              playHaptic('click');
+                              setIsChecklistModalOpen(true);
+                              fetchGlobalChecklist();
+                            }}
+                            className="px-3 py-1.5 rounded-xl bg-[var(--hover-fill)] hover:bg-[var(--accent)] hover:text-slate-950 text-[var(--text-main)] border border-[var(--border-line)] text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs"
+                            title="Buka seluruh matriks kelengkapan OPD binaan Irban 3"
+                          >
+                            <CheckSquare size={13} />
+                            <span>Buka Matriks</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* 2 Slot Kartu Dokumen: ST & LHP */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {/* SLOT 1: SURAT TUGAS (ST) */}
+                        <div className={`p-3.5 rounded-xl border transition-all ${
+                          hasStInCurrentView
+                            ? 'bg-cyan-500/[0.04] border-cyan-500/30'
+                            : 'bg-rose-500/[0.03] border-rose-500/20 border-dashed'
+                        }`}>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                                hasStInCurrentView ? 'bg-cyan-500/20 text-cyan-400' : 'bg-rose-500/10 text-rose-400'
+                              }`}>
+                                <ClipboardCheck size={16} />
+                              </div>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-xs font-bold text-[var(--text-main)]">1. Surat Tugas (ST / SPT)</span>
+                                  {hasStInCurrentView ? (
+                                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-400 font-bold">Terpenuhi</span>
+                                  ) : (
+                                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-400 font-bold">Belum Ada</span>
+                                  )}
+                                </div>
+                                {hasStInCurrentView ? (
+                                  <p className="text-[11px] text-cyan-300/80 truncate mt-0.5" title={viewStFiles[0].name}>
+                                    📄 {viewStFiles[0].name}
+                                  </p>
+                                ) : (
+                                  <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                                    Belum ada Surat Perintah Tugas di penugasan ini
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              {hasStInCurrentView ? (
+                                <button
+                                  onClick={() => { playHaptic('click'); handleFileSelect(viewStFiles[0]); }}
+                                  className="px-2.5 py-1 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-400 text-xs font-medium flex items-center gap-1 transition-colors"
+                                  title="Preview Surat Tugas"
+                                >
+                                  <Eye size={12} /> Buka ST
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    playHaptic('click');
+                                    setIsUploadModalOpen(true);
+                                    if (currentFolder) setUploadDestinationId(currentFolder);
+                                  }}
+                                  className="px-2.5 py-1 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 text-xs font-semibold flex items-center gap-1 transition-colors"
+                                  title="Unggah Surat Tugas sekarang"
+                                >
+                                  <Upload size={12} /> Unggah ST
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* SLOT 2: LAPORAN HASIL PENGAWASAN (LHP) */}
+                        <div className={`p-3.5 rounded-xl border transition-all ${
+                          hasLhpInCurrentView
+                            ? 'bg-emerald-500/[0.04] border-emerald-500/30'
+                            : 'bg-rose-500/[0.03] border-rose-500/20 border-dashed'
+                        }`}>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                                hasLhpInCurrentView ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 text-rose-400'
+                              }`}>
+                                <FileCheck size={16} />
+                              </div>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-xs font-bold text-[var(--text-main)]">2. Laporan Hasil (LHP)</span>
+                                  {hasLhpInCurrentView ? (
+                                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 font-bold">Terpenuhi</span>
+                                  ) : (
+                                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-400 font-bold">Belum Ada</span>
+                                  )}
+                                </div>
+                                {hasLhpInCurrentView ? (
+                                  <p className="text-[11px] text-emerald-300/80 truncate mt-0.5" title={viewLhpFiles[0].name}>
+                                    📑 {viewLhpFiles[0].name}
+                                  </p>
+                                ) : (
+                                  <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                                    Belum ada LHP final bertandatangan di penugasan ini
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              {hasLhpInCurrentView ? (
+                                <button
+                                  onClick={() => { playHaptic('click'); handleFileSelect(viewLhpFiles[0]); }}
+                                  className="px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 text-xs font-medium flex items-center gap-1 transition-colors"
+                                  title="Preview Laporan Hasil Pengawasan"
+                                >
+                                  <Eye size={12} /> Buka LHP
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    playHaptic('click');
+                                    setIsUploadModalOpen(true);
+                                    if (currentFolder) setUploadDestinationId(currentFolder);
+                                  }}
+                                  className="px-2.5 py-1 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 text-xs font-semibold flex items-center gap-1 transition-colors"
+                                  title="Unggah LHP sekarang"
+                                >
+                                  <Upload size={12} /> Unggah LHP
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+
 
                   {/* BANNER OPD AKTIF */}
                   {selectedOpdFilter !== 'all' && (() => {
@@ -3186,6 +3597,52 @@ export default function Dashboard() {
                       title="Atur OPD Binaan Irban 3 atau Tambah OPD Baru"
                     >
                       <Sliders size={12} /> Atur OPD
+                    </button>
+                  </div>
+
+                  {/* QUICK CHECKLIST (LHP & ST) FILTER CHIP BAR */}
+                  <div className="flex items-center gap-2 overflow-x-auto pb-2 mb-3 scrollbar-none">
+                    <span className="text-xs text-[var(--text-muted)] flex items-center gap-1.5 flex-shrink-0 font-medium">
+                      <ClipboardCheck size={13} className="text-emerald-400" /> Dokumen Wajib:
+                    </span>
+                    <button
+                      onClick={() => { playHaptic('click'); setSelectedDocRoleFilter('all'); }}
+                      className={`px-3 py-1 rounded-full text-xs font-medium transition-all whitespace-nowrap border ${
+                        selectedDocRoleFilter === 'all'
+                          ? 'bg-[var(--accent)] text-[var(--accent-fg)] border-[var(--accent)] shadow-sm'
+                          : 'bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-[var(--text-main)] border-[var(--border-line)]'
+                      }`}
+                    >
+                      Semua Dokumen
+                    </button>
+                    <button
+                      onClick={() => { playHaptic('click'); setSelectedDocRoleFilter(selectedDocRoleFilter === 'LHP' ? 'all' : 'LHP'); }}
+                      className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all whitespace-nowrap border ${
+                        selectedDocRoleFilter === 'LHP'
+                          ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40 ring-2 ring-emerald-500/20 font-bold shadow-sm'
+                          : 'bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-emerald-400 border-[var(--border-line)]'
+                      }`}
+                    >
+                      <FileCheck size={12} className="text-emerald-400" />
+                      <span>📑 Hanya LHP</span>
+                    </button>
+                    <button
+                      onClick={() => { playHaptic('click'); setSelectedDocRoleFilter(selectedDocRoleFilter === 'ST' ? 'all' : 'ST'); }}
+                      className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all whitespace-nowrap border ${
+                        selectedDocRoleFilter === 'ST'
+                          ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/40 ring-2 ring-cyan-500/20 font-bold shadow-sm'
+                          : 'bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-cyan-400 border-[var(--border-line)]'
+                      }`}
+                    >
+                      <ClipboardCheck size={12} className="text-cyan-400" />
+                      <span>📜 Hanya Surat Tugas (ST)</span>
+                    </button>
+                    <button
+                      onClick={() => { playHaptic('click'); setIsChecklistModalOpen(true); fetchGlobalChecklist(); }}
+                      className="text-[11px] text-[var(--text-muted)] hover:text-emerald-400 flex items-center gap-1 px-2 whitespace-nowrap transition-colors font-medium ml-auto"
+                      title="Buka Matriks Rekapitulasi Kelengkapan LHP & ST"
+                    >
+                      <CheckSquare size={12} /> Buka Matriks Lengkap
                     </button>
                   </div>
 
@@ -3324,6 +3781,32 @@ export default function Dashboard() {
                                 <Star size={14} className={favorites.has(file.id) ? 'fill-amber-500 text-amber-500' : ''} />
                               </button>
                               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                {!file.mimeType.includes('folder') && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const current = detectFileRole(file);
+                                      const next = current === 'LHP' ? 'ST' : current === 'ST' ? 'none' : 'LHP';
+                                      handleSetFileRole(file.id, next);
+                                    }}
+                                    title={
+                                      detectFileRole(file) === 'LHP' 
+                                        ? "Peran: LHP (Klik untuk ubah ke ST)" 
+                                        : detectFileRole(file) === 'ST' 
+                                          ? "Peran: Surat Tugas (Klik untuk hapus)" 
+                                          : "Tandai sebagai LHP / Surat Tugas (ST)"
+                                    }
+                                    className={`p-2 rounded-lg transition-all ${
+                                      detectFileRole(file) === 'LHP'
+                                        ? 'text-emerald-400 bg-emerald-500/15 ring-1 ring-emerald-500/30'
+                                        : detectFileRole(file) === 'ST'
+                                          ? 'text-cyan-400 bg-cyan-500/15 ring-1 ring-cyan-500/30'
+                                          : 'hover:bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-emerald-400'
+                                    }`}
+                                  >
+                                    <BadgeCheck size={14} />
+                                  </button>
+                                )}
                                 <button onClick={(e) => { e.stopPropagation(); openTagModal(file); }} title="Kelola Label" className="p-2 rounded-lg hover:bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-[var(--accent)] transition-all">
                                   <Tag size={14}/>
                                 </button>
@@ -3344,9 +3827,24 @@ export default function Dashboard() {
                           </div>
 
                           <h4 title={file.name} className="text-xs sm:text-sm leading-tight sm:leading-normal font-medium text-[var(--text-main)] line-clamp-3 sm:truncate group-hover:text-[var(--accent)] transition-colors">{file.name}</h4>
-                          <p className="text-[10px] sm:text-[11px] text-[var(--text-muted)] mt-1 sm:mt-1.5">
-                            {file.mimeType.includes('folder') ? 'Folder' : 'Dokumen'}
-                          </p>
+                          <div className="flex items-center gap-2 mt-1 sm:mt-1.5 flex-wrap">
+                            <p className="text-[10px] sm:text-[11px] text-[var(--text-muted)]">
+                              {file.mimeType.includes('folder') ? 'Folder' : 'Dokumen'}
+                            </p>
+                            {!file.mimeType.includes('folder') && (() => {
+                              const role = detectFileRole(file);
+                              if (role === 'none') return null;
+                              return role === 'LHP' ? (
+                                <span className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.2 rounded font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                                  <FileCheck size={10} /> 📑 LHP
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.2 rounded font-bold bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">
+                                  <ClipboardCheck size={10} /> 📜 Surat Tugas
+                                </span>
+                              );
+                            })()}
+                          </div>
 
                           {/* Tag Badges */}
                           {getFileTags(file).length > 0 && (
@@ -3397,7 +3895,22 @@ export default function Dashboard() {
                               <div className={`p-1.5 rounded-lg flex-shrink-0 ${file.mimeType.includes('folder') ? 'text-[var(--accent)] bg-[var(--accent)]/10' : 'text-[var(--text-muted)] bg-[var(--hover-fill)]'}`}>
                                 {file.mimeType.includes('folder') ? <Folder size={16}/> : <FileText size={16}/>}
                               </div>
-                              <span title={file.name} className="text-xs sm:text-sm text-[var(--text-main)] group-hover:text-[var(--accent)] line-clamp-2 sm:truncate transition-colors leading-tight sm:leading-normal">{file.name}</span>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span title={file.name} className="text-xs sm:text-sm text-[var(--text-main)] group-hover:text-[var(--accent)] line-clamp-2 sm:truncate transition-colors leading-tight sm:leading-normal">{file.name}</span>
+                                {!file.mimeType.includes('folder') && (() => {
+                                  const role = detectFileRole(file);
+                                  if (role === 'none') return null;
+                                  return role === 'LHP' ? (
+                                    <span className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.2 rounded font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                                      <FileCheck size={10} /> 📑 LHP
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.2 rounded font-bold bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">
+                                      <ClipboardCheck size={10} /> 📜 Surat Tugas
+                                    </span>
+                                  );
+                                })()}
+                              </div>
                             </div>
                             {/* Tags in list row */}
                             {getFileTags(file).length > 0 && (
@@ -3439,6 +3952,32 @@ export default function Dashboard() {
                             >
                               <Star size={14} className={favorites.has(file.id) ? 'fill-amber-500 text-amber-500' : ''}/>
                             </button>
+                            {!file.mimeType.includes('folder') && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const current = detectFileRole(file);
+                                  const next = current === 'LHP' ? 'ST' : current === 'ST' ? 'none' : 'LHP';
+                                  handleSetFileRole(file.id, next);
+                                }}
+                                title={
+                                  detectFileRole(file) === 'LHP' 
+                                    ? "Peran: LHP (Klik untuk ganti ke ST)" 
+                                    : detectFileRole(file) === 'ST' 
+                                      ? "Peran: Surat Tugas (Klik untuk hapus)" 
+                                      : "Tandai sebagai LHP / Surat Tugas (ST)"
+                                }
+                                className={`p-1.5 rounded-md transition-all ${
+                                  detectFileRole(file) === 'LHP'
+                                    ? 'text-emerald-400 bg-emerald-500/15'
+                                    : detectFileRole(file) === 'ST'
+                                      ? 'text-cyan-400 bg-cyan-500/15'
+                                      : 'text-[var(--text-muted)] hover:text-emerald-400 hover:bg-[var(--hover-fill)]'
+                                }`}
+                              >
+                                <BadgeCheck size={14}/>
+                              </button>
+                            )}
                             <button onClick={(e) => { e.stopPropagation(); openTagModal(file); }} title="Kelola Label" className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--hover-fill)] transition-all">
                               <Tag size={14}/>
                             </button>
@@ -3988,6 +4527,61 @@ export default function Dashboard() {
                   )}
                   <button onClick={() => { addOnlineLog("DOWNLOAD", selectedFile.name); window.open(`https://drive.google.com/uc?export=download&id=${selectedFile.id}`, '_blank'); }} className="p-2.5 bg-[var(--accent)] rounded-xl text-slate-950 hover:bg-amber-400 transition-colors"><Download size={18}/></button>
                   <button onClick={() => { setSelectedFile(null); setPreviewLoading(true); setIsFocusMode(false); }} className="p-2.5 bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-[var(--text-main)] rounded-xl transition-all"><X size={18}/></button>
+                </div>
+              </div>
+
+              {/* PREVIEW ROLE BAR (LHP & ST) */}
+              <div className="px-6 py-2 bg-gradient-to-r from-[var(--bg-panel)] via-[var(--hover-fill)] to-[var(--bg-panel)] border-b border-[var(--border-line)] flex items-center justify-between flex-wrap gap-2 text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="text-[var(--text-muted)] font-medium flex items-center gap-1.5">
+                    <ClipboardCheck size={14} className="text-emerald-400" /> Peran Berkas:
+                  </span>
+                  {(() => {
+                    const role = detectFileRole(selectedFile);
+                    if (role === 'LHP') {
+                      return (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold text-xs">
+                          <FileCheck size={12} /> 📑 Laporan Hasil Pengawasan (LHP)
+                        </span>
+                      );
+                    }
+                    if (role === 'ST') {
+                      return (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 font-bold text-xs">
+                          <ClipboardCheck size={12} /> 📜 Surat Tugas (ST / SPT)
+                        </span>
+                      );
+                    }
+                    return (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-500/15 text-slate-400 border border-slate-500/20 text-xs">
+                        Berkas Pendukung / Belum Diklasifikasikan
+                      </span>
+                    );
+                  })()}
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-[var(--text-muted)] hidden sm:inline">Tetapkan:</span>
+                  <button
+                    onClick={() => handleSetFileRole(selectedFile.id, detectFileRole(selectedFile) === 'LHP' ? 'none' : 'LHP')}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all ${
+                      detectFileRole(selectedFile) === 'LHP'
+                        ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                        : 'bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-emerald-400 hover:bg-emerald-500/10 border border-[var(--border-line)]'
+                    }`}
+                  >
+                    <FileCheck size={12} /> LHP
+                  </button>
+                  <button
+                    onClick={() => handleSetFileRole(selectedFile.id, detectFileRole(selectedFile) === 'ST' ? 'none' : 'ST')}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all ${
+                      detectFileRole(selectedFile) === 'ST'
+                        ? 'bg-cyan-500 text-slate-950 shadow-sm'
+                        : 'bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-cyan-400 hover:bg-cyan-500/10 border border-[var(--border-line)]'
+                    }`}
+                  >
+                    <ClipboardCheck size={12} /> Surat Tugas
+                  </button>
                 </div>
               </div>
               
@@ -6284,6 +6878,356 @@ export default function Dashboard() {
             </div>
           )}
         </AnimatePresence>
+
+        {/* MODAL MATRIKS KELENGKAPAN BERKAS (LHP & ST) IRBAN 3 */}
+        <AnimatePresence>
+          {isChecklistModalOpen && (
+            <div className="fixed inset-0 z-[270] flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-md">
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0, y: 15 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.95, opacity: 0, y: 15 }}
+                className="bg-[var(--bg-panel)] rounded-2xl w-full max-w-5xl border border-[var(--border-line)] shadow-2xl relative flex flex-col max-h-[92vh] overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Header Modal */}
+                <div className="p-5 sm:p-6 border-b border-[var(--border-line)] flex items-start justify-between bg-gradient-to-r from-[var(--hover-fill)]/50 via-transparent to-[var(--hover-fill)]/30">
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center font-bold flex-shrink-0 shadow-md">
+                      <ClipboardCheck size={24} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="text-base sm:text-lg font-bold text-[var(--text-main)]">
+                          Matriks Kelengkapan Dokumen Pengawasan (LHP & ST)
+                        </h3>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 font-bold border border-emerald-500/30">
+                          Khusus Irban 3
+                        </span>
+                      </div>
+                      <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                        Pemantauan kepatuhan pengarsipan berkas wajib penugasan pengawasan: Surat Tugas (ST) dan Laporan Hasil Pengawasan (LHP)
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => { playHaptic('pop'); fetchGlobalChecklist(); }}
+                      disabled={checklistLoading}
+                      title="Segarkan Data Matriks"
+                      className="p-2 rounded-xl text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--hover-fill)] transition-colors border border-[var(--border-line)] disabled:opacity-50"
+                    >
+                      <RotateCw size={16} className={checklistLoading ? 'animate-spin text-emerald-400' : ''} />
+                    </button>
+                    <button
+                      onClick={() => { playHaptic('click'); setIsChecklistModalOpen(false); }}
+                      className="p-2 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--hover-fill)] transition-colors border border-[var(--border-line)]"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Content Modal (Scrollable) */}
+                <div className="p-5 sm:p-6 space-y-5 overflow-y-auto custom-scrollbar flex-1">
+                  {/* KPI Ringkasan Status */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="p-3.5 rounded-xl bg-[var(--hover-fill)] border border-[var(--border-line)]">
+                      <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-semibold">Total Folder Penugasan</p>
+                      <p className="text-xl font-black text-[var(--text-main)] mt-1">
+                        {checklistGlobalData?.summary?.totalFolders ?? allFolders.length}
+                      </p>
+                      <p className="text-[10px] text-[var(--text-muted)] mt-0.5">Wilayah & Penugasan</p>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-emerald-500/[0.06] border border-emerald-500/30">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[10px] text-emerald-400 uppercase tracking-wider font-bold">2/2 Lengkap (ST + LHP)</p>
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-bold">
+                          {checklistGlobalData?.summary?.completenessRate ?? 0}%
+                        </span>
+                      </div>
+                      <p className="text-xl font-black text-emerald-400 mt-1">
+                        {checklistGlobalData?.summary?.completeCount ?? 0}
+                      </p>
+                      <p className="text-[10px] text-emerald-400/70 mt-0.5">Memenuhi standar arsip</p>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-cyan-500/[0.06] border border-cyan-500/30">
+                      <p className="text-[10px] text-cyan-400 uppercase tracking-wider font-bold">Kurang ST (Surat Tugas)</p>
+                      <p className="text-xl font-black text-cyan-400 mt-1">
+                        {checklistGlobalData?.summary?.missingStCount ?? 0}
+                      </p>
+                      <p className="text-[10px] text-cyan-400/70 mt-0.5">Hanya memiliki LHP</p>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-amber-500/[0.06] border border-amber-500/30">
+                      <p className="text-[10px] text-amber-400 uppercase tracking-wider font-bold">Kurang LHP (Laporan)</p>
+                      <p className="text-xl font-black text-amber-400 mt-1">
+                        {checklistGlobalData?.summary?.missingLhpCount ?? 0}
+                      </p>
+                      <p className="text-[10px] text-amber-400/70 mt-0.5">Hanya memiliki ST</p>
+                    </div>
+                  </div>
+
+                  {/* Filter Tabs & Search Bar */}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">
+                    {/* Tabs Status */}
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                      {[
+                        { id: 'all', label: 'Semua', count: checklistGlobalData?.summary?.totalFolders ?? 0 },
+                        { id: 'complete', label: '🟢 Lengkap (2/2)', count: checklistGlobalData?.summary?.completeCount ?? 0 },
+                        { id: 'missing_st', label: '🟡 Kurang ST', count: checklistGlobalData?.summary?.missingStCount ?? 0 },
+                        { id: 'missing_lhp', label: '🟡 Kurang LHP', count: checklistGlobalData?.summary?.missingLhpCount ?? 0 },
+                        { id: 'empty', label: '🔴 Kosong (0/2)', count: checklistGlobalData?.summary?.emptyCount ?? 0 },
+                      ].map(tab => (
+                        <button
+                          key={tab.id}
+                          onClick={() => { playHaptic('click'); setChecklistTabFilter(tab.id as any); }}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all border ${
+                            checklistTabFilter === tab.id
+                              ? 'bg-[var(--accent)] text-slate-950 border-[var(--accent)] shadow-sm'
+                              : 'bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-[var(--text-main)] border-[var(--border-line)]'
+                          }`}
+                        >
+                          {tab.label} ({tab.count})
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Search Input */}
+                    <div className="relative min-w-[200px] sm:min-w-[260px]">
+                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+                      <input
+                        type="text"
+                        value={checklistSearchQuery}
+                        onChange={(e) => setChecklistSearchQuery(e.target.value)}
+                        placeholder="Cari folder / nama OPD..."
+                        className="w-full pl-9 pr-8 py-2 rounded-xl bg-[var(--hover-fill)] border border-[var(--border-line)] text-xs text-[var(--text-main)] outline-none focus:border-[var(--accent)] placeholder:text-[var(--text-muted)]"
+                      />
+                      {checklistSearchQuery && (
+                        <button
+                          onClick={() => setChecklistSearchQuery('')}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-main)]"
+                        >
+                          <X size={13} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* TABEL MATRIKS KELENGKAPAN */}
+                  <div className="rounded-xl border border-[var(--border-line)] overflow-hidden bg-[var(--hover-fill)]/40">
+                    {checklistLoading ? (
+                      <div className="p-12 text-center">
+                        <Loader2 size={32} className="animate-spin text-emerald-400 mx-auto mb-3" />
+                        <p className="text-xs text-[var(--text-muted)] font-medium">Memindai kelengkapan berkas LHP & ST di Google Drive...</p>
+                      </div>
+                    ) : (() => {
+                      const list = (checklistGlobalData?.checklists || []).filter((item: any) => {
+                        // Filter Tab
+                        if (checklistTabFilter !== 'all' && item.status !== checklistTabFilter) return false;
+                        // Filter Search
+                        if (checklistSearchQuery.trim()) {
+                          const q = checklistSearchQuery.toLowerCase();
+                          const inName = (item.name || '').toLowerCase().includes(q);
+                          const inSt = item.stFiles && item.stFiles.some((f: any) => (f.name || '').toLowerCase().includes(q));
+                          const inLhp = item.lhpFiles && item.lhpFiles.some((f: any) => (f.name || '').toLowerCase().includes(q));
+                          return inName || inSt || inLhp;
+                        }
+                        return true;
+                      });
+
+                      if (list.length === 0) {
+                        return (
+                          <div className="p-10 text-center">
+                            <ClipboardCheck size={36} className="text-slate-600 mx-auto mb-2" />
+                            <p className="text-xs text-[var(--text-muted)]">Tidak ada data penugasan yang sesuai dengan filter.</p>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left border-collapse text-xs">
+                            <thead>
+                              <tr className="border-b border-[var(--border-line)] bg-[var(--hover-fill)] text-[var(--text-muted)] font-semibold uppercase tracking-wider text-[10px]">
+                                <th className="p-3 w-12 text-center">No</th>
+                                <th className="p-3 min-w-[180px]">Folder Penugasan / OPD</th>
+                                <th className="p-3 min-w-[200px]">Surat Tugas (ST / SPT)</th>
+                                <th className="p-3 min-w-[200px]">Laporan Hasil (LHP)</th>
+                                <th className="p-3 w-32 text-center">Kelengkapan</th>
+                                <th className="p-3 w-28 text-right">Aksi</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-[var(--border-line)]">
+                              {list.map((item: any, idx: number) => {
+                                const hasSt = item.hasSt;
+                                const hasLhp = item.hasLhp;
+                                const stFile = item.stFiles && item.stFiles.length > 0 ? item.stFiles[0] : null;
+                                const lhpFile = item.lhpFiles && item.lhpFiles.length > 0 ? item.lhpFiles[0] : null;
+
+                                return (
+                                  <tr key={item.id || idx} className="hover:bg-[var(--hover-fill)]/70 transition-colors">
+                                    <td className="p-3 text-center text-[var(--text-muted)] font-mono text-[11px]">
+                                      {idx + 1}
+                                    </td>
+                                    <td className="p-3 font-semibold text-[var(--text-main)]">
+                                      <div className="flex items-center gap-2">
+                                        <Folder size={14} className="text-[var(--accent)] flex-shrink-0" />
+                                        <span className="truncate max-w-[220px]" title={item.name}>
+                                          {item.name}
+                                        </span>
+                                      </div>
+                                      <p className="text-[10px] text-[var(--text-muted)] mt-0.5 pl-5">
+                                        Total {item.totalDocs || 0} berkas terdaftar
+                                      </p>
+                                    </td>
+                                    {/* Surat Tugas Column */}
+                                    <td className="p-3">
+                                      {hasSt ? (
+                                        <div className="space-y-1">
+                                          <div className="flex items-center gap-1.5 text-cyan-400 font-semibold">
+                                            <CheckCircle2 size={13} className="flex-shrink-0" />
+                                            <span className="truncate max-w-[180px]" title={stFile?.name}>
+                                              {stFile?.name}
+                                            </span>
+                                          </div>
+                                          {stFile && (
+                                            <button
+                                              onClick={() => {
+                                                handleFileSelect(stFile);
+                                                setIsChecklistModalOpen(false);
+                                              }}
+                                              className="text-[10px] text-cyan-400/80 hover:text-cyan-300 hover:underline flex items-center gap-1"
+                                            >
+                                              <Eye size={11} /> Buka Berkas ST
+                                            </button>
+                                          )}
+                                        </div>
+                                      ) : (
+                                        <div className="flex items-center gap-1.5 text-rose-400/90 font-medium">
+                                          <AlertCircle size={13} className="flex-shrink-0 text-rose-500" />
+                                          <span>Belum Ada ST</span>
+                                        </div>
+                                      )}
+                                    </td>
+                                    {/* LHP Column */}
+                                    <td className="p-3">
+                                      {hasLhp ? (
+                                        <div className="space-y-1">
+                                          <div className="flex items-center gap-1.5 text-emerald-400 font-semibold">
+                                            <CheckCircle2 size={13} className="flex-shrink-0" />
+                                            <span className="truncate max-w-[180px]" title={lhpFile?.name}>
+                                              {lhpFile?.name}
+                                            </span>
+                                          </div>
+                                          {lhpFile && (
+                                            <button
+                                              onClick={() => {
+                                                handleFileSelect(lhpFile);
+                                                setIsChecklistModalOpen(false);
+                                              }}
+                                              className="text-[10px] text-emerald-400/80 hover:text-emerald-300 hover:underline flex items-center gap-1"
+                                            >
+                                              <Eye size={11} /> Buka LHP
+                                            </button>
+                                          )}
+                                        </div>
+                                      ) : (
+                                        <div className="flex items-center gap-1.5 text-rose-400/90 font-medium">
+                                          <AlertCircle size={13} className="flex-shrink-0 text-rose-500" />
+                                          <span>Belum Ada LHP</span>
+                                        </div>
+                                      )}
+                                    </td>
+                                    {/* Skor / Badge Kelengkapan */}
+                                    <td className="p-3 text-center">
+                                      <div className="flex flex-col items-center gap-1">
+                                        <span className={`inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full font-bold border ${
+                                          item.status === 'complete'
+                                            ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                                            : item.status === 'empty'
+                                              ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                                              : 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                                        }`}>
+                                          {item.status === 'complete' ? 'Lengkap (2/2)' : item.status === 'missing_st' ? 'Kurang ST' : item.status === 'missing_lhp' ? 'Kurang LHP' : 'Kosong (0/2)'}
+                                        </span>
+                                        {/* Progress bar */}
+                                        <div className="w-16 bg-slate-700/40 h-1.5 rounded-full overflow-hidden">
+                                          <div
+                                            className={`h-full rounded-full ${
+                                              item.status === 'complete' ? 'bg-emerald-400' : item.status === 'empty' ? 'bg-rose-500' : 'bg-amber-400'
+                                            }`}
+                                            style={{ width: `${item.completenessScore}%` }}
+                                          />
+                                        </div>
+                                      </div>
+                                    </td>
+                                    {/* Action Column */}
+                                    <td className="p-3 text-right">
+                                      {item.id !== 'root' ? (
+                                        <button
+                                          onClick={() => {
+                                            playHaptic('click');
+                                            navigateToFolder(item.id, item.name);
+                                            setIsChecklistModalOpen(false);
+                                          }}
+                                          className="px-2.5 py-1 rounded-lg bg-[var(--hover-fill)] hover:bg-[var(--accent)] hover:text-slate-950 text-[var(--text-main)] border border-[var(--border-line)] text-xs font-medium inline-flex items-center gap-1 transition-all"
+                                          title={`Buka folder ${item.name}`}
+                                        >
+                                          <Folder size={12} /> Buka
+                                        </button>
+                                      ) : (
+                                        <span className="text-[10px] text-[var(--text-muted)] italic">Root Drive</span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                {/* Footer Modal */}
+                <div className="p-4 sm:p-5 border-t border-[var(--border-line)] bg-[var(--hover-fill)]/40 flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      onClick={handleExportChecklistCsv}
+                      disabled={checklistLoading || !checklistGlobalData?.checklists}
+                      className="px-3.5 py-2 rounded-xl bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-400 border border-emerald-500/30 text-xs font-semibold flex items-center gap-1.5 transition-all disabled:opacity-50"
+                      title="Unduh seluruh rekapitulasi kelengkapan LHP & ST dalam format CSV / Excel"
+                    >
+                      <Download size={14} /> Ekspor Checklist (CSV/Excel)
+                    </button>
+                    <button
+                      onClick={() => {
+                        playHaptic('click');
+                        if (typeof window !== 'undefined') window.print();
+                      }}
+                      className="px-3.5 py-2 rounded-xl bg-[var(--hover-fill)] hover:bg-white/10 text-[var(--text-muted)] hover:text-[var(--text-main)] border border-[var(--border-line)] text-xs font-semibold flex items-center gap-1.5 transition-all"
+                      title="Cetak lembar rekapitulasi matriks kelengkapan"
+                    >
+                      <Printer size={14} /> Cetak Matriks
+                    </button>
+                  </div>
+
+                  <button
+                    onClick={() => { playHaptic('click'); setIsChecklistModalOpen(false); }}
+                    className="px-5 py-2 rounded-xl bg-[var(--accent)] text-[var(--accent-fg)] text-xs font-semibold hover:opacity-90 transition-all shadow-md w-full sm:w-auto"
+                  >
+                    Tutup
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
 
         {/* GLOSSARY COPY TOAST */}
         <AnimatePresence>
