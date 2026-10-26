@@ -3051,7 +3051,7 @@ export default function Dashboard() {
         <main className="flex-1 flex flex-col min-w-0 relative">
           
           {/* HEADER */}
-          <header className={`${isFocusMode ? 'hidden' : ''} px-6 lg:px-8 py-4 border-b border-[var(--border-line)] flex items-center justify-between gap-4 bg-[var(--bg-panel)]/30 backdrop-blur-sm`}>
+          <header className={`${isFocusMode ? 'hidden' : ''} px-6 lg:px-8 py-4 border-b border-[var(--border-line)] flex items-center justify-between gap-4 bg-[var(--bg-panel)] shadow-sm z-30`}>
             <div className="flex items-center gap-3 min-w-0">
               <AnimatePresence>
                 {folderHistory.length > 0 && (
@@ -3090,7 +3090,7 @@ export default function Dashboard() {
                 readOnly
                 value={searchTerm}
                 placeholder="Cari dokumen... (Ctrl+K)"
-                className="w-full bg-white/[0.04] border border-[var(--border-line)] rounded-xl py-2.5 pl-10 pr-4 text-sm text-[var(--text-main)] cursor-pointer hover:bg-[var(--hover-fill)] transition-all outline-none placeholder:text-slate-600"
+                className="w-full bg-[var(--hover-fill)] border border-[var(--border-line)] hover:border-[var(--border-strong)] rounded-xl py-2.5 pl-10 pr-4 text-sm text-[var(--text-main)] cursor-pointer transition-all outline-none placeholder:text-[var(--text-muted)]"
               />
               {searchTerm && (
                 <button onClick={(e) => { e.stopPropagation(); setSearchTerm(''); setSearchResults([]); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-main)]">
@@ -3106,7 +3106,7 @@ export default function Dashboard() {
                 className={`flex items-center gap-2 px-3 sm:px-3.5 py-2.5 rounded-xl border text-xs sm:text-sm font-semibold transition-all shadow-sm ${
                   selectedOpdFilter !== 'all'
                     ? 'bg-[var(--accent)] text-[var(--accent-fg)] border-[var(--accent)] ring-2 ring-[var(--accent)]/30'
-                    : 'bg-white/[0.04] hover:bg-[var(--hover-fill)] text-[var(--text-main)] border-[var(--border-line)] hover:border-[var(--border-strong)]'
+                    : 'bg-[var(--hover-fill)] hover:bg-[var(--hover-fill)]/80 text-[var(--text-main)] border-[var(--border-line)] hover:border-[var(--border-strong)]'
                 }`}
                 title="Filter Dokumen berdasarkan OPD Binaan Irban 3"
               >
@@ -3135,8 +3135,8 @@ export default function Dashboard() {
                     onClick={() => setIsOpdDropdownOpen(false)} 
                   />
                   <div 
-                    className="absolute right-0 sm:left-0 top-full mt-2 w-80 sm:w-96 rounded-2xl bg-[var(--surface-color)]/95 backdrop-blur-2xl border border-[var(--border-line)] shadow-2xl z-50 p-3 space-y-2.5 animate-in fade-in slide-in-from-top-2 duration-150"
-                    style={{ backdropFilter: 'blur(24px)' }}
+                    className="absolute right-0 sm:left-0 top-full mt-2 w-80 sm:w-96 rounded-2xl bg-[var(--bg-panel)] border border-[var(--border-strong)] shadow-2xl z-50 p-3 space-y-2.5 ring-1 ring-black/20 dark:ring-white/10 animate-in fade-in slide-in-from-top-2 duration-150"
+                    style={{ backgroundColor: 'var(--bg-panel)', opacity: 1 }}
                     onClick={(e) => e.stopPropagation()}
                   >
                     {/* Header */}
@@ -3965,13 +3965,15 @@ export default function Dashboard() {
                           </button>
                         );
                       })}
-                    <button
-                      onClick={() => { playHaptic('click'); setIsManageOpdModalOpen(true); }}
-                      className="text-[11px] text-[var(--text-muted)] hover:text-[var(--accent)] flex items-center gap-1 px-2 whitespace-nowrap transition-colors"
-                      title="Atur OPD Binaan Irban 3 atau Tambah OPD Baru"
-                    >
-                      <Sliders size={12} /> Atur OPD
-                    </button>
+                    {userRole === 'admin' && (
+                      <button
+                        onClick={() => { playHaptic('click'); setIsManageOpdModalOpen(true); }}
+                        className="text-[11px] text-[var(--text-muted)] hover:text-[var(--accent)] flex items-center gap-1 px-2 whitespace-nowrap transition-colors"
+                        title="Atur OPD Binaan Irban 3 atau Tambah OPD Baru"
+                      >
+                        <Sliders size={12} /> Atur OPD
+                      </button>
+                    )}
                   </div>
 
                   {/* QUICK CHECKLIST (LHP & ST) FILTER CHIP BAR */}
