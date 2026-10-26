@@ -947,9 +947,17 @@ export default function Dashboard() {
   };
 
   const handleClearLogs = async () => {
+    if (userRole !== 'admin') {
+      playHaptic('toggle');
+      setAdminNoticeModal('Hanya Administrator yang memiliki hak akses untuk membersihkan riwayat aktivitas.');
+      return;
+    }
     setClearLogsLoading(true);
     try {
-      const res = await fetch('/api/logs', { method: 'DELETE' });
+      const res = await fetch('/api/logs', { 
+        method: 'DELETE',
+        headers: { 'x-user-role': userRole || '' }
+      });
       if (res.ok) {
         setActivityLogs([]);
         try { localStorage.removeItem('archive_activity_logs_cache'); } catch {}
@@ -1092,12 +1100,22 @@ export default function Dashboard() {
   };
 
   const handleToggleOpdBinaan = (opdId: string) => {
+    if (userRole !== 'admin') {
+      playHaptic('toggle');
+      setAdminNoticeModal('Hanya Administrator yang memiliki hak akses untuk menandai atau mengubah OPD Binaan.');
+      return;
+    }
     playHaptic('click');
     const updated = opdList.map(o => o.id === opdId ? { ...o, isBinaanIrban3: !o.isBinaanIrban3 } : o);
     saveOpdList(updated);
   };
 
   const handleAddNewOpd = () => {
+    if (userRole !== 'admin') {
+      playHaptic('toggle');
+      setAdminNoticeModal('Hanya Administrator yang memiliki hak akses untuk menambahkan OPD baru.');
+      return;
+    }
     if (!newOpdForm.name.trim() || !newOpdForm.code.trim()) return;
     playHaptic('pop');
     const id = newOpdForm.code.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Date.now().toString().slice(-4);
@@ -1124,6 +1142,11 @@ export default function Dashboard() {
   };
 
   const handleDeleteCustomOpd = (opdId: string) => {
+    if (userRole !== 'admin') {
+      playHaptic('toggle');
+      setAdminNoticeModal('Hanya Administrator yang memiliki hak akses untuk menghapus OPD.');
+      return;
+    }
     playHaptic('click');
     const updated = opdList.filter(o => o.id !== opdId);
     saveOpdList(updated);
@@ -1131,6 +1154,11 @@ export default function Dashboard() {
   };
 
   const handleResetOpdToDefault = () => {
+    if (userRole !== 'admin') {
+      playHaptic('toggle');
+      setAdminNoticeModal('Hanya Administrator yang memiliki hak akses untuk mengatur ulang daftar OPD.');
+      return;
+    }
     playHaptic('pop');
     saveOpdList(DEFAULT_OPD_SULTRA);
   };
@@ -1236,6 +1264,11 @@ export default function Dashboard() {
   }, [manualDocRoles, getFileTags]);
 
   const handleSetFileRole = (fileId: string, role: 'LHP' | 'ST' | 'none') => {
+    if (userRole !== 'admin') {
+      playHaptic('toggle');
+      setAdminNoticeModal('Hanya Administrator yang memiliki hak akses untuk menentukan klasifikasi peran identitas dokumen.');
+      return;
+    }
     playHaptic('pop');
     const updated = { ...manualDocRoles, [fileId]: role };
     setManualDocRoles(updated);
@@ -1316,12 +1349,22 @@ export default function Dashboard() {
   };
 
   const openTagModal = (file: DriveFile) => {
+    if (userRole !== 'admin') {
+      playHaptic('toggle');
+      setAdminNoticeModal('Hanya Administrator yang memiliki hak akses untuk mengelola atau menentukan label dokumen.');
+      return;
+    }
     setTagModalFile(file);
     setCustomTagInput('');
     setIsTagModalOpen(true);
   };
 
   const handleSaveFileTags = async (fileId: string, fileName: string, newTags: string[]) => {
+    if (userRole !== 'admin') {
+      playHaptic('toggle');
+      setAdminNoticeModal('Hanya Administrator yang memiliki hak akses untuk mengubah label dokumen.');
+      return;
+    }
     setTagSaving(true);
     const sanitized = Array.from(new Set(newTags.map(t => t.trim()).filter(Boolean)));
     const updatedMap = { ...tagMap, [fileId]: sanitized };
@@ -1367,7 +1410,10 @@ export default function Dashboard() {
     try {
       const res = await fetch('/api/drive/tags', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-role': userRole || ''
+        },
         body: JSON.stringify({ fileId, tags: sanitized }),
       });
       if (res.ok) {
@@ -1822,6 +1868,11 @@ export default function Dashboard() {
   };
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (userRole !== 'admin') {
+      playHaptic('toggle');
+      setAdminNoticeModal('Hanya Administrator yang memiliki hak akses untuk mengunggah dokumen.');
+      return;
+    }
     const selectedFiles = e.target.files; if (!selectedFiles || selectedFiles.length === 0) return;
     setUploading(true); setUploadStatus('idle'); setUploadProgress(0); setUploadErrorMessage('');
     let success = 0;
@@ -1832,7 +1883,11 @@ export default function Dashboard() {
       formData.append('file', selectedFiles[i]);
       formData.append('parentId', uploadDestinationId || currentFolder || '');
       try {
-        const res = await fetch('/api/drive/upload', { method: 'POST', body: formData });
+        const res = await fetch('/api/drive/upload', { 
+          method: 'POST', 
+          headers: { 'x-user-role': userRole || '' },
+          body: formData 
+        });
         const data = await res.json();
         if (res.ok && data.success) {
           success++;
@@ -1876,12 +1931,20 @@ export default function Dashboard() {
 
   // Eksekusi Konfirmasi Hapus Berkas
   const handleConfirmDelete = async () => {
+    if (userRole !== 'admin') {
+      playHaptic('toggle');
+      setAdminNoticeModal('Hanya Administrator yang memiliki hak akses untuk menghapus dokumen dari arsip.');
+      return;
+    }
     if (!deleteModal || !deleteModal.fileId) return;
     const { fileId, fileName } = deleteModal;
     setDeleteModal(prev => prev ? { ...prev, isDeleting: true, error: null } : null);
 
     try {
-      const res = await fetch(`/api/drive?fileId=${fileId}`, { method: 'DELETE' });
+      const res = await fetch(`/api/drive?fileId=${fileId}`, { 
+        method: 'DELETE',
+        headers: { 'x-user-role': userRole || '' }
+      });
       const data = await res.json();
       if (res.ok && data.success) {
         addOnlineLog("DELETE", fileName);
@@ -2011,7 +2074,10 @@ export default function Dashboard() {
 
       const res = await fetch('/api/drive/move', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-role': userRole || ''
+        },
         body: JSON.stringify(payload),
       });
       const data = await res.json();
@@ -2069,7 +2135,10 @@ export default function Dashboard() {
     try {
       const res = await fetch('/api/drive/folder', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-role': userRole || ''
+        },
         body: JSON.stringify({
           name: name.trim(),
           parentId: targetParentId === 'root' ? '' : targetParentId,
@@ -2094,7 +2163,8 @@ export default function Dashboard() {
 
   const handleRename = async (fileId: string, oldName: string) => {
     if (userRole !== 'admin') {
-      alert('Hanya Administrator yang memiliki akses untuk mengubah nama berkas.');
+      playHaptic('toggle');
+      setAdminNoticeModal('Hanya Administrator yang memiliki hak akses untuk mengubah nama berkas.');
       return;
     }
     const newName = prompt("Nama Baru Berkas:", oldName);
@@ -2103,7 +2173,10 @@ export default function Dashboard() {
     try {
       const res = await fetch('/api/drive', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-role': userRole || ''
+        },
         body: JSON.stringify({ fileId, newName: newName.trim() })
       });
       const data = await res.json();
@@ -2124,7 +2197,8 @@ export default function Dashboard() {
 
   const handleDownloadLogs = () => {
     if (userRole !== 'admin') {
-      alert('Hanya Administrator yang memiliki akses untuk mengekspor data riwayat aktivitas.');
+      playHaptic('toggle');
+      setAdminNoticeModal('Hanya Administrator yang memiliki hak akses untuk mengekspor data riwayat aktivitas.');
       return;
     }
     const headers = ["ID", "Pengguna", "Perangkat", "IP Address", "Aksi", "Nama Dokumen / Keterangan", "Waktu (ISO)", "Waktu Lokal"];
@@ -2940,15 +3014,24 @@ export default function Dashboard() {
           {/* User & Logout */}
           <div className="px-3 lg:px-4 mt-auto">
             {!isPresentationMode && (
-            <div className="hidden lg:flex items-center gap-3 px-3 py-2.5 rounded-xl bg-[var(--hover-fill)] border border-[var(--border-line)] mb-2">
-              <div className="w-8 h-8 rounded-lg bg-[var(--accent)]/10 flex items-center justify-center text-[var(--accent)] text-xs font-bold flex-shrink-0">
-                {userName.charAt(0).toUpperCase()}
+              <div className="hidden lg:flex items-center gap-3 px-3 py-2.5 rounded-xl bg-[var(--hover-fill)] border border-[var(--border-line)] mb-2">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                  userRole === 'admin' 
+                    ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30 shadow-sm' 
+                    : 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/30'
+                }`}>
+                  {userName ? userName.charAt(0).toUpperCase() : 'U'}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium text-[var(--text-main)] truncate">{userName}</p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className={`inline-block w-1.5 h-1.5 rounded-full ${userRole === 'admin' ? 'bg-amber-400 animate-pulse' : 'bg-cyan-400'}`} />
+                    <span className={`text-[10px] font-bold tracking-wide uppercase ${userRole === 'admin' ? 'text-amber-400' : 'text-cyan-400'}`}>
+                      {userRole === 'admin' ? 'Administrator' : 'Pengguna / Tamu'}
+                    </span>
+                  </div>
+                </div>
               </div>
-              <div className="min-w-0">
-                <p className="text-xs font-medium text-[var(--text-main)] truncate">{userName}</p>
-                <p className="text-[10px] text-[var(--text-muted)] capitalize">{userRole}</p>
-              </div>
-            </div>
             )}
 
             <button 
@@ -3067,13 +3150,15 @@ export default function Dashboard() {
                           <p className="text-[10px] text-[var(--text-muted)]">Irban Wilayah III Prov. Sultra</p>
                         </div>
                       </div>
-                      <button
-                        onClick={() => { setIsOpdDropdownOpen(false); setIsManageOpdModalOpen(true); }}
-                        className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--hover-fill)] transition-colors"
-                        title="Atur Daftar OPD / Tambah OPD Baru"
-                      >
-                        <Settings size={14} />
-                      </button>
+                      {userRole === 'admin' && (
+                        <button
+                          onClick={() => { setIsOpdDropdownOpen(false); setIsManageOpdModalOpen(true); }}
+                          className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--hover-fill)] transition-colors"
+                          title="Atur Daftar OPD / Tambah OPD Baru"
+                        >
+                          <Settings size={14} />
+                        </button>
+                      )}
                     </div>
 
                     {/* Filter Tab & Search Input */}
@@ -3174,17 +3259,23 @@ export default function Dashboard() {
                               }`}
                             >
                               <div className="flex items-center gap-2 min-w-0 pr-2">
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleToggleOpdBinaan(opd.id);
-                                  }}
-                                  className="p-1 rounded hover:bg-white/10 text-slate-500 hover:text-amber-400 transition-colors flex-shrink-0"
-                                  title={opd.isBinaanIrban3 ? "Hapus dari Binaan Irban 3" : "Tandai sebagai Binaan Irban 3"}
-                                >
-                                  <Star size={13} className={opd.isBinaanIrban3 ? "fill-amber-400 text-amber-400" : ""} />
-                                </button>
+                                {userRole === 'admin' ? (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleToggleOpdBinaan(opd.id);
+                                    }}
+                                    className="p-1 rounded hover:bg-white/10 text-slate-500 hover:text-amber-400 transition-colors flex-shrink-0"
+                                    title={opd.isBinaanIrban3 ? "Hapus dari Binaan Irban 3" : "Tandai sebagai Binaan Irban 3"}
+                                  >
+                                    <Star size={13} className={opd.isBinaanIrban3 ? "fill-amber-400 text-amber-400" : ""} />
+                                  </button>
+                                ) : (
+                                  <div className="p-1 text-slate-500 flex-shrink-0" title={opd.isBinaanIrban3 ? "OPD Binaan Irban 3" : "Bukan Binaan"}>
+                                    <Star size={13} className={opd.isBinaanIrban3 ? "fill-amber-400 text-amber-400" : "opacity-30"} />
+                                  </div>
+                                )}
                                 <div className="min-w-0">
                                   <div className="flex items-center gap-1.5 flex-wrap">
                                     <span className="font-bold text-[var(--text-main)] truncate">{opd.code}</span>
@@ -3230,15 +3321,17 @@ export default function Dashboard() {
                       ) : (
                         <span className="text-[10px] text-slate-500">Klik bintang untuk prioritaskan OPD</span>
                       )}
-                      <button
-                        onClick={() => {
-                          setIsOpdDropdownOpen(false);
-                          setIsManageOpdModalOpen(true);
-                        }}
-                        className="text-[11px] text-[var(--accent)] hover:underline flex items-center gap-1 font-semibold ml-auto"
-                      >
-                        <Plus size={12} /> Tambah OPD
-                      </button>
+                      {userRole === 'admin' && (
+                        <button
+                          onClick={() => {
+                            setIsOpdDropdownOpen(false);
+                            setIsManageOpdModalOpen(true);
+                          }}
+                          className="text-[11px] text-[var(--accent)] hover:underline flex items-center gap-1 font-semibold ml-auto"
+                        >
+                          <Plus size={12} /> Tambah OPD
+                        </button>
+                      )}
                     </div>
                   </div>
                 </>
@@ -4155,41 +4248,41 @@ export default function Dashboard() {
                               </button>
                               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                 {!file.mimeType.includes('folder') && (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      const current = detectFileRole(file);
-                                      const next = current === 'LHP' ? 'ST' : current === 'ST' ? 'none' : 'LHP';
-                                      handleSetFileRole(file.id, next);
-                                    }}
-                                    title={
-                                      detectFileRole(file) === 'LHP' 
-                                        ? "Peran: LHP (Klik untuk ubah ke ST)" 
-                                        : detectFileRole(file) === 'ST' 
-                                          ? "Peran: Surat Tugas (Klik untuk hapus)" 
-                                          : "Tandai sebagai LHP / Surat Tugas (ST)"
-                                    }
-                                    className={`p-2 rounded-lg transition-all ${
-                                      detectFileRole(file) === 'LHP'
-                                        ? 'text-emerald-400 bg-emerald-500/15 ring-1 ring-emerald-500/30'
-                                        : detectFileRole(file) === 'ST'
-                                          ? 'text-cyan-400 bg-cyan-500/15 ring-1 ring-cyan-500/30'
-                                          : 'hover:bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-emerald-400'
-                                    }`}
-                                  >
-                                    <BadgeCheck size={14} />
-                                  </button>
-                                )}
-                                <button onClick={(e) => { e.stopPropagation(); openTagModal(file); }} title="Kelola Label" className="p-2 rounded-lg hover:bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-[var(--accent)] transition-all">
-                                  <Tag size={14}/>
-                                </button>
-                                {!file.mimeType.includes('folder') && (
                                   <button onClick={(e) => { e.stopPropagation(); addOnlineLog("DOWNLOAD", file.name); window.open(`https://drive.google.com/uc?export=download&id=${file.id}`, '_blank'); }} className="p-2 rounded-lg hover:bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-[var(--text-main)] transition-all">
                                     <Download size={14}/>
                                   </button>
                                 )}
                                 {userRole === 'admin' && (
                                   <>
+                                    {!file.mimeType.includes('folder') && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          const current = detectFileRole(file);
+                                          const next = current === 'LHP' ? 'ST' : current === 'ST' ? 'none' : 'LHP';
+                                          handleSetFileRole(file.id, next);
+                                        }}
+                                        title={
+                                          detectFileRole(file) === 'LHP' 
+                                            ? "Peran: LHP (Klik untuk ubah ke ST)" 
+                                            : detectFileRole(file) === 'ST' 
+                                              ? "Peran: Surat Tugas (Klik untuk hapus)" 
+                                              : "Tandai sebagai LHP / Surat Tugas (ST)"
+                                        }
+                                        className={`p-2 rounded-lg transition-all ${
+                                          detectFileRole(file) === 'LHP'
+                                            ? 'text-emerald-400 bg-emerald-500/15 ring-1 ring-emerald-500/30'
+                                            : detectFileRole(file) === 'ST'
+                                              ? 'text-cyan-400 bg-cyan-500/15 ring-1 ring-cyan-500/30'
+                                              : 'hover:bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-emerald-400'
+                                        }`}
+                                      >
+                                        <BadgeCheck size={14} />
+                                      </button>
+                                    )}
+                                    <button onClick={(e) => { e.stopPropagation(); openTagModal(file); }} title="Kelola Label" className="p-2 rounded-lg hover:bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-[var(--accent)] transition-all">
+                                      <Tag size={14}/>
+                                    </button>
                                     {!file.mimeType.includes('folder') && (
                                       <button onClick={(e) => { e.stopPropagation(); openMoveModal(file); }} title="Pindahkan Dokumen" className="p-2 rounded-lg hover:bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-amber-400 transition-all"><FolderInput size={14}/></button>
                                     )}
@@ -4388,39 +4481,39 @@ export default function Dashboard() {
                               <Star size={14} className={favorites.has(file.id) ? 'fill-amber-500 text-amber-500' : ''}/>
                             </button>
                             {!file.mimeType.includes('folder') && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const current = detectFileRole(file);
-                                  const next = current === 'LHP' ? 'ST' : current === 'ST' ? 'none' : 'LHP';
-                                  handleSetFileRole(file.id, next);
-                                }}
-                                title={
-                                  detectFileRole(file) === 'LHP' 
-                                    ? "Peran: LHP (Klik untuk ganti ke ST)" 
-                                    : detectFileRole(file) === 'ST' 
-                                      ? "Peran: Surat Tugas (Klik untuk hapus)" 
-                                      : "Tandai sebagai LHP / Surat Tugas (ST)"
-                                }
-                                className={`p-1.5 rounded-md transition-all ${
-                                  detectFileRole(file) === 'LHP'
-                                    ? 'text-emerald-400 bg-emerald-500/15'
-                                    : detectFileRole(file) === 'ST'
-                                      ? 'text-cyan-400 bg-cyan-500/15'
-                                      : 'text-[var(--text-muted)] hover:text-emerald-400 hover:bg-[var(--hover-fill)]'
-                                }`}
-                              >
-                                <BadgeCheck size={14}/>
-                              </button>
-                            )}
-                            <button onClick={(e) => { e.stopPropagation(); openTagModal(file); }} title="Kelola Label" className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--hover-fill)] transition-all">
-                              <Tag size={14}/>
-                            </button>
-                            {!file.mimeType.includes('folder') && (
                               <button onClick={(e) => { e.stopPropagation(); addOnlineLog("DOWNLOAD", file.name); window.open(`https://drive.google.com/uc?export=download&id=${file.id}`, '_blank'); }} className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--hover-fill)] transition-all"><Download size={14}/></button>
                             )}
                             {userRole === 'admin' && (
                               <>
+                                {!file.mimeType.includes('folder') && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const current = detectFileRole(file);
+                                      const next = current === 'LHP' ? 'ST' : current === 'ST' ? 'none' : 'LHP';
+                                      handleSetFileRole(file.id, next);
+                                    }}
+                                    title={
+                                      detectFileRole(file) === 'LHP' 
+                                        ? "Peran: LHP (Klik untuk ganti ke ST)" 
+                                        : detectFileRole(file) === 'ST' 
+                                          ? "Peran: Surat Tugas (Klik untuk hapus)" 
+                                          : "Tandai sebagai LHP / Surat Tugas (ST)"
+                                    }
+                                    className={`p-1.5 rounded-md transition-all ${
+                                      detectFileRole(file) === 'LHP'
+                                        ? 'text-emerald-400 bg-emerald-500/15'
+                                        : detectFileRole(file) === 'ST'
+                                          ? 'text-cyan-400 bg-cyan-500/15'
+                                          : 'text-[var(--text-muted)] hover:text-emerald-400 hover:bg-[var(--hover-fill)]'
+                                    }`}
+                                  >
+                                    <BadgeCheck size={14}/>
+                                  </button>
+                                )}
+                                <button onClick={(e) => { e.stopPropagation(); openTagModal(file); }} title="Kelola Label" className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--hover-fill)] transition-all">
+                                  <Tag size={14}/>
+                                </button>
                                 {!file.mimeType.includes('folder') && (
                                   <button onClick={(e) => { e.stopPropagation(); openMoveModal(file); }} title="Pindahkan Dokumen" className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-amber-400 hover:bg-[var(--hover-fill)] transition-all"><FolderInput size={14}/></button>
                                 )}
@@ -5057,29 +5150,31 @@ export default function Dashboard() {
                   })()}
                 </div>
 
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] text-[var(--text-muted)] hidden sm:inline">Tetapkan:</span>
-                  <button
-                    onClick={() => handleSetFileRole(selectedFile.id, detectFileRole(selectedFile) === 'LHP' ? 'none' : 'LHP')}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all ${
-                      detectFileRole(selectedFile) === 'LHP'
-                        ? 'bg-emerald-500 text-slate-950 shadow-sm'
-                        : 'bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-emerald-400 hover:bg-emerald-500/10 border border-[var(--border-line)]'
-                    }`}
-                  >
-                    <FileCheck size={12} /> LHP
-                  </button>
-                  <button
-                    onClick={() => handleSetFileRole(selectedFile.id, detectFileRole(selectedFile) === 'ST' ? 'none' : 'ST')}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all ${
-                      detectFileRole(selectedFile) === 'ST'
-                        ? 'bg-cyan-500 text-slate-950 shadow-sm'
-                        : 'bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-cyan-400 hover:bg-cyan-500/10 border border-[var(--border-line)]'
-                    }`}
-                  >
-                    <ClipboardCheck size={12} /> Surat Tugas
-                  </button>
-                </div>
+                {userRole === 'admin' && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-[var(--text-muted)] hidden sm:inline">Tetapkan:</span>
+                    <button
+                      onClick={() => handleSetFileRole(selectedFile.id, detectFileRole(selectedFile) === 'LHP' ? 'none' : 'LHP')}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all ${
+                        detectFileRole(selectedFile) === 'LHP'
+                          ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                          : 'bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-emerald-400 hover:bg-emerald-500/10 border border-[var(--border-line)]'
+                      }`}
+                    >
+                      <FileCheck size={12} /> LHP
+                    </button>
+                    <button
+                      onClick={() => handleSetFileRole(selectedFile.id, detectFileRole(selectedFile) === 'ST' ? 'none' : 'ST')}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all ${
+                        detectFileRole(selectedFile) === 'ST'
+                          ? 'bg-cyan-500 text-slate-950 shadow-sm'
+                          : 'bg-[var(--hover-fill)] text-[var(--text-muted)] hover:text-cyan-400 hover:bg-cyan-500/10 border border-[var(--border-line)]'
+                      }`}
+                    >
+                      <ClipboardCheck size={12} /> Surat Tugas
+                    </button>
+                  </div>
+                )}
               </div>
               
               {/* PREVIEW TAGS BAR */}
@@ -5100,27 +5195,31 @@ export default function Dashboard() {
                         >
                           <span className={`w-1.5 h-1.5 rounded-full ${style.dot}`}></span>
                           {tag}
-                          <button
-                            onClick={() => {
-                              const remaining = getFileTags(selectedFile).filter(t => t.toLowerCase() !== tag.toLowerCase());
-                              handleSaveFileTags(selectedFile.id, selectedFile.name, remaining);
-                            }}
-                            title="Hapus label ini"
-                            className="hover:opacity-70 ml-0.5 p-0.5 rounded-full"
-                          >
-                            <X size={11} />
-                          </button>
+                          {userRole === 'admin' && (
+                            <button
+                              onClick={() => {
+                                const remaining = getFileTags(selectedFile).filter(t => t.toLowerCase() !== tag.toLowerCase());
+                                handleSaveFileTags(selectedFile.id, selectedFile.name, remaining);
+                              }}
+                              title="Hapus label ini"
+                              className="hover:opacity-70 ml-0.5 p-0.5 rounded-full"
+                            >
+                              <X size={11} />
+                            </button>
+                          )}
                         </span>
                       );
                     })
                   )}
                 </div>
-                <button
-                  onClick={() => openTagModal(selectedFile)}
-                  className="text-xs text-[var(--accent)] hover:underline flex items-center gap-1 font-semibold px-2.5 py-1 rounded-lg hover:bg-[var(--accent)]/10 transition-colors"
-                >
-                  <Plus size={13} /> Kelola Label
-                </button>
+                {userRole === 'admin' && (
+                  <button
+                    onClick={() => openTagModal(selectedFile)}
+                    className="text-xs text-[var(--accent)] hover:underline flex items-center gap-1 font-semibold px-2.5 py-1 rounded-lg hover:bg-[var(--accent)]/10 transition-colors"
+                  >
+                    <Plus size={13} /> Kelola Label
+                  </button>
+                )}
               </div>
 
               {/* Preview Content */}

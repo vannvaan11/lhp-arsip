@@ -29,6 +29,10 @@ function getAuth() {
 
 export async function POST(req: NextRequest) {
   try {
+    const role = req.headers.get('x-user-role');
+    if (role !== 'admin') {
+      return NextResponse.json({ error: 'Akses ditolak: Hanya Administrator yang dapat mengunggah berkas.' }, { status: 403 });
+    }
     const formData = await req.formData();
     const file = formData.get('file') as File;
     const parentId = formData.get('parentId') as string;

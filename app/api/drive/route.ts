@@ -113,6 +113,10 @@ export async function GET(request: Request) {
 // Fitur Rename (Ganti Nama)
 export async function PATCH(request: Request) {
   try {
+    const role = request.headers.get('x-user-role');
+    if (role !== 'admin') {
+      return NextResponse.json({ error: 'Akses ditolak: Hanya Administrator yang dapat mengubah nama berkas.' }, { status: 403 });
+    }
     const { fileId, newName } = await request.json();
     if (!fileId || !newName || !newName.trim()) {
       return NextResponse.json({ error: 'fileId dan newName wajib diisi' }, { status: 400 });
@@ -156,6 +160,10 @@ export async function PATCH(request: Request) {
 // Fitur Delete (Hapus Berkas)
 export async function DELETE(request: Request) {
   try {
+    const role = request.headers.get('x-user-role');
+    if (role !== 'admin') {
+      return NextResponse.json({ error: 'Akses ditolak: Hanya Administrator yang dapat menghapus berkas.' }, { status: 403 });
+    }
     const { searchParams } = new URL(request.url);
     const fileId = searchParams.get('fileId');
 

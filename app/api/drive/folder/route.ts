@@ -28,6 +28,10 @@ function getAuth() {
 
 export async function POST(request: Request) {
   try {
+    const role = request.headers.get('x-user-role');
+    if (role !== 'admin') {
+      return NextResponse.json({ error: 'Akses ditolak: Hanya Administrator yang dapat membuat folder.' }, { status: 403 });
+    }
     const { name, parentId } = await request.json();
 
     if (!name || !name.trim()) {

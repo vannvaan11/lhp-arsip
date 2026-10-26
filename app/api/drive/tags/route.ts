@@ -63,6 +63,10 @@ export async function GET(request: Request) {
 // POST: Update tags for a file
 export async function POST(request: Request) {
   try {
+    const role = request.headers.get('x-user-role');
+    if (role !== 'admin') {
+      return NextResponse.json({ error: 'Akses ditolak: Hanya Administrator yang dapat mengubah label.' }, { status: 403 });
+    }
     const { fileId, tags } = await request.json();
 
     if (!fileId) {
