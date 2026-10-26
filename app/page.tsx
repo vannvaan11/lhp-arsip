@@ -2871,14 +2871,18 @@ export default function Dashboard() {
           </nav>
 
           <div className="px-3 lg:px-4 mb-2 space-y-1">
-            <button onClick={() => setIsThemeModalOpen(true)} className="w-full flex items-center gap-3 p-3 lg:px-4 lg:py-3 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--hover-fill)] transition-all">
-              <Palette size={18} />
+            <button 
+              onClick={() => setIsThemeModalOpen(true)} 
+              title="Kustomisasi Tema, Warna & Tampilan"
+              className="w-full flex items-center justify-center lg:justify-start gap-3 p-3 lg:px-4 lg:py-3 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--hover-fill)] transition-all group"
+            >
+              <Palette size={18} className="text-[var(--accent)] transition-transform group-hover:scale-110" />
               <span className="hidden lg:block text-sm font-medium">Tema & Tampilan</span>
             </button>
 
             <button 
               onClick={() => { playHaptic('pop'); setIsGlossaryModalOpen(true); }} 
-              className="w-full flex items-center gap-3 p-3 lg:px-4 lg:py-3 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--hover-fill)] transition-all group"
+              className="w-full flex items-center justify-center lg:justify-start gap-3 p-3 lg:px-4 lg:py-3 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--hover-fill)] transition-all group"
               title="Kamus Regulasi & Glosarium Hukum APIP (Ctrl+G)"
             >
               <BookOpen size={18} className="text-[var(--accent)] transition-transform group-hover:scale-110" />
@@ -2888,7 +2892,7 @@ export default function Dashboard() {
             {/* MODE TOGGLES */}
             <button 
               onClick={() => setIsPresentationMode(!isPresentationMode)} 
-              className={`w-full flex items-center gap-3 p-3 lg:px-4 lg:py-3 rounded-xl transition-all ${isPresentationMode ? 'bg-blue-500/10 text-blue-400 font-semibold' : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--hover-fill)]'}`}
+              className={`w-full flex items-center justify-center lg:justify-start gap-3 p-3 lg:px-4 lg:py-3 rounded-xl transition-all ${isPresentationMode ? 'bg-blue-500/10 text-blue-400 font-semibold' : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--hover-fill)]'}`}
               title="Mode Rapat / Presentasi"
             >
               <Monitor size={18} />
@@ -2897,7 +2901,7 @@ export default function Dashboard() {
 
             <button 
               onClick={() => { const newVal = !isCompactMode; setIsCompactMode(newVal); localStorage.setItem('isCompactMode', String(newVal)); }} 
-              className={`w-full flex items-center gap-3 p-3 lg:px-4 lg:py-3 rounded-xl transition-all ${isCompactMode ? 'bg-purple-500/10 text-purple-400 font-semibold' : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--hover-fill)]'}`}
+              className={`w-full flex items-center justify-center lg:justify-start gap-3 p-3 lg:px-4 lg:py-3 rounded-xl transition-all ${isCompactMode ? 'bg-purple-500/10 text-purple-400 font-semibold' : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--hover-fill)]'}`}
               title="Mode Compact / Padat"
             >
               <Rows3 size={18} />
@@ -2907,7 +2911,7 @@ export default function Dashboard() {
             {userRole === 'admin' && (
               <button 
                 onClick={() => { const newVal = !isMaintenanceMode; setIsMaintenanceMode(newVal); localStorage.setItem('isMaintenanceMode', String(newVal)); }} 
-                className={`w-full flex items-center gap-3 p-3 lg:px-4 lg:py-3 rounded-xl transition-all ${isMaintenanceMode ? 'bg-amber-500/10 text-amber-400 font-semibold' : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--hover-fill)]'}`}
+                className={`w-full flex items-center justify-center lg:justify-start gap-3 p-3 lg:px-4 lg:py-3 rounded-xl transition-all ${isMaintenanceMode ? 'bg-amber-500/10 text-amber-400 font-semibold' : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--hover-fill)]'}`}
                 title="Mode Pemeliharaan (Kunci Sistem)"
               >
                 <Wrench size={18} />
@@ -2925,7 +2929,7 @@ export default function Dashboard() {
                     }
                   });
                 }} 
-                className="w-full flex items-center gap-3 p-3 lg:px-4 lg:py-3.5 rounded-xl text-[var(--accent)] hover:bg-[var(--accent)]/10 transition-all border border-dashed border-[var(--accent)]"
+                className="w-full flex items-center justify-center lg:justify-start gap-3 p-3 lg:px-4 lg:py-3.5 rounded-xl text-[var(--accent)] hover:bg-[var(--accent)]/10 transition-all border border-dashed border-[var(--accent)]"
               >
                 <Smartphone size={20} />
                 <span className="hidden lg:block text-sm font-medium">Install Aplikasi</span>
@@ -3259,21 +3263,6 @@ export default function Dashboard() {
                 className="p-2.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--hover-fill)] transition-all"
               >
                 {isDarkMode ? <Sun size={16}/> : <Moon size={16}/>}
-              </button>
-              <button 
-                onClick={() => setIsThemeModalOpen(true)} 
-                title="Kustomisasi Tema, Warna & Tampilan" 
-                className="p-2.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--hover-fill)] transition-all"
-              >
-                <Palette size={16}/>
-              </button>
-              <button 
-                onClick={() => { playHaptic('pop'); setIsGlossaryModalOpen(true); }} 
-                title="Kamus Regulasi & Glosarium Hukum (Ctrl+G)" 
-                className="p-2.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--hover-fill)] transition-all flex items-center gap-1.5"
-              >
-                <BookOpen size={16}/>
-                <span className="hidden xl:inline text-xs font-semibold text-[var(--text-muted)]">Kamus Hukum</span>
               </button>
               {!isPresentationMode && (
                 <>
